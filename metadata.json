@@ -1,5 +1,5 @@
 {
   "name": "Zongnan Bao - Portfolio",
-  "description": "A high-performance, editorial-style portfolio with scattered grid layouts, oversized typography, and smooth GSAP motion.",
+  "description": "Single-page gallery mirroring the live portfolio layout with masonry photography grid and concise project info.",
   "requestFramePermissions": []
 }
