@@ -29,6 +29,7 @@ const getGridClasses = (mobile: GridPosition, desktop: GridPosition) => {
   if (d.colSpan) classes += `md:${d.colSpan} `;
   if (d.rowStart) classes += `md:${d.rowStart} `;
   if (d.marginTop) classes += `md:${d.marginTop} `;
+  if (d.marginBottom) classes += `md:${d.marginBottom} `;
   if (d.alignSelf) classes += `md:self-${d.alignSelf} `;
   if (d.justifySelf) classes += `md:justify-self-${d.justifySelf} `;
   
@@ -55,7 +56,6 @@ export const BlockRenderer: React.FC<BlockRendererProps> = ({ block, className =
     if (!el) return;
 
     // 1. Entrance Animation (General)
-    // Only animate entrance if it's NOT fixed, fixed elements are there from start usually
     if (!block.isFixed) {
        gsap.fromTo(el, 
         { opacity: 0, y: 60 },
@@ -66,20 +66,34 @@ export const BlockRenderer: React.FC<BlockRendererProps> = ({ block, className =
           ease: 'power3.out',
           scrollTrigger: {
             trigger: el,
-            start: 'top 95%', // Trigger slightly earlier
+            start: 'top 95%',
             toggleActions: 'play none none reverse'
           }
         }
       );
     }
 
-    // 2. Image Specific Reveals (Clip Path + Scale)
+    // 2. Fixed Element Fade Out
+    // This prevents the fixed name from cluttering the bottom of the page
+    if (block.isFixed) {
+      gsap.to(el, {
+        opacity: 0,
+        ease: 'power1.out',
+        scrollTrigger: {
+          trigger: document.body,
+          start: 'top top',
+          end: '70% bottom', // Start fading out earlier, finish before footer fully dominates
+          scrub: 1,
+        }
+      });
+    }
+
+    // 3. Image Specific Reveals (Clip Path + Scale)
     if (block.type === 'image' && content && img) {
-      // Reveal mask
       gsap.fromTo(content,
-        { clipPath: 'inset(10% 10% 10% 10%)' }, // Start smaller
+        { clipPath: 'inset(10% 10% 10% 10%)' },
         {
-          clipPath: 'inset(0% 0% 0% 0%)', // Expand to full
+          clipPath: 'inset(0% 0% 0% 0%)',
           duration: 1.5,
           ease: 'power3.out',
           scrollTrigger: {
@@ -89,7 +103,6 @@ export const BlockRenderer: React.FC<BlockRendererProps> = ({ block, className =
         }
       );
 
-      // Scale Image inside container
       gsap.fromTo(img,
         { scale: 1.3 },
         {
@@ -104,7 +117,7 @@ export const BlockRenderer: React.FC<BlockRendererProps> = ({ block, className =
       );
     }
 
-    // 3. Parallax Effect (Vertical Movement)
+    // 4. Parallax Effect
     if (block.parallaxSpeed && !block.isFixed) {
       gsap.to(content || el, {
         y: -100 * block.parallaxSpeed,
@@ -113,7 +126,7 @@ export const BlockRenderer: React.FC<BlockRendererProps> = ({ block, className =
           trigger: el,
           start: 'top bottom',
           end: 'bottom top',
-          scrub: true // Smooth scrubbing
+          scrub: true
         }
       });
     }
@@ -121,7 +134,6 @@ export const BlockRenderer: React.FC<BlockRendererProps> = ({ block, className =
   }, [block.parallaxSpeed, block.type, block.isFixed]);
 
   const gridClasses = getGridClasses(block.mobile, block.desktop);
-  // Merge generated grid classes with any passed via props (like fixed positioning overrides)
   const finalClasses = `${gridClasses} ${className}`;
 
   if (block.type === 'spacer') {
@@ -130,8 +142,9 @@ export const BlockRenderer: React.FC<BlockRendererProps> = ({ block, className =
 
   if (block.type === 'hero-text') {
     return (
-      <div ref={containerRef} className={`${finalClasses} mix-blend-difference pointer-events-none`}>
-        <h1 className="text-[14vw] md:text-[13vw] leading-[0.8] font-bold tracking-tighter uppercase text-[#111] break-words">
+      <div ref={containerRef} className={`${finalClasses} pointer-events-none`}>
+        {/* Reduced text size to prevent wrapping and overpowering layout */}
+        <h1 className="text-[10vw] md:text-[9vw] leading-[0.8] font-bold tracking-tighter uppercase text-[#111] break-words">
           {block.content}
         </h1>
       </div>

@@ -19,7 +19,7 @@ const App: React.FC = () => {
   };
 
   return (
-    <div className="relative min-h-screen w-full bg-[#faf9f6] text-[#111] overflow-hidden selection:bg-black selection:text-white">
+    <div className="relative min-h-screen w-full bg-[#faf9f6] text-[#111] overflow-x-hidden selection:bg-black selection:text-white">
       <Menu onNavigate={setCurrentPage} />
       
       <main className="w-full">
