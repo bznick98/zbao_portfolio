@@ -18,7 +18,7 @@ export const Menu: React.FC<MenuProps> = ({ onNavigate }) => {
       });
       gsap.fromTo('.menu-item', 
         { y: 50, opacity: 0 },
-        { y: 0, opacity: 1, duration: 0.5, stagger: 0.1, delay: 0.2 }
+        { y: 0, opacity: 1, duration: 0.5, stagger: 0, delay: 0.05 }
       );
     } else {
       gsap.to('.menu-overlay', { 
@@ -57,11 +57,11 @@ export const Menu: React.FC<MenuProps> = ({ onNavigate }) => {
         </button>
 
         <div className="flex flex-col items-center gap-8 md:gap-12 text-center">
-          {['Work', 'Profile', 'Journal', 'Contact'].map((item) => (
+          {['Work', 'Profile', 'Contact'].map((item) => (
             <button 
               key={item} 
               onClick={() => handleNavClick(item)}
-              className="menu-item text-5xl md:text-8xl font-serif hover:italic transition-all duration-300"
+              className="menu-item text-5xl md:text-8xl font-serif hover:text-yellow-400 transition-all duration-300"
             >
               {item}
             </button>
@@ -69,7 +69,7 @@ export const Menu: React.FC<MenuProps> = ({ onNavigate }) => {
         </div>
         
         <div className="menu-item absolute bottom-12 text-sm uppercase tracking-widest opacity-50">
-          © 2024 Zongnan Bao
+          © 2026 Zongnan Bao
         </div>
       </div>
     </>

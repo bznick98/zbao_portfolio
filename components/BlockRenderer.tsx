@@ -45,36 +45,13 @@ const getGridClasses = (mobile: GridPosition, desktop: GridPosition) => {
 
 export const BlockRenderer: React.FC<BlockRendererProps> = ({ block, className = '' }) => {
   const containerRef = useRef<HTMLDivElement>(null);
-  const contentRef = useRef<HTMLDivElement>(null);
-  const imageRef = useRef<HTMLImageElement>(null);
-
+  
   useLayoutEffect(() => {
     const el = containerRef.current;
-    const content = contentRef.current;
-    const img = imageRef.current;
     
     if (!el) return;
 
-    // 1. Entrance Animation (General)
-    if (!block.isFixed) {
-       gsap.fromTo(el, 
-        { opacity: 0, y: 60 },
-        { 
-          opacity: 1, 
-          y: 0, 
-          duration: 1, 
-          ease: 'power3.out',
-          scrollTrigger: {
-            trigger: el,
-            start: 'top 95%',
-            toggleActions: 'play none none reverse'
-          }
-        }
-      );
-    }
-
-    // 2. Fixed Element Fade Out
-    // This prevents the fixed name from cluttering the bottom of the page
+    // 1. Fixed Element Fade Out (Keep this for the Header Name)
     if (block.isFixed) {
       gsap.to(el, {
         opacity: 0,
@@ -82,44 +59,15 @@ export const BlockRenderer: React.FC<BlockRendererProps> = ({ block, className =
         scrollTrigger: {
           trigger: document.body,
           start: 'top top',
-          end: '70% bottom', // Start fading out earlier, finish before footer fully dominates
+          end: '70% bottom',
           scrub: 1,
         }
       });
     }
 
-    // 3. Image Specific Reveals (Clip Path + Scale)
-    if (block.type === 'image' && content && img) {
-      gsap.fromTo(content,
-        { clipPath: 'inset(10% 10% 10% 10%)' },
-        {
-          clipPath: 'inset(0% 0% 0% 0%)',
-          duration: 1.5,
-          ease: 'power3.out',
-          scrollTrigger: {
-            trigger: el,
-            start: 'top 85%',
-          }
-        }
-      );
-
-      gsap.fromTo(img,
-        { scale: 1.3 },
-        {
-          scale: 1,
-          duration: 1.5,
-          ease: 'power3.out',
-          scrollTrigger: {
-            trigger: el,
-            start: 'top 85%',
-          }
-        }
-      );
-    }
-
-    // 4. Parallax Effect
+    // 2. Parallax Effect (Keep subtle movement)
     if (block.parallaxSpeed && !block.isFixed) {
-      gsap.to(content || el, {
+      gsap.to(el, {
         y: -100 * block.parallaxSpeed,
         ease: 'none',
         scrollTrigger: {
@@ -131,7 +79,7 @@ export const BlockRenderer: React.FC<BlockRendererProps> = ({ block, className =
       });
     }
 
-  }, [block.parallaxSpeed, block.type, block.isFixed]);
+  }, [block.parallaxSpeed, block.isFixed]);
 
   const gridClasses = getGridClasses(block.mobile, block.desktop);
   const finalClasses = `${gridClasses} ${className}`;
@@ -143,8 +91,14 @@ export const BlockRenderer: React.FC<BlockRendererProps> = ({ block, className =
   if (block.type === 'hero-text') {
     return (
       <div ref={containerRef} className={`${finalClasses} pointer-events-none`}>
-        {/* Reduced text size to prevent wrapping and overpowering layout */}
-        <h1 className="text-[10vw] md:text-[9vw] leading-[0.8] font-bold tracking-tighter uppercase text-[#111] break-words">
+        {/* 
+           VISUAL COLOR LOGIC:
+           To appear BLACK on a LIGHT background using 'mix-blend-difference', the text color must be WHITE (or Light).
+           Math: | Light BG (250) - White Text (255) | = Dark Result (5).
+           
+           If we used Black Text (0): | Light BG (250) - Black Text (0) | = Light Result (250) -> This would look White.
+        */}
+        <h1 className="text-[10vw] md:text-[9vw] leading-normal font-normal uppercase text-black mix-blend-difference break-words">
           {block.content}
         </h1>
       </div>
@@ -153,12 +107,14 @@ export const BlockRenderer: React.FC<BlockRendererProps> = ({ block, className =
 
   if (block.type === 'text') {
     return (
-      <div ref={containerRef} className={`${finalClasses} flex flex-col gap-4 mix-blend-multiply`}>
-        <h2 className="text-5xl md:text-7xl font-serif leading-tight">
+      <div ref={containerRef} className={`${finalClasses} flex flex-col gap-4`}>
+        {/* Standard text is kept pure black (#111) without blend modes to ensure high contrast 
+            against the background, creating the necessary "Dark" target for the Hero text to invert against. */}
+        <h2 className="text-5xl md:text-7xl font-serif leading-tight text-[#111]">
           {block.content}
         </h2>
         {block.caption && (
-          <p className="font-mono text-sm tracking-wide uppercase opacity-60">
+          <p className="font-mono text-sm tracking-wide uppercase opacity-60 text-[#111]">
             {block.caption}
           </p>
         )}
@@ -167,27 +123,39 @@ export const BlockRenderer: React.FC<BlockRendererProps> = ({ block, className =
   }
 
   if (block.type === 'image') {
+    const aspectClass = block.customAspectRatio ? '' : (block.aspectRatio || 'aspect-[3/4]');
+    const inlineStyle = block.customAspectRatio ? { aspectRatio: block.customAspectRatio } : undefined;
+
     return (
       <div ref={containerRef} className={finalClasses}>
-        <div ref={contentRef} className="group relative overflow-hidden">
-          <div className={`w-full ${block.aspectRatio || 'aspect-[3/4]'} overflow-hidden bg-[#e5e5e5]`}>
-            <img 
-              ref={imageRef}
-              src={block.src} 
-              alt={block.alt}
-              className="w-full h-full object-cover will-change-transform"
-              loading="lazy"
-            />
+        <div className="group relative">
+          <div 
+            className={`w-full ${aspectClass} overflow-hidden bg-[#e5e5e5] relative transition-all duration-500`}
+            style={inlineStyle}
+          >
+            {block.src ? (
+              <img 
+                src={block.src} 
+                alt={block.alt}
+                className="w-full h-full object-cover transition-opacity duration-700 opacity-0"
+                loading="lazy"
+                onLoad={(e) => (e.target as HTMLImageElement).classList.remove('opacity-0')}
+              />
+            ) : (
+              <div className="w-full h-full bg-[#e5e5e5] animate-pulse" />
+            )}
           </div>
           
-          <div className="mt-4 flex flex-col gap-1">
-            {block.caption && (
-               <span className="font-serif text-lg md:text-xl italic">{block.caption}</span>
-            )}
-            {block.subCaption && (
-               <span className="font-sans text-xs uppercase tracking-widest opacity-50">{block.subCaption}</span>
-            )}
-          </div>
+          {(block.caption || block.subCaption) && (
+            <div className="mt-4 flex flex-col gap-1">
+              {block.caption && (
+                 <span className="font-serif text-lg md:text-xl italic">{block.caption}</span>
+              )}
+              {block.subCaption && (
+                 <span className="font-sans text-xs uppercase tracking-widest opacity-50">{block.subCaption}</span>
+              )}
+            </div>
+          )}
         </div>
       </div>
     );

@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Zongnan Bao - Portfolio</title>
     <meta name="description" content="Editorial portfolio layout" />
-
+    
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
@@ -13,8 +13,11 @@
         theme: {
           extend: {
             fontFamily: {
-              sans: ['Inter', 'sans-serif'],
-              serif: ['Playfair Display', 'serif'],
+              sans: ['"Rubik Spray Paint"', '"Yuji Boku"', 'serif'],
+              serif: ['"Rubik Spray Paint"', '"Yuji Boku"', 'serif'],
+              mono: ['"Rubik Spray Paint"', '"Yuji Boku"', 'serif'],
+              cormorant: ['"Cormorant Upright"', 'serif'],
+              rubik: ['"Rubik"', 'sans-serif'],
             },
             colors: {
               black: '#111111',
@@ -22,7 +25,7 @@
               offwhite: '#faf9f6',
             },
             screens: {
-              xs: '400px',
+              'xs': '400px',
             }
           }
         }
@@ -32,19 +35,20 @@
     <!-- Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Playfair+Display:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap" rel="stylesheet">
-
+    <link href="https://fonts.googleapis.com/css2?family=Cormorant+Upright:wght@300;400;500;600;700&family=Rubik:ital,wght@0,300..900;1,300..900&family=Rubik+Spray+Paint&family=Yuji+Boku&display=swap" rel="stylesheet">
+    
     <style>
       body {
         background-color: #faf9f6;
         color: #111111;
         overflow-x: hidden;
+        font-family: "Rubik Spray Paint", "Yuji Boku", serif;
       }
       /* Smooth scrolling setup */
       html {
         scroll-behavior: smooth;
       }
-
+      
       .hide-scrollbar::-webkit-scrollbar {
         display: none;
       }
@@ -53,22 +57,21 @@
         scrollbar-width: none;
       }
     </style>
-
-    <script type="importmap">
-    {
-      "imports": {
-        "react": "https://esm.sh/react@^19.2.3",
-        "react-dom/": "https://esm.sh/react-dom@^19.2.3/",
-        "react/": "https://esm.sh/react@^19.2.3/",
-        "lucide-react": "https://esm.sh/lucide-react@^0.562.0",
-        "gsap": "https://esm.sh/gsap@^3.14.2",
-        "gsap/": "https://esm.sh/gsap@^3.14.2/"
-      }
-    }
-    </script>
-  </head>
+  <script type="importmap">
+{
+  "imports": {
+    "react": "https://esm.sh/react@^19.2.3",
+    "react-dom/": "https://esm.sh/react-dom@^19.2.3/",
+    "react/": "https://esm.sh/react@^19.2.3/",
+    "lucide-react": "https://esm.sh/lucide-react@^0.562.0",
+    "gsap": "https://esm.sh/gsap@^3.14.2",
+    "gsap/": "https://esm.sh/gsap@^3.14.2/",
+    "@google/genai": "https://esm.sh/@google/genai@^1.34.0"
+  }
+}
+</script>
+</head>
   <body>
     <div id="root"></div>
-    <script type="module" src="/index.tsx"></script>
   </body>
 </html>

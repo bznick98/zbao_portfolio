@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import { Menu } from './components/Menu';
 import { Work } from './pages/Work';
 import { Profile } from './pages/Profile';
-import { Journal } from './pages/Journal';
 import { Contact } from './pages/Contact';
 
 const App: React.FC = () => {
@@ -12,7 +11,6 @@ const App: React.FC = () => {
     switch (currentPage) {
       case 'Work': return <Work />;
       case 'Profile': return <Profile />;
-      case 'Journal': return <Journal />;
       case 'Contact': return <Contact />;
       default: return <Work />;
     }

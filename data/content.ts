@@ -31,20 +31,29 @@ export const BLOCKS: ContentBlock[] = [
     desktop: { colSpan: 'col-span-12', marginBottom: 'h-[30vh]' },
   },
 
-  // --- ROW 1: Image (Right overlap) ---
+  // --- Denser Layout: Added more image blocks interspersed ---
+
+  // Image A (New - Left Top) -> Increased size
+  {
+    id: 'img-extra-1',
+    type: 'image',
+    aspectRatio: 'aspect-[3/4]',
+    mobile: { colSpan: 'col-span-12', marginBottom: 'mb-8' },
+    desktop: { colStart: 'col-start-2', colSpan: 'col-span-5', marginTop: '-mt-24', zIndex: 20 },
+    parallaxSpeed: 0.15
+  },
+
+  // Image 1 (Existing - Right Top) -> Increased size
   {
     id: 'img-1',
     type: 'image',
-    src: 'https://picsum.photos/seed/bao1/600/800',
-    alt: 'Portrait of a model',
-    caption: 'The New Is Born Already Old, 2024',
     aspectRatio: 'aspect-[3/4]',
     mobile: { colSpan: 'col-span-12', marginBottom: 'mb-12' },
-    desktop: { colStart: 'col-start-8', colSpan: 'col-span-4', marginTop: '-mt-12', zIndex: 10 },
+    desktop: { colStart: 'col-start-7', colSpan: 'col-span-6', marginTop: '-mt-12', zIndex: 10 },
     parallaxSpeed: 0.1
   },
 
-  // --- ROW 3: Large Serif Title (Left) ---
+  // Text 1
   {
     id: 'text-realm',
     type: 'text',
@@ -55,58 +64,88 @@ export const BLOCKS: ContentBlock[] = [
     parallaxSpeed: 0.05
   },
 
-  // --- ROW 3: Image (Center/Right) ---
+  // Image B (New - Right, slightly below text) -> Increased size
+  {
+    id: 'img-extra-2',
+    type: 'image',
+    aspectRatio: 'aspect-[4/5]',
+    mobile: { colSpan: 'col-span-12', marginBottom: 'mb-12' },
+    desktop: { colStart: 'col-start-8', colSpan: 'col-span-5', marginTop: 'mt-12', zIndex: 5 },
+    parallaxSpeed: 0.08
+  },
+
+  // Image 2 (Existing - Center Right) -> Increased size
   {
     id: 'img-2',
     type: 'image',
-    src: 'https://picsum.photos/seed/bao2/800/600',
-    alt: 'Abstract landscape',
-    caption: 'Smiles',
-    subCaption: 'Politic is Love',
     aspectRatio: 'aspect-[4/3]',
     mobile: { colSpan: 'col-span-12', marginBottom: 'mb-12' },
-    desktop: { colStart: 'col-start-8', colSpan: 'col-span-4', marginTop: 'mt-12', zIndex: 10 },
+    desktop: { colStart: 'col-start-5', colSpan: 'col-span-7', marginTop: 'mt-24', zIndex: 10 },
     parallaxSpeed: 0.15
   },
 
-  // --- ROW 4: Image (Far Left) ---
+  // Image C (New - Left, small) -> Increased size
   {
-    id: 'img-3',
+    id: 'img-extra-3',
     type: 'image',
-    src: 'https://picsum.photos/seed/bao3/600/800',
-    alt: 'Black and white jump',
-    caption: 'But If You See, 2020',
-    aspectRatio: 'aspect-[3/4]',
+    aspectRatio: 'aspect-[1/1]',
     mobile: { colSpan: 'col-span-12', marginBottom: 'mb-8' },
-    desktop: { colStart: 'col-start-1', colSpan: 'col-span-3', marginTop: 'mt-40', zIndex: 20 },
+    desktop: { colStart: 'col-start-1', colSpan: 'col-span-4', marginTop: 'mt-12', zIndex: 20 },
     parallaxSpeed: 0.2
   },
 
-  // --- ROW 4: Centered Text ---
+  // Image 3 (Existing - Far Left) -> Increased size
+  {
+    id: 'img-3',
+    type: 'image',
+    aspectRatio: 'aspect-[3/4]',
+    mobile: { colSpan: 'col-span-12', marginBottom: 'mb-8' },
+    desktop: { colStart: 'col-start-2', colSpan: 'col-span-5', marginTop: 'mt-24', zIndex: 20 },
+    parallaxSpeed: 0.2
+  },
+
+  // Text 2 (Centered)
   {
     id: 'text-olha',
     type: 'text',
     content: 'Olha.',
     caption: 'Look closely',
     mobile: { colSpan: 'col-span-12', marginBottom: 'mb-12', justifySelf: 'center' },
-    desktop: { colStart: 'col-start-5', colSpan: 'col-span-4', justifySelf: 'center', marginTop: 'mt-64', zIndex: 10 },
+    desktop: { colStart: 'col-start-5', colSpan: 'col-span-4', justifySelf: 'center', marginTop: 'mt-48', zIndex: 10 },
     parallaxSpeed: 0.05
   },
 
-  // --- ROW 5: Large Vertical Image (Right) ---
+  // Image D (New - Right/Center strip) -> Increased size
+  {
+    id: 'img-extra-4',
+    type: 'image',
+    aspectRatio: 'aspect-[2/3]',
+    mobile: { colSpan: 'col-span-12', marginBottom: 'mb-12' },
+    desktop: { colStart: 'col-start-8', colSpan: 'col-span-4', marginTop: '-mt-32', zIndex: 5 },
+    parallaxSpeed: 0.12
+  },
+
+  // Image 4 (Existing - Large Vertical Right) -> Increased size
   {
     id: 'img-4',
     type: 'image',
-    src: 'https://picsum.photos/seed/bao4/500/900',
-    alt: 'Abstract color field',
-    caption: 'When I had nothing, I wanted.',
     aspectRatio: 'aspect-[9/16]',
     mobile: { colSpan: 'col-span-12', marginBottom: 'mb-16' },
-    desktop: { colStart: 'col-start-9', colSpan: 'col-span-3', marginTop: 'mt-20', zIndex: 10 },
+    desktop: { colStart: 'col-start-8', colSpan: 'col-span-5', marginTop: 'mt-32', zIndex: 10 },
     parallaxSpeed: 0.25
   },
 
-  // --- ROW 6: Big Text (Bottom Left) ---
+  // Image E (New - Center/Left density) -> Increased size
+  {
+    id: 'img-extra-5',
+    type: 'image',
+    aspectRatio: 'aspect-[4/3]',
+    mobile: { colSpan: 'col-span-12', marginBottom: 'mb-12' },
+    desktop: { colStart: 'col-start-1', colSpan: 'col-span-6', marginTop: 'mt-12', zIndex: 15 },
+    parallaxSpeed: 0.1
+  },
+
+  // Text 3
   {
     id: 'text-just-in-time',
     type: 'text',
@@ -116,20 +155,17 @@ export const BLOCKS: ContentBlock[] = [
     parallaxSpeed: 0.05
   },
   
-   // --- ROW 6: Landscape Image ---
+  // Image 5 (Existing - Landscape) -> Increased size
   {
     id: 'img-5',
     type: 'image',
-    src: 'https://picsum.photos/seed/bao5/900/500',
-    alt: 'Horizon line',
-    caption: 'Everything I know about love, I invented.',
     aspectRatio: 'aspect-[16/9]',
     mobile: { colSpan: 'col-span-12', marginBottom: 'mb-24' },
-    desktop: { colStart: 'col-start-6', colSpan: 'col-span-6', marginTop: 'mt-48', zIndex: 10 },
+    desktop: { colStart: 'col-start-3', colSpan: 'col-span-10', marginTop: 'mt-24', zIndex: 10 },
     parallaxSpeed: 0.1
   },
   
-  // --- ROW 7: Footer-ish Text ---
+  // Footer Text
   {
     id: 'text-compassion',
     type: 'hero-text',
@@ -138,7 +174,7 @@ export const BLOCKS: ContentBlock[] = [
     desktop: { colStart: 'col-start-4', colSpan: 'col-span-9', marginTop: 'mt-40', zIndex: 10 },
     parallaxSpeed: 0
   },
-    {
+  {
     id: 'text-outweighed',
     type: 'hero-text',
     content: 'Outweighed',
