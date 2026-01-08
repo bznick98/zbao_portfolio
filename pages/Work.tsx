@@ -4,22 +4,22 @@ import { BlockRenderer } from '../components/BlockRenderer';
 import { ContentBlock } from '../types';
 import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
-import { GoogleGenAI, Type } from "@google/genai";
-
 gsap.registerPlugin(ScrollTrigger);
 
 // --- CONFIGURATION ---
 
 // 1. ENVIRONMENT VARIABLES
-// Create a .env file in your root directory to store these keys securely.
+// Create a .env.local file in your root directory to store these keys securely.
 // Example:
 // VITE_UNSPLASH_ACCESS_KEY=your_key_here
+// VITE_OPENAI_API_KEY=your_key_here
 
 const UNSPLASH_ACCESS_KEY = (import.meta as any).env?.VITE_UNSPLASH_ACCESS_KEY || ''; 
 const UNSPLASH_USERNAME = 'nick19981122';
 
-// 2. GENAI CONFIG
-// API Key is obtained from process.env.API_KEY
+// 2. OPENAI CONFIG
+// API Key is obtained from VITE_OPENAI_API_KEY
+const OPENAI_API_KEY = (import.meta as any).env?.VITE_OPENAI_API_KEY || '';
 
 // 3. BACKUP TITLES
 // Used if API fails, keys are missing, or generation takes too long.
@@ -66,10 +66,10 @@ export const Work: React.FC = () => {
         
         if (selectedPhotos.length > 0) {
 
-          // --- STEP 2: Generate Poetic Captions using Gemini ---
+          // --- STEP 2: Generate Poetic Captions using OpenAI ---
           let generatedCaptions: string[] = [];
           
-          if (process.env.API_KEY) {
+          if (OPENAI_API_KEY) {
              try {
                  // Prepare context for the model
                  const descriptions = selectedPhotos.map((p: any, i: number) => ({
@@ -83,29 +83,36 @@ export const Work: React.FC = () => {
 
                     Task: Write a short, poetic, avant-garde, abstract caption (max 6 words) for each.
                     Style: Editorial, poetic
+                    Return a JSON array of strings only.
                  `;
 
-                 // Call GenAI API
-                 const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-                 const result = await ai.models.generateContent({
-                    model: 'gemini-3-flash-preview',
-                    contents: prompt,
-                    config: {
-                        responseMimeType: 'application/json',
-                        responseSchema: {
-                            type: Type.ARRAY,
-                            items: { type: Type.STRING }
-                        }
-                    }
+                 // Call OpenAI API
+                 const response = await fetch('https://api.openai.com/v1/completions', {
+                    method: 'POST',
+                    headers: {
+                      'Content-Type': 'application/json',
+                      Authorization: `Bearer ${OPENAI_API_KEY}`
+                    },
+                    body: JSON.stringify({
+                      model: 'gpt-3.5-turbo-instruct',
+                      prompt,
+                      max_tokens: 200,
+                      temperature: 0.7
+                    })
                  });
 
-                 const content = result.text;
+                 if (!response.ok) {
+                    throw new Error('OpenAI API request failed');
+                 }
+
+                 const data = await response.json();
+                 const content = data?.choices?.[0]?.text?.trim();
                  
                  if (content) {
                     generatedCaptions = JSON.parse(content);
                  }
              } catch (e) {
-                 console.error("GenAI generation failed:", e);
+                 console.error("OpenAI generation failed:", e);
              }
           }
 
