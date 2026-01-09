@@ -110,7 +110,7 @@ export const BlockRenderer: React.FC<BlockRendererProps> = ({ block, className =
           {block.content}
         </h2>
         {block.caption && (
-          <p className="font-mono text-sm tracking-wide uppercase opacity-60 text-[#111]">
+          <p className="font-mono text-sm tracking-wide uppercase opacity-60 text-black mix-blend-difference">
             {block.caption}
           </p>
         )}

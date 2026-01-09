@@ -93,7 +93,7 @@ export const Profile: React.FC = () => {
         
         {/* Title - Kept consistent (Rubik Spray Paint) */}
         <div className="mb-24 profile-anim">
-            <h1 className="text-[10vw] md:text-[12vw] leading-none font-bold tracking-normal uppercase text-[#111]">Profile</h1>
+            <h1 className="text-[10vw] md:text-[12vw] leading-none font-bold tracking-normal uppercase text-black mix-blend-difference">Profile</h1>
         </div>
 
         {/* Content - Switched to Rubik for readability */}
@@ -101,15 +101,15 @@ export const Profile: React.FC = () => {
 
             {/* BIO SECTION */}
             <div className="col-span-12 md:col-span-3 profile-anim">
-                <span className="text-sm uppercase tracking-widest opacity-50 border-t border-black pt-4 inline-block w-full">About</span>
+                <span className="text-sm uppercase tracking-widest opacity-50 border-t border-black pt-4 inline-block w-full text-black mix-blend-difference">About</span>
             </div>
             <div className="col-span-12 md:col-span-9 flex flex-col gap-8 profile-anim">
-                <p className="text-lg md:text-xl leading-relaxed text-[#111]">
+                <p className="text-lg md:text-xl leading-relaxed text-black mix-blend-difference">
                     Hello, I'm <span className="font-bold">Zongnan Bao (鲍宗南)</span>.
                 </p>
-                <div className="text-base md:text-lg opacity-80 max-w-2xl text-[#111]">
+                <div className="text-base md:text-lg opacity-80 max-w-2xl text-black mix-blend-difference">
                     <p className="mb-4">
-                        Outside of work and academics, I love photography and enjoy sharing my work. I'm honored to be a top 1,000 contributor on <a href="https://unsplash.com/@nick19981122" target="_blank" rel="noreferrer" className="underline hover:text-black/60 transition-colors">Unsplash</a>, with over 200M views and over 1M downloads.
+                        Outside of work and academics, I love photography and enjoy sharing my work. I'm honored to be a top 1,000 contributor on <a href="https://unsplash.com/@nick19981122" target="_blank" rel="noreferrer" className="underline hover:text-white/60 transition-colors">Unsplash</a>, with over 200M views and over 1M downloads.
                     </p>
                     <p>
                         I also have a passion for music, starting with classical guitar and later exploring fingerstyle.
@@ -119,40 +119,40 @@ export const Profile: React.FC = () => {
 
             {/* EXPERIENCE SECTION */}
             <div className="col-span-12 md:col-span-3 profile-anim">
-                <span className="text-sm uppercase tracking-widest opacity-50 border-t border-black pt-4 inline-block w-full">Experience</span>
+                <span className="text-sm uppercase tracking-widest opacity-50 border-t border-black pt-4 inline-block w-full text-black mix-blend-difference">Experience</span>
             </div>
             <div className="col-span-12 md:col-span-9 flex flex-col gap-12 profile-anim">
                 {experiences.map((exp, i) => (
                     <div key={i} className="group border-b border-black/10 pb-12 last:border-0">
                         <div className="flex flex-col md:flex-row md:items-baseline justify-between mb-2">
-                            <a href={exp.link} target="_blank" rel="noreferrer" className="text-xl md:text-2xl font-bold flex items-center gap-2 transition-all duration-300 hover:text-black/60 text-[#111]">
+                            <a href={exp.link} target="_blank" rel="noreferrer" className="text-xl md:text-2xl font-bold flex items-center gap-2 transition-all duration-300 hover:text-black/60 text-black mix-blend-difference">
                                 {exp.company} <ArrowUpRight className="w-5 h-5 opacity-0 group-hover:opacity-100 transition-opacity" />
                             </a>
-                            <span className="text-xs uppercase tracking-widest opacity-50 mt-1 md:mt-0 text-[#111]">{exp.duration}</span>
+                            <span className="text-xs uppercase tracking-widest opacity-50 mt-1 md:mt-0 text-black mix-blend-difference">{exp.duration}</span>
                         </div>
-                        <div className="text-lg font-medium mb-4 text-[#111]">{exp.role}</div>
-                        <p className="opacity-80 max-w-3xl leading-relaxed text-[#111] text-base">{exp.description}</p>
+                        <div className="text-lg font-medium mb-4 text-black mix-blend-difference">{exp.role}</div>
+                        <p className="opacity-80 max-w-3xl leading-relaxed text-black mix-blend-difference text-base">{exp.description}</p>
                     </div>
                 ))}
             </div>
 
             {/* EDUCATION SECTION */}
             <div className="col-span-12 md:col-span-3 profile-anim">
-                <span className="text-sm uppercase tracking-widest opacity-50 border-t border-black pt-4 inline-block w-full">Education</span>
+                <span className="text-sm uppercase tracking-widest opacity-50 border-t border-black pt-4 inline-block w-full text-black mix-blend-difference">Education</span>
             </div>
             <div className="col-span-12 md:col-span-9 flex flex-col gap-16 profile-anim">
                 {education.map((edu, i) => (
                     <div key={i} className="flex flex-col gap-4">
                         <div className="flex flex-col md:flex-row md:items-baseline justify-between">
-                             <a href={edu.link} target="_blank" rel="noreferrer" className="text-xl md:text-2xl font-bold transition-all duration-300 hover:text-black/60 max-w-2xl text-[#111]">
+                             <a href={edu.link} target="_blank" rel="noreferrer" className="text-xl md:text-2xl font-bold transition-all duration-300 hover:text-black/60 max-w-2xl text-black mix-blend-difference">
                                 {edu.school}
                              </a>
-                             <span className="text-xs uppercase tracking-widest opacity-50 mt-1 md:mt-0 shrink-0 text-[#111]">{edu.period}</span>
+                             <span className="text-xs uppercase tracking-widest opacity-50 mt-1 md:mt-0 shrink-0 text-black mix-blend-difference">{edu.period}</span>
                         </div>
-                        <div className="text-lg font-medium text-[#111]">{edu.degree}</div>
+                        <div className="text-lg font-medium text-black mix-blend-difference">{edu.degree}</div>
                         
                         <div className="mt-2">
-                            <span className="text-xs uppercase tracking-widest opacity-50 block mb-2">Relevant Coursework</span>
+                            <span className="text-xs uppercase tracking-widest opacity-50 block mb-2 text-black mix-blend-difference">Relevant Coursework</span>
                             <div className="flex flex-wrap gap-2">
                                 {edu.courses.map((c, idx) => (
                                     c.url ? (
@@ -161,14 +161,14 @@ export const Profile: React.FC = () => {
                                             href={c.url} 
                                             target="_blank" 
                                             rel="noreferrer" 
-                                            className="border border-black/10 px-3 py-1 rounded-full text-xs uppercase tracking-wide bg-white hover:bg-[#111] hover:text-[#faf9f6] transition-colors cursor-pointer text-[#111]"
+                                            className="border border-black/10 px-3 py-1 rounded-full text-xs uppercase tracking-wide bg-white hover:bg-[#111] hover:text-[#faf9f6] transition-colors cursor-pointer text-black mix-blend-difference"
                                         >
                                             {c.name}
                                         </a>
                                     ) : (
                                         <span 
                                             key={idx} 
-                                            className="border border-black/10 px-3 py-1 rounded-full text-xs uppercase tracking-wide bg-white hover:bg-[#111] hover:text-[#faf9f6] transition-colors cursor-default text-[#111]"
+                                            className="border border-black/10 px-3 py-1 rounded-full text-xs uppercase tracking-wide bg-white hover:bg-[#111] hover:text-[#faf9f6] transition-colors cursor-default text-black mix-blend-difference"
                                         >
                                             {c.name}
                                         </span>
@@ -182,7 +182,7 @@ export const Profile: React.FC = () => {
 
             {/* PATENT SECTION */}
             <div className="col-span-12 md:col-span-3 profile-anim">
-                <span className="text-sm uppercase tracking-widest opacity-50 border-t border-black pt-4 inline-block w-full">Patents</span>
+                <span className="text-sm uppercase tracking-widest opacity-50 border-t border-black pt-4 inline-block w-full text-black mix-blend-difference">Patents</span>
             </div>
             <div className="col-span-12 md:col-span-9 profile-anim">
                  <a 
@@ -191,10 +191,10 @@ export const Profile: React.FC = () => {
                     rel="noreferrer"
                     className="group block"
                  >
-                    <h3 className="text-lg md:text-xl font-medium mb-2 text-[#111] transition-colors duration-300 group-hover:text-black/60">
+                    <h3 className="text-lg md:text-xl font-medium mb-2 text-black mix-blend-difference transition-colors duration-300 group-hover:text-black/60">
                         Estimating Metadata for Images Having Absent Metadata or Unusable Form of Metadata
                     </h3>
-                    <p className="text-sm uppercase tracking-widest opacity-50 text-[#111]">Dolby Laboratories, Inc.</p>
+                    <p className="text-sm uppercase tracking-widest opacity-50 text-black mix-blend-difference">Dolby Laboratories, Inc.</p>
                  </a>
             </div>
 
