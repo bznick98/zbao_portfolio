@@ -53,7 +53,9 @@ export const BlockRenderer: React.FC<BlockRendererProps> = ({ block, className =
 
     // 1. Fixed Element Fade Out (Keep this for the Header Name)
     if (block.isFixed) {
-      gsap.to(el, {
+      const fadeTarget = el.querySelector('[data-blend-fade]');
+      if (!fadeTarget) return;
+      gsap.to(fadeTarget, {
         opacity: 0,
         ease: 'power1.out',
         scrollTrigger: {
@@ -90,12 +92,11 @@ export const BlockRenderer: React.FC<BlockRendererProps> = ({ block, className =
 
   if (block.type === 'hero-text') {
     return (
-      <div ref={containerRef} className={`${finalClasses} pointer-events-none`}>
-        {/* 
-           Blend note:
-           We keep text black and apply mix-blend-difference so overlaps invert against other blended text.
-        */}
-        <h1 className="text-[10vw] md:text-[9vw] leading-normal font-normal uppercase text-white mix-blend-difference break-words">
+      <div ref={containerRef} className={finalClasses}>
+        <h1
+          data-blend-fade
+          className="text-[10vw] md:text-[9vw] leading-normal font-normal uppercase break-words"
+        >
           {block.content}
         </h1>
       </div>
@@ -105,7 +106,7 @@ export const BlockRenderer: React.FC<BlockRendererProps> = ({ block, className =
   if (block.type === 'text') {
     return (
       <div ref={containerRef} className={`${finalClasses} flex flex-col gap-4`}>
-        <h2 className="text-5xl md:text-7xl font-serif leading-tight text-black mix-blend-difference">
+        <h2 className="text-5xl md:text-7xl font-serif leading-tight text-[#111]">
           {block.content}
         </h2>
         {block.caption && (
@@ -144,10 +145,10 @@ export const BlockRenderer: React.FC<BlockRendererProps> = ({ block, className =
           {(block.caption || block.subCaption) && (
             <div className="mt-4 flex flex-col gap-1">
               {block.caption && (
-                 <span className="font-serif text-lg md:text-xl italic text-black mix-blend-difference">{block.caption}</span>
+                 <span className="font-serif text-lg md:text-xl italic text-[#111]">{block.caption}</span>
               )}
               {block.subCaption && (
-                 <span className="font-sans text-xs uppercase tracking-widest opacity-50 text-black mix-blend-difference">{block.subCaption}</span>
+                 <span className="font-sans text-xs uppercase tracking-widest opacity-50 text-[#111]">{block.subCaption}</span>
               )}
             </div>
           )}

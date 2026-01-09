@@ -186,26 +186,14 @@ export const Work: React.FC = () => {
     return () => clearTimeout(timer);
   }, [blocks]);
 
-  const { fixedBlocks, scrollBlocks } = useMemo(() => {
-    return {
-      fixedBlocks: blocks.filter(b => b.isFixed),
-      scrollBlocks: blocks.filter(b => !b.isFixed)
-    };
+  const scrollBlocks = useMemo(() => {
+    return blocks.filter(b => !b.isFixed);
   }, [blocks]);
 
   return (
     <div className="w-full">
       <div className="max-w-[1800px] mx-auto relative">
-        {/* LAYER 0: FIXED HERO CONTENT */}
-        <div className="fixed inset-0 w-full h-full pointer-events-none z-50 px-4 md:px-12 pt-24 md:pt-32">
-            <div className="grid grid-cols-12 gap-x-4 md:gap-x-8 w-full h-full">
-              {fixedBlocks.map((block) => (
-                <BlockRenderer key={block.id} block={block} />
-              ))}
-            </div>
-        </div>
-
-        {/* LAYER 1: SCROLLING CONTENT */}
+        {/* SCROLLING CONTENT */}
         <div className="relative z-10 px-4 md:px-12 pb-24 pt-24 md:pt-32">
           <div className="grid grid-cols-12 gap-x-4 md:gap-x-8 gap-y-0 auto-rows-min">
             {scrollBlocks.map((block) => (
