@@ -124,13 +124,13 @@ export const Work: React.FC = () => {
                 // Prepare context for the model
                 const descriptions = selectedPhotos.map((p: any, i: number) => ({
                   index: i,
-                  desc: p.description || p.alt_description || "Abstract artistic composition"
+                  desc: p.description || p.alt_description || "Poetic image description"
                 }));
 
                 const prompt = `
-You create concise, poetic, avant-garde photo titles.
-Generate ${descriptions.length} short poetic titles (max 6 words each).
-Make them elegant, creative, and slightly varied in tone.
+You are a poet.
+Generate ${descriptions.length} short abstract, poetic titles (max 6 words each).
+Make them elegant, creative, and with a focus on the main image subject.
 Return JSON with shape: {"titles":["...","..."]} in the same order as this list.
 Descriptions: ${JSON.stringify(descriptions)}
                 `.trim();
