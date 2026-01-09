@@ -1,4 +1,4 @@
-import React, { useLayoutEffect, useMemo, useState, useEffect } from 'react';
+import React, { useLayoutEffect, useMemo, useState, useEffect, useRef } from 'react';
 import { BLOCKS } from '../data/content';
 import { BlockRenderer } from '../components/BlockRenderer';
 import { ContentBlock } from '../types';
@@ -30,9 +30,15 @@ const OPENAI_API_KEY = (import.meta as any).env?.VITE_OPENAI_API_KEY || '';
 
 export const Work: React.FC = () => {
   const [blocks, setBlocks] = useState<ContentBlock[]>(BLOCKS);
+  const hasInitializedRef = useRef(false);
+  const captionsRequestedRef = useRef(false);
 
   // Unsplash Fetch & GenAI Generation Logic
   useEffect(() => {
+    if (hasInitializedRef.current) {
+      return;
+    }
+    hasInitializedRef.current = true;
     if (UNSPLASH_ACCESS_KEYS.length === 0) {
       console.warn('Unsplash Integration: No Access Key found in environment variables (VITE_UNSPLASH_ACCESS_KEY...). Using placeholder content.');
       return;
@@ -111,7 +117,8 @@ export const Work: React.FC = () => {
           applyPhotoUpdates();
 
           // --- STEP 3: Generate Poetic Captions using OpenAI in the background ---
-          if (OPENAI_API_KEY) {
+          if (OPENAI_API_KEY && !captionsRequestedRef.current) {
+            captionsRequestedRef.current = true;
             const generateCaptions = async () => {
               try {
                 // Prepare context for the model
@@ -120,29 +127,25 @@ export const Work: React.FC = () => {
                   desc: p.description || p.alt_description || "Abstract artistic composition"
                 }));
 
-                const systemPrompt = 'You create concise, poetic, avant-garde photo titles.';
-                const userPrompt = `
-                  Generate ${descriptions.length} short poetic titles (max 6 words each).
-                  Make them elegant, creative, and slightly varied in tone.
-                  Return JSON with shape: {"titles":["...","..."]} in the same order as this list.
-                  Descriptions: ${JSON.stringify(descriptions)}
-                `;
+                const prompt = `
+You create concise, poetic, avant-garde photo titles.
+Generate ${descriptions.length} short poetic titles (max 6 words each).
+Make them elegant, creative, and slightly varied in tone.
+Return JSON with shape: {"titles":["...","..."]} in the same order as this list.
+Descriptions: ${JSON.stringify(descriptions)}
+                `.trim();
 
-                // Call OpenAI API (fast, high-quality model)
-                const response = await fetch('https://api.openai.com/v1/chat/completions', {
+                // Call OpenAI API (fast, lightweight model)
+                const response = await fetch('https://api.openai.com/v1/completions', {
                   method: 'POST',
                   headers: {
                     'Content-Type': 'application/json',
                     Authorization: `Bearer ${OPENAI_API_KEY}`
                   },
                   body: JSON.stringify({
-                    model: 'gpt-4o-mini',
-                    messages: [
-                      { role: 'system', content: systemPrompt },
-                      { role: 'user', content: userPrompt }
-                    ],
-                    response_format: { type: 'json_object' },
-                    max_tokens: 120,
+                    model: 'gpt-3.5-turbo-instruct',
+                    prompt,
+                    max_tokens: 160,
                     temperature: 0.85,
                     top_p: 0.95
                   })
@@ -153,7 +156,7 @@ export const Work: React.FC = () => {
                 }
 
                 const data = await response.json();
-                const content = data?.choices?.[0]?.message?.content?.trim();
+                const content = data?.choices?.[0]?.text?.trim();
 
                 if (content) {
                   const parsed = JSON.parse(content);
