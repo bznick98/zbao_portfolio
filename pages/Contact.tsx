@@ -34,7 +34,7 @@ export const Contact: React.FC = () => {
          <div className="contact-anim grid grid-cols-1 md:grid-cols-2 gap-12 md:gap-24 font-rubik">
              <div className="flex flex-col gap-8">
                  <p className="text-xl md:text-2xl leading-relaxed max-w-md">
-                     Available for commissions and collaborations worldwide. Let's create something meaningful together.
+                     Let's create something meaningful together.
                  </p>
                  <a href="mailto:zongnan.bao@gmail.com" className="text-xl md:text-3xl font-bold underline underline-offset-8 hover:text-black/60 transition-colors break-words">
                      zongnan.bao<br/>@gmail.com
