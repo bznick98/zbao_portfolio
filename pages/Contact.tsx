@@ -28,15 +28,15 @@ export const Contact: React.FC = () => {
     <div ref={containerRef} className="w-full px-6 md:px-12 pt-32 pb-24 min-h-screen bg-[#faf9f6] flex flex-col justify-between text-[#111]">
       <div className="max-w-[1800px] w-full mx-auto">
          {/* Title - Consistent Artistic Style */}
-         <h1 className="contact-anim text-[12vw] leading-[0.8] font-bold tracking-tighter uppercase mb-8 md:mb-16 text-white mix-blend-difference">Contact</h1>
+         <h1 className="contact-anim text-[12vw] leading-[0.8] font-bold tracking-tighter uppercase mb-8 md:mb-16 text-black mix-blend-difference">Contact</h1>
          
          {/* Content - Rubik for readability */}
          <div className="contact-anim grid grid-cols-1 md:grid-cols-2 gap-12 md:gap-24 font-rubik">
              <div className="flex flex-col gap-8">
-                 <p className="text-xl md:text-2xl leading-relaxed max-w-md">
-                     Let's create something meaningful together.
+                 <p className="text-xl md:text-2xl leading-relaxed max-w-md text-black mix-blend-difference">
+                     Available for commissions and collaborations worldwide. Let's create something meaningful together.
                  </p>
-                 <a href="mailto:zongnan.bao@gmail.com" className="text-xl md:text-3xl font-bold underline underline-offset-8 hover:text-white/60 transition-colors break-words text-white mix-blend-difference">
+                 <a href="mailto:zongnan.bao@gmail.com" className="text-xl md:text-3xl font-bold underline underline-offset-8 hover:text-black/60 transition-colors break-words text-black mix-blend-difference">
                      zongnan.bao<br/>@gmail.com
                  </a>
              </div>
@@ -48,7 +48,7 @@ export const Contact: React.FC = () => {
                         href={social.url} 
                         target="_blank" 
                         rel="noreferrer" 
-                        className="flex items-center gap-2 text-xl uppercase tracking-wide group hover:text-white/60 transition-colors text-white mix-blend-difference"
+                        className="flex items-center gap-2 text-xl uppercase tracking-wide group hover:text-black/60 transition-colors text-black mix-blend-difference"
                     >
                         <span className="group-hover:underline">{social.name}</span>
                         <ArrowUpRight className="w-5 h-5 transition-transform group-hover:-translate-y-1 group-hover:translate-x-1"/>
@@ -58,7 +58,7 @@ export const Contact: React.FC = () => {
          </div>
       </div>
 
-      <div className="contact-anim text-center mt-24 opacity-50 text-sm uppercase tracking-widest font-rubik text-white mix-blend-difference">
+      <div className="contact-anim text-center mt-24 opacity-50 text-sm uppercase tracking-widest font-rubik text-black mix-blend-difference">
          © 2026 Zongnan Bao. All Rights Reserved.
       </div>
     </div>

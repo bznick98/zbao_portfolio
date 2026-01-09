@@ -92,11 +92,8 @@ export const BlockRenderer: React.FC<BlockRendererProps> = ({ block, className =
     return (
       <div ref={containerRef} className={`${finalClasses} pointer-events-none`}>
         {/* 
-           VISUAL COLOR LOGIC:
-           To appear BLACK on a LIGHT background using 'mix-blend-difference', the text color must be WHITE (or Light).
-           Math: | Light BG (250) - White Text (255) | = Dark Result (5).
-           
-           If we used Black Text (0): | Light BG (250) - Black Text (0) | = Light Result (250) -> This would look White.
+           Blend note:
+           We keep text black and apply mix-blend-difference so overlaps invert against other blended text.
         */}
         <h1 className="text-[10vw] md:text-[9vw] leading-normal font-normal uppercase text-white mix-blend-difference break-words">
           {block.content}
