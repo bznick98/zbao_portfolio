@@ -108,11 +108,11 @@ export const BlockRenderer: React.FC<BlockRendererProps> = ({ block, className =
   if (block.type === 'text') {
     return (
       <div ref={containerRef} className={`${finalClasses} flex flex-col gap-4`}>
-        <h2 className="text-5xl md:text-7xl font-serif leading-tight text-white mix-blend-difference">
+        <h2 className="text-5xl md:text-7xl font-serif leading-tight text-black mix-blend-difference">
           {block.content}
         </h2>
         {block.caption && (
-          <p className="font-mono text-sm tracking-wide uppercase opacity-60 text-white mix-blend-difference">
+          <p className="font-mono text-sm tracking-wide uppercase opacity-60 text-black mix-blend-difference">
             {block.caption}
           </p>
         )}
@@ -147,10 +147,10 @@ export const BlockRenderer: React.FC<BlockRendererProps> = ({ block, className =
           {(block.caption || block.subCaption) && (
             <div className="mt-4 flex flex-col gap-1">
               {block.caption && (
-                 <span className="font-serif text-lg md:text-xl italic text-white mix-blend-difference">{block.caption}</span>
+                 <span className="font-serif text-lg md:text-xl italic text-black mix-blend-difference">{block.caption}</span>
               )}
               {block.subCaption && (
-                 <span className="font-sans text-xs uppercase tracking-widest opacity-50 text-white mix-blend-difference">{block.subCaption}</span>
+                 <span className="font-sans text-xs uppercase tracking-widest opacity-50 text-black mix-blend-difference">{block.subCaption}</span>
               )}
             </div>
           )}
