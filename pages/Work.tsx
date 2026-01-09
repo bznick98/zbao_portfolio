@@ -14,7 +14,14 @@ gsap.registerPlugin(ScrollTrigger);
 // VITE_UNSPLASH_ACCESS_KEY=your_key_here
 // VITE_OPENAI_API_KEY=your_key_here
 
-const UNSPLASH_ACCESS_KEY = (import.meta as any).env?.VITE_UNSPLASH_ACCESS_KEY || ''; 
+const UNSPLASH_ACCESS_KEYS = [
+  (import.meta as any).env?.VITE_UNSPLASH_ACCESS_KEY,
+  (import.meta as any).env?.VITE_UNSPLASH_ACCESS_KEY_1,
+  (import.meta as any).env?.VITE_UNSPLASH_ACCESS_KEY_2,
+  (import.meta as any).env?.VITE_UNSPLASH_ACCESS_KEY_3,
+  (import.meta as any).env?.VITE_UNSPLASH_ACCESS_KEY_4,
+  (import.meta as any).env?.VITE_UNSPLASH_ACCESS_KEY_5
+].filter(Boolean) as string[];
 const UNSPLASH_USERNAME = 'nick19981122';
 
 // 2. OPENAI CONFIG
@@ -41,8 +48,8 @@ export const Work: React.FC = () => {
 
   // Unsplash Fetch & GenAI Generation Logic
   useEffect(() => {
-    if (!UNSPLASH_ACCESS_KEY) {
-      console.warn('Unsplash Integration: No Access Key found in environment variables (VITE_UNSPLASH_ACCESS_KEY). Using placeholder content.');
+    if (UNSPLASH_ACCESS_KEYS.length === 0) {
+      console.warn('Unsplash Integration: No Access Key found in environment variables (VITE_UNSPLASH_ACCESS_KEY...). Using placeholder content.');
       return;
     }
 
@@ -53,103 +60,126 @@ export const Work: React.FC = () => {
 
         // --- STEP 1: Fetch photos from Unsplash ---
         // Use /photos/random endpoint to ensure true randomness across the entire portfolio
-        const response = await fetch(
-          `https://api.unsplash.com/photos/random?username=${UNSPLASH_USERNAME}&count=${imageBlockCount}&client_id=${UNSPLASH_ACCESS_KEY}`
-        );
-        
-        if (!response.ok) throw new Error('Unsplash API request failed');
-        
-        let data = await response.json();
+        let data: any = null;
+        let lastError: Error | null = null;
+
+        for (const accessKey of UNSPLASH_ACCESS_KEYS) {
+          try {
+            const response = await fetch(
+              `https://api.unsplash.com/photos/random?username=${UNSPLASH_USERNAME}&count=${imageBlockCount}&client_id=${accessKey}`
+            );
+
+            if (!response.ok) {
+              lastError = new Error(`Unsplash API request failed (${response.status})`);
+              continue;
+            }
+
+            data = await response.json();
+            break;
+          } catch (error) {
+            lastError = error as Error;
+          }
+        }
+
+        if (!data) {
+          throw lastError || new Error('Unsplash API request failed');
+        }
         
         // Normalize data
         const selectedPhotos = Array.isArray(data) ? data : [data];
         
         if (selectedPhotos.length > 0) {
+          const applyPhotoUpdates = (captions: string[] = []) => {
+            setBlocks(prevBlocks => {
+              let imgIndex = 0;
+              return prevBlocks.map(block => {
+                if (block.type === 'image' && imgIndex < selectedPhotos.length) {
+                  const photo = selectedPhotos[imgIndex];
+                  const fallbackCaption = BACKUP_TITLES[Math.floor(Math.random() * BACKUP_TITLES.length)];
+                  const finalCaption = captions[imgIndex] || fallbackCaption;
 
-          // --- STEP 2: Generate Poetic Captions using OpenAI ---
-          let generatedCaptions: string[] = [];
-          
+                  // Extract Year
+                  const year = photo.created_at ? new Date(photo.created_at).getFullYear() : new Date().getFullYear();
+
+                  // Extract Dimensions for Aspect Ratio
+                  const width = photo.width;
+                  const height = photo.height;
+
+                  imgIndex++;
+
+                  return {
+                    ...block,
+                    src: photo.urls.regular,
+                    alt: photo.alt_description || 'Portfolio Work',
+                    caption: `${finalCaption} (${year})`,
+                    // This CSS value overrides the default tailwind aspect ratio class
+                    customAspectRatio: `${width} / ${height}`
+                  };
+                }
+                return block;
+              });
+            });
+          };
+
+          // --- STEP 2: Update UI immediately with images + backup titles ---
+          applyPhotoUpdates();
+
+          // --- STEP 3: Generate Poetic Captions using OpenAI in the background ---
           if (OPENAI_API_KEY) {
-             try {
-                 // Prepare context for the model
-                 const descriptions = selectedPhotos.map((p: any, i: number) => ({
-                    index: i,
-                    desc: p.description || p.alt_description || "Abstract artistic composition"
-                 }));
+            const generateCaptions = async () => {
+              try {
+                // Prepare context for the model
+                const descriptions = selectedPhotos.map((p: any, i: number) => ({
+                  index: i,
+                  desc: p.description || p.alt_description || "Abstract artistic composition"
+                }));
 
-                 const prompt = `
-                    I have ${descriptions.length} art photography descriptions:
-                    ${JSON.stringify(descriptions)}
+                const systemPrompt = 'You create concise, poetic, avant-garde photo titles.';
+                const userPrompt = `
+                  Generate ${descriptions.length} short poetic titles (max 6 words each).
+                  Return JSON with shape: {"titles":["...","..."]} in the same order as this list.
+                  Descriptions: ${JSON.stringify(descriptions)}
+                `;
 
-                    Task: Write a short, poetic, avant-garde, abstract caption (max 6 words) for each.
-                    Style: Editorial, poetic
-                    Return a JSON array of strings only.
-                 `;
+                // Call OpenAI API (fast, high-quality model)
+                const response = await fetch('https://api.openai.com/v1/chat/completions', {
+                  method: 'POST',
+                  headers: {
+                    'Content-Type': 'application/json',
+                    Authorization: `Bearer ${OPENAI_API_KEY}`
+                  },
+                  body: JSON.stringify({
+                    model: 'gpt-4o-mini',
+                    messages: [
+                      { role: 'system', content: systemPrompt },
+                      { role: 'user', content: userPrompt }
+                    ],
+                    response_format: { type: 'json_object' },
+                    max_tokens: 160,
+                    temperature: 0.6,
+                    top_p: 0.9
+                  })
+                });
 
-                 // Call OpenAI API
-                 const response = await fetch('https://api.openai.com/v1/completions', {
-                    method: 'POST',
-                    headers: {
-                      'Content-Type': 'application/json',
-                      Authorization: `Bearer ${OPENAI_API_KEY}`
-                    },
-                    body: JSON.stringify({
-                      model: 'gpt-3.5-turbo-instruct',
-                      prompt,
-                      max_tokens: 200,
-                      temperature: 0.7
-                    })
-                 });
+                if (!response.ok) {
+                  throw new Error('OpenAI API request failed');
+                }
 
-                 if (!response.ok) {
-                    throw new Error('OpenAI API request failed');
-                 }
+                const data = await response.json();
+                const content = data?.choices?.[0]?.message?.content?.trim();
 
-                 const data = await response.json();
-                 const content = data?.choices?.[0]?.text?.trim();
-                 
-                 if (content) {
-                    generatedCaptions = JSON.parse(content);
-                 }
-             } catch (e) {
-                 console.error("OpenAI generation failed:", e);
-             }
+                if (content) {
+                  const parsed = JSON.parse(content);
+                  const generatedCaptions = Array.isArray(parsed?.titles) ? parsed.titles : [];
+                  applyPhotoUpdates(generatedCaptions);
+                }
+              } catch (e) {
+                console.error("OpenAI generation failed:", e);
+              }
+            };
+
+            generateCaptions();
           }
-
-          // --- STEP 3: Update State ---
-          setBlocks(prevBlocks => {
-             let imgIndex = 0;
-             return prevBlocks.map(block => {
-                 if (block.type === 'image' && imgIndex < selectedPhotos.length) {
-                   const photo = selectedPhotos[imgIndex];
-                   
-                   let finalCaption = generatedCaptions[imgIndex];
-                   
-                   if (!finalCaption) {
-                       finalCaption = BACKUP_TITLES[Math.floor(Math.random() * BACKUP_TITLES.length)];
-                   }
-
-                   // Extract Year
-                   const year = photo.created_at ? new Date(photo.created_at).getFullYear() : new Date().getFullYear();
-                   
-                   // Extract Dimensions for Aspect Ratio
-                   const width = photo.width;
-                   const height = photo.height;
-
-                   imgIndex++;
-                   
-                   return {
-                     ...block,
-                     src: photo.urls.regular,
-                     alt: photo.alt_description || 'Portfolio Work',
-                     caption: `${finalCaption} (${year})`,
-                     // This CSS value overrides the default tailwind aspect ratio class
-                     customAspectRatio: `${width} / ${height}`
-                   };
-                 }
-                 return block;
-             });
-          });
         }
       } catch (error) {
         console.error('Failed to fetch/process content:', error);
