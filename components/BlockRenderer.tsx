@@ -92,11 +92,8 @@ export const BlockRenderer: React.FC<BlockRendererProps> = ({ block, className =
     return (
       <div ref={containerRef} className={`${finalClasses} pointer-events-none`}>
         {/* 
-           VISUAL COLOR LOGIC:
-           To appear BLACK on a LIGHT background using 'mix-blend-difference', the text color must be WHITE (or Light).
-           Math: | Light BG (250) - White Text (255) | = Dark Result (5).
-           
-           If we used Black Text (0): | Light BG (250) - Black Text (0) | = Light Result (250) -> This would look White.
+           Blend note:
+           We keep text black and apply mix-blend-difference so overlaps invert against other blended text.
         */}
         <h1 className="text-[10vw] md:text-[9vw] leading-normal font-normal uppercase text-black mix-blend-difference break-words">
           {block.content}
@@ -108,13 +105,11 @@ export const BlockRenderer: React.FC<BlockRendererProps> = ({ block, className =
   if (block.type === 'text') {
     return (
       <div ref={containerRef} className={`${finalClasses} flex flex-col gap-4`}>
-        {/* Standard text is kept pure black (#111) without blend modes to ensure high contrast 
-            against the background, creating the necessary "Dark" target for the Hero text to invert against. */}
-        <h2 className="text-5xl md:text-7xl font-serif leading-tight text-[#111]">
+        <h2 className="text-5xl md:text-7xl font-serif leading-tight text-black mix-blend-difference">
           {block.content}
         </h2>
         {block.caption && (
-          <p className="font-mono text-sm tracking-wide uppercase opacity-60 text-[#111]">
+          <p className="font-mono text-sm tracking-wide uppercase opacity-60 text-black mix-blend-difference">
             {block.caption}
           </p>
         )}
@@ -149,10 +144,10 @@ export const BlockRenderer: React.FC<BlockRendererProps> = ({ block, className =
           {(block.caption || block.subCaption) && (
             <div className="mt-4 flex flex-col gap-1">
               {block.caption && (
-                 <span className="font-serif text-lg md:text-xl italic">{block.caption}</span>
+                 <span className="font-serif text-lg md:text-xl italic text-black mix-blend-difference">{block.caption}</span>
               )}
               {block.subCaption && (
-                 <span className="font-sans text-xs uppercase tracking-widest opacity-50">{block.subCaption}</span>
+                 <span className="font-sans text-xs uppercase tracking-widest opacity-50 text-black mix-blend-difference">{block.subCaption}</span>
               )}
             </div>
           )}
