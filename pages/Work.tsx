@@ -28,21 +28,6 @@ const UNSPLASH_USERNAME = 'nick19981122';
 // API Key is obtained from VITE_OPENAI_API_KEY
 const OPENAI_API_KEY = (import.meta as any).env?.VITE_OPENAI_API_KEY || '';
 
-// 3. BACKUP TITLES
-// Used if API fails, keys are missing, or generation takes too long.
-const BACKUP_TITLES = [
-  "The Silence of Objects",
-  "Echoes in the Void",
-  "Ephemeral Geometry",
-  "Light Betrays Shadow",
-  "A Memory of Blue",
-  "Static Motion",
-  "The Architecture of Time",
-  "Fragments of Reality",
-  "Soft Bruise of Night",
-  "Concrete Whispers"
-];
-
 export const Work: React.FC = () => {
   const [blocks, setBlocks] = useState<ContentBlock[]>(BLOCKS);
 
@@ -95,8 +80,7 @@ export const Work: React.FC = () => {
               return prevBlocks.map(block => {
                 if (block.type === 'image' && imgIndex < selectedPhotos.length) {
                   const photo = selectedPhotos[imgIndex];
-                  const fallbackCaption = BACKUP_TITLES[Math.floor(Math.random() * BACKUP_TITLES.length)];
-                  const finalCaption = captions[imgIndex] || fallbackCaption;
+                  const finalCaption = captions[imgIndex] || '';
 
                   // Extract Year
                   const year = photo.created_at ? new Date(photo.created_at).getFullYear() : new Date().getFullYear();
@@ -107,11 +91,13 @@ export const Work: React.FC = () => {
 
                   imgIndex++;
 
+                  const captionValue = finalCaption ? `${finalCaption} (${year})` : undefined;
+
                   return {
                     ...block,
                     src: photo.urls.regular,
                     alt: photo.alt_description || 'Portfolio Work',
-                    caption: `${finalCaption} (${year})`,
+                    caption: captionValue,
                     // This CSS value overrides the default tailwind aspect ratio class
                     customAspectRatio: `${width} / ${height}`
                   };
@@ -121,7 +107,7 @@ export const Work: React.FC = () => {
             });
           };
 
-          // --- STEP 2: Update UI immediately with images + backup titles ---
+          // --- STEP 2: Update UI immediately with images (no titles yet) ---
           applyPhotoUpdates();
 
           // --- STEP 3: Generate Poetic Captions using OpenAI in the background ---
@@ -137,6 +123,7 @@ export const Work: React.FC = () => {
                 const systemPrompt = 'You create concise, poetic, avant-garde photo titles.';
                 const userPrompt = `
                   Generate ${descriptions.length} short poetic titles (max 6 words each).
+                  Make them elegant, creative, and slightly varied in tone.
                   Return JSON with shape: {"titles":["...","..."]} in the same order as this list.
                   Descriptions: ${JSON.stringify(descriptions)}
                 `;
@@ -155,9 +142,9 @@ export const Work: React.FC = () => {
                       { role: 'user', content: userPrompt }
                     ],
                     response_format: { type: 'json_object' },
-                    max_tokens: 160,
-                    temperature: 0.6,
-                    top_p: 0.9
+                    max_tokens: 120,
+                    temperature: 0.85,
+                    top_p: 0.95
                   })
                 });
 
@@ -191,6 +178,9 @@ export const Work: React.FC = () => {
 
   useLayoutEffect(() => {
     window.scrollTo(0, 0);
+  }, []);
+
+  useEffect(() => {
     // Refresh ScrollTrigger after a slight delay to ensure DOM is ready and images might be loading
     const timer = setTimeout(() => ScrollTrigger.refresh(), 500);
     return () => clearTimeout(timer);

@@ -98,7 +98,7 @@ export const BlockRenderer: React.FC<BlockRendererProps> = ({ block, className =
            
            If we used Black Text (0): | Light BG (250) - Black Text (0) | = Light Result (250) -> This would look White.
         */}
-        <h1 className="text-[10vw] md:text-[9vw] leading-normal font-normal uppercase text-black mix-blend-difference break-words">
+        <h1 className="text-[10vw] md:text-[9vw] leading-normal font-normal uppercase text-white mix-blend-difference break-words">
           {block.content}
         </h1>
       </div>
