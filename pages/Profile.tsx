@@ -109,7 +109,7 @@ export const Profile: React.FC = () => {
                 </p>
                 <div className="text-base md:text-lg opacity-80 max-w-2xl text-black mix-blend-difference">
                     <p className="mb-4">
-                        Outside of work and academics, I love photography and enjoy sharing my work. I'm honored to be a top 1,000 contributor on <a href="https://unsplash.com/@nick19981122" target="_blank" rel="noreferrer" className="underline hover:text-black/60 transition-colors">Unsplash</a>, with over 200M views and over 1M downloads.
+                        Outside of work and academics, I love photography and enjoy sharing my work. I'm honored to be a top 1,000 contributor on <a href="https://unsplash.com/@nick19981122" target="_blank" rel="noreferrer" className="underline hover:text-white/60 transition-colors">Unsplash</a>, with over 200M views and over 1M downloads.
                     </p>
                     <p>
                         I also have a passion for music, starting with classical guitar and later exploring fingerstyle.

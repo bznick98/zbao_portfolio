@@ -215,8 +215,8 @@ export const Work: React.FC = () => {
           
           <footer className="w-full py-12 border-t border-black/10 flex flex-col md:flex-row justify-between items-end md:items-center gap-6 mt-32 bg-[#faf9f6]">
             <div className="flex flex-col gap-2">
-              <span className="font-serif italic text-2xl">Zongnan Bao</span>
-              <span className="text-sm uppercase tracking-widest opacity-50">welcome</span>
+              <span className="font-serif text-2xl"></span>
+              <span className="text-sm uppercase tracking-widest opacity-50">Zongnan Bao</span>
             </div>
 
             <div className="flex gap-6 text-sm font-medium uppercase tracking-wide">

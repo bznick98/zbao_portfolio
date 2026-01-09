@@ -166,20 +166,20 @@ export const BLOCKS: ContentBlock[] = [
   },
   
   // Footer Text
-  {
-    id: 'text-compassion',
-    type: 'hero-text',
-    content: 'Compassion',
-    mobile: { colSpan: 'col-span-12' },
-    desktop: { colStart: 'col-start-4', colSpan: 'col-span-9', marginTop: 'mt-40', zIndex: 10 },
-    parallaxSpeed: 0
-  },
-  {
-    id: 'text-outweighed',
-    type: 'hero-text',
-    content: 'Outweighed',
-    mobile: { colSpan: 'col-span-12', marginBottom: 'mb-32' },
-    desktop: { colStart: 'col-start-2', colSpan: 'col-span-10', marginTop: '-mt-4', zIndex: 10 },
-    parallaxSpeed: 0
-  },
+  // {
+  //   id: 'text-1',
+  //   type: 'hero-text',
+  //   content: 'Compassion',
+  //   mobile: { colSpan: 'col-span-12' },
+  //   desktop: { colStart: 'col-start-4', colSpan: 'col-span-9', marginTop: 'mt-40', zIndex: 10 },
+  //   parallaxSpeed: 0
+  // },
+  // {
+  //   id: 'text-2',
+  //   type: 'hero-text',
+  //   content: '',
+  //   mobile: { colSpan: 'col-span-12', marginBottom: 'mb-32' },
+  //   desktop: { colStart: 'col-start-2', colSpan: 'col-span-10', marginTop: '-mt-4', zIndex: 10 },
+  //   parallaxSpeed: 0
+  // },
 ];

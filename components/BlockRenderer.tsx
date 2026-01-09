@@ -95,7 +95,7 @@ export const BlockRenderer: React.FC<BlockRendererProps> = ({ block, className =
            Blend note:
            We keep text black and apply mix-blend-difference so overlaps invert against other blended text.
         */}
-        <h1 className="text-[10vw] md:text-[9vw] leading-normal font-normal uppercase text-black mix-blend-difference break-words">
+        <h1 className="text-[10vw] md:text-[9vw] leading-normal font-normal uppercase text-white mix-blend-difference break-words">
           {block.content}
         </h1>
       </div>
