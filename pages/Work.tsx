@@ -14,7 +14,14 @@ gsap.registerPlugin(ScrollTrigger);
 // VITE_UNSPLASH_ACCESS_KEY=your_key_here
 // VITE_OPENAI_API_KEY=your_key_here
 
-const UNSPLASH_ACCESS_KEY = (import.meta as any).env?.VITE_UNSPLASH_ACCESS_KEY || ''; 
+const UNSPLASH_ACCESS_KEYS = [
+  (import.meta as any).env?.VITE_UNSPLASH_ACCESS_KEY,
+  (import.meta as any).env?.VITE_UNSPLASH_ACCESS_KEY_1,
+  (import.meta as any).env?.VITE_UNSPLASH_ACCESS_KEY_2,
+  (import.meta as any).env?.VITE_UNSPLASH_ACCESS_KEY_3,
+  (import.meta as any).env?.VITE_UNSPLASH_ACCESS_KEY_4,
+  (import.meta as any).env?.VITE_UNSPLASH_ACCESS_KEY_5
+].filter(Boolean) as string[];
 const UNSPLASH_USERNAME = 'nick19981122';
 
 // 2. OPENAI CONFIG
@@ -41,8 +48,8 @@ export const Work: React.FC = () => {
 
   // Unsplash Fetch & GenAI Generation Logic
   useEffect(() => {
-    if (!UNSPLASH_ACCESS_KEY) {
-      console.warn('Unsplash Integration: No Access Key found in environment variables (VITE_UNSPLASH_ACCESS_KEY). Using placeholder content.');
+    if (UNSPLASH_ACCESS_KEYS.length === 0) {
+      console.warn('Unsplash Integration: No Access Key found in environment variables (VITE_UNSPLASH_ACCESS_KEY...). Using placeholder content.');
       return;
     }
 
@@ -53,13 +60,30 @@ export const Work: React.FC = () => {
 
         // --- STEP 1: Fetch photos from Unsplash ---
         // Use /photos/random endpoint to ensure true randomness across the entire portfolio
-        const response = await fetch(
-          `https://api.unsplash.com/photos/random?username=${UNSPLASH_USERNAME}&count=${imageBlockCount}&client_id=${UNSPLASH_ACCESS_KEY}`
-        );
-        
-        if (!response.ok) throw new Error('Unsplash API request failed');
-        
-        let data = await response.json();
+        let data: any = null;
+        let lastError: Error | null = null;
+
+        for (const accessKey of UNSPLASH_ACCESS_KEYS) {
+          try {
+            const response = await fetch(
+              `https://api.unsplash.com/photos/random?username=${UNSPLASH_USERNAME}&count=${imageBlockCount}&client_id=${accessKey}`
+            );
+
+            if (!response.ok) {
+              lastError = new Error(`Unsplash API request failed (${response.status})`);
+              continue;
+            }
+
+            data = await response.json();
+            break;
+          } catch (error) {
+            lastError = error as Error;
+          }
+        }
+
+        if (!data) {
+          throw lastError || new Error('Unsplash API request failed');
+        }
         
         // Normalize data
         const selectedPhotos = Array.isArray(data) ? data : [data];
