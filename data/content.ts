@@ -7,18 +7,16 @@ export const BLOCKS: ContentBlock[] = [
     type: 'hero-text',
     content: 'ZONGNAN',
     isFixed: true,
-    mobile: { colSpan: 'col-span-2', marginBottom: 'mb-4' },
-    // "ZONGNAN" is longer than "WENDY", give it more space
-    desktop: { colStart: 'col-start-1', colSpan: 'col-span-8', zIndex: 0 },
+    mobile: { colSpan: 'col-span-6', marginBottom: 'mb-2', justifySelf: 'center' },
+    desktop: { colStart: 'col-start-1', colSpan: 'col-span-6', zIndex: 0, justifySelf: 'center', marginTop: 'mt-8' },
   },
   {
     id: 'hero-bao',
     type: 'hero-text',
     content: 'BAO',
     isFixed: true,
-    mobile: { colSpan: 'col-span-2', marginBottom: 'mb-10', alignSelf: 'end' },
-    // "BAO" is short, position it right
-    desktop: { colStart: 'col-start-9', colSpan: 'col-span-4', justifySelf: 'end', marginTop: 'mt-24', zIndex: 0 },
+    mobile: { colSpan: 'col-span-6', marginBottom: 'mb-6', justifySelf: 'end' },
+    desktop: { colStart: 'col-start-7', colSpan: 'col-span-6', justifySelf: 'center', marginTop: 'mt-8', zIndex: 0 },
   },
 
   // --- LAYER 1: SCROLLING CONTENT ---

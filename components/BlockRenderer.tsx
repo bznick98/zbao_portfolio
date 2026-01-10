@@ -121,14 +121,17 @@ export const BlockRenderer: React.FC<BlockRendererProps> = ({ block, className =
   }
 
   if (block.type === 'hero-text') {
+    // Add text alignment based on block id
+    let alignClass = '';
+    if (block.id === 'hero-zongnan') alignClass = 'text-left';
+    if (block.id === 'hero-bao') alignClass = 'text-right';
+
     return (
-      <div ref={containerRef} className={finalClasses}>
-        <h1
-          data-blend-fade
-          className="text-[10vw] md:text-[9vw] leading-normal font-normal uppercase break-words"
-        >
-          {block.content}
-        </h1>
+      <div
+        ref={containerRef}
+        className={`${finalClasses} text-[6vw] md:text-[4vw] leading-normal font-normal uppercase break-words ${alignClass}`}
+      >
+        {block.content}
       </div>
     );
   }
