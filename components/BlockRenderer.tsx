@@ -45,6 +45,7 @@ const getGridClasses = (mobile: GridPosition, desktop: GridPosition) => {
 
 export const BlockRenderer: React.FC<BlockRendererProps> = ({ block, className = '' }) => {
   const containerRef = useRef<HTMLDivElement>(null);
+  const captionRef = useRef<HTMLDivElement>(null);
   
   useLayoutEffect(() => {
     const el = containerRef.current;
@@ -82,6 +83,35 @@ export const BlockRenderer: React.FC<BlockRendererProps> = ({ block, className =
     }
 
   }, [block.parallaxSpeed, block.isFixed]);
+
+  useLayoutEffect(() => {
+    const el = captionRef.current;
+
+    if (!el || !(block.caption || block.subCaption)) return;
+
+    gsap.fromTo(
+      el,
+      { opacity: 0, y: 12 },
+      {
+        opacity: 1,
+        y: 0,
+        duration: 0.6,
+        ease: 'power2.out',
+        scrollTrigger: {
+          trigger: el,
+          start: 'top 85%'
+        }
+      }
+    );
+
+    return () => {
+      ScrollTrigger.getAll().forEach(trigger => {
+        if (trigger.trigger === el) {
+          trigger.kill();
+        }
+      });
+    };
+  }, [block.caption, block.subCaption]);
 
   const gridClasses = getGridClasses(block.mobile, block.desktop);
   const finalClasses = `${gridClasses} ${className}`;
@@ -142,16 +172,17 @@ export const BlockRenderer: React.FC<BlockRendererProps> = ({ block, className =
             )}
           </div>
           
-          {(block.caption || block.subCaption) && (
-            <div className="mt-4 flex flex-col gap-1">
-              {block.caption && (
-                 <span className="font-serif text-lg md:text-xl italic text-[#111]">{block.caption}</span>
-              )}
-              {block.subCaption && (
-                 <span className="font-sans text-xs uppercase tracking-widest opacity-50 text-[#111]">{block.subCaption}</span>
-              )}
-            </div>
-          )}
+          <div
+            ref={captionRef}
+            className="mt-4 flex min-h-[3.5rem] flex-col gap-1 opacity-0"
+          >
+            {block.caption && (
+              <span className="font-serif text-lg md:text-xl italic text-[#111]">{block.caption}</span>
+            )}
+            {block.subCaption && (
+              <span className="font-sans text-xs uppercase tracking-widest opacity-50 text-[#111]">{block.subCaption}</span>
+            )}
+          </div>
         </div>
       </div>
     );
