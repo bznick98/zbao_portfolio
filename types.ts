@@ -22,6 +22,7 @@ export interface ContentBlock {
   subCaption?: string;
   aspectRatio?: string; // Tailwind class e.g., 'aspect-[3/4]'
   customAspectRatio?: string; // CSS value e.g., '3456 / 5184'
+  useNaturalAspectRatio?: boolean;
   
   // Layout behavior
   isFixed?: boolean; // If true, stays in place while other content scrolls

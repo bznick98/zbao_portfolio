@@ -192,7 +192,7 @@ Descriptions: ${JSON.stringify(descriptions)}
       <div className="max-w-[1800px] mx-auto relative">
         {/* SCROLLING CONTENT */}
         <div className="relative z-10 px-4 md:px-12 pb-24 pt-16 md:pt-32">
-          <div className="grid grid-cols-6 md:grid-cols-12 gap-x-4 md:gap-x-8 gap-y-0 auto-rows-min">
+          <div className="grid grid-cols-2 md:grid-cols-12 gap-x-4 md:gap-x-8 gap-y-0 auto-rows-min">
             {scrollBlocks.map((block) => (
               <BlockRenderer key={block.id} block={block} />
             ))}

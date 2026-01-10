@@ -149,8 +149,20 @@ export const BlockRenderer: React.FC<BlockRendererProps> = ({ block, className =
   }
 
   if (block.type === 'image') {
-    const aspectClass = block.customAspectRatio ? '' : (block.aspectRatio || 'aspect-[3/4]');
-    const inlineStyle = block.customAspectRatio ? { aspectRatio: block.customAspectRatio } : undefined;
+    const useNaturalAspectRatio = block.useNaturalAspectRatio;
+    const aspectClass = useNaturalAspectRatio
+      ? ''
+      : block.customAspectRatio
+        ? ''
+        : (block.aspectRatio || 'aspect-[3/4]');
+    const inlineStyle = useNaturalAspectRatio
+      ? undefined
+      : block.customAspectRatio
+        ? { aspectRatio: block.customAspectRatio }
+        : undefined;
+    const imageClassName = useNaturalAspectRatio
+      ? 'w-full h-auto object-contain transition-opacity duration-700 opacity-0'
+      : 'w-full h-full object-cover transition-opacity duration-700 opacity-0';
 
     return (
       <div ref={containerRef} className={finalClasses}>
@@ -163,7 +175,7 @@ export const BlockRenderer: React.FC<BlockRendererProps> = ({ block, className =
               <img 
                 src={block.src} 
                 alt={block.alt}
-                className="w-full h-full object-cover transition-opacity duration-700 opacity-0"
+                className={imageClassName}
                 loading="lazy"
                 onLoad={(e) => (e.target as HTMLImageElement).classList.remove('opacity-0')}
               />
