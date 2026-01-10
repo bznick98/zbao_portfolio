@@ -27,7 +27,7 @@ export const BLOCKS: ContentBlock[] = [
   {
     id: 'spacer-top',
     type: 'spacer',
-    mobile: { colSpan: 'col-span-12', marginBottom: 'h-[40vh]' },
+    mobile: { colSpan: 'col-span-12', marginBottom: 'h-[24vh]' },
     desktop: { colSpan: 'col-span-12', marginBottom: 'h-[30vh]' },
   },
 
@@ -38,7 +38,7 @@ export const BLOCKS: ContentBlock[] = [
     id: 'img-extra-1',
     type: 'image',
     aspectRatio: 'aspect-[3/4]',
-    mobile: { colSpan: 'col-span-12', marginBottom: 'mb-8' },
+    mobile: { colSpan: 'col-span-6', marginBottom: 'mb-8' },
     desktop: { colStart: 'col-start-2', colSpan: 'col-span-5', marginTop: '-mt-24', zIndex: 20 },
     parallaxSpeed: 0.15
   },
@@ -48,7 +48,7 @@ export const BLOCKS: ContentBlock[] = [
     id: 'img-1',
     type: 'image',
     aspectRatio: 'aspect-[3/4]',
-    mobile: { colSpan: 'col-span-12', marginBottom: 'mb-12' },
+    mobile: { colSpan: 'col-span-6', marginBottom: 'mb-12' },
     desktop: { colStart: 'col-start-7', colSpan: 'col-span-6', marginTop: '-mt-12', zIndex: 10 },
     parallaxSpeed: 0.1
   },
@@ -59,8 +59,8 @@ export const BLOCKS: ContentBlock[] = [
     type: 'text',
     content: 'In The Realm Of Ideas.',
     caption: 'Each Mind Is A World',
-    mobile: { colSpan: 'col-span-10', marginBottom: 'mb-16' },
-    desktop: { colStart: 'col-start-2', colSpan: 'col-span-5', marginTop: 'mt-32', zIndex: 10 },
+    mobile: { colSpan: 'col-span-6', marginTop: 'mt-6', marginBottom: 'mb-16' },
+    desktop: { colStart: 'col-start-2', colSpan: 'col-span-5', marginTop: 'mt-56', zIndex: 10 },
     parallaxSpeed: 0.05
   },
 
@@ -68,9 +68,9 @@ export const BLOCKS: ContentBlock[] = [
   {
     id: 'img-extra-2',
     type: 'image',
-    aspectRatio: 'aspect-[4/5]',
-    mobile: { colSpan: 'col-span-12', marginBottom: 'mb-12' },
-    desktop: { colStart: 'col-start-8', colSpan: 'col-span-5', marginTop: 'mt-12', zIndex: 5 },
+    aspectRatio: 'aspect-[3/5]',
+    mobile: { colSpan: 'col-span-6', marginBottom: 'mb-12' },
+    desktop: { colStart: 'col-start-8', colSpan: 'col-span-4', marginTop: 'mt-20', zIndex: 5 },
     parallaxSpeed: 0.08
   },
 
@@ -78,9 +78,9 @@ export const BLOCKS: ContentBlock[] = [
   {
     id: 'img-2',
     type: 'image',
-    aspectRatio: 'aspect-[4/3]',
-    mobile: { colSpan: 'col-span-12', marginBottom: 'mb-12' },
-    desktop: { colStart: 'col-start-5', colSpan: 'col-span-7', marginTop: 'mt-24', zIndex: 10 },
+    aspectRatio: 'aspect-[5/4]',
+    mobile: { colSpan: 'col-span-6', marginBottom: 'mb-12' },
+    desktop: { colStart: 'col-start-4', colSpan: 'col-span-8', marginTop: 'mt-28', zIndex: 10 },
     parallaxSpeed: 0.15
   },
 
@@ -88,9 +88,9 @@ export const BLOCKS: ContentBlock[] = [
   {
     id: 'img-extra-3',
     type: 'image',
-    aspectRatio: 'aspect-[1/1]',
-    mobile: { colSpan: 'col-span-12', marginBottom: 'mb-8' },
-    desktop: { colStart: 'col-start-1', colSpan: 'col-span-4', marginTop: 'mt-12', zIndex: 20 },
+    aspectRatio: 'aspect-[4/5]',
+    mobile: { colSpan: 'col-span-6', marginBottom: 'mb-8' },
+    desktop: { colStart: 'col-start-1', colSpan: 'col-span-3', marginTop: 'mt-16', zIndex: 20 },
     parallaxSpeed: 0.2
   },
 
@@ -99,7 +99,7 @@ export const BLOCKS: ContentBlock[] = [
     id: 'img-3',
     type: 'image',
     aspectRatio: 'aspect-[3/4]',
-    mobile: { colSpan: 'col-span-12', marginBottom: 'mb-8' },
+    mobile: { colSpan: 'col-span-6', marginBottom: 'mb-8' },
     desktop: { colStart: 'col-start-2', colSpan: 'col-span-5', marginTop: 'mt-24', zIndex: 20 },
     parallaxSpeed: 0.2
   },
@@ -110,7 +110,7 @@ export const BLOCKS: ContentBlock[] = [
     type: 'text',
     content: 'Olha.',
     caption: 'Look closely',
-    mobile: { colSpan: 'col-span-12', marginBottom: 'mb-12', justifySelf: 'center' },
+    mobile: { colSpan: 'col-span-6', marginBottom: 'mb-12', justifySelf: 'center' },
     desktop: { colStart: 'col-start-5', colSpan: 'col-span-4', justifySelf: 'center', marginTop: 'mt-48', zIndex: 10 },
     parallaxSpeed: 0.05
   },
@@ -119,9 +119,9 @@ export const BLOCKS: ContentBlock[] = [
   {
     id: 'img-extra-4',
     type: 'image',
-    aspectRatio: 'aspect-[2/3]',
-    mobile: { colSpan: 'col-span-12', marginBottom: 'mb-12' },
-    desktop: { colStart: 'col-start-8', colSpan: 'col-span-4', marginTop: '-mt-32', zIndex: 5 },
+    aspectRatio: 'aspect-[2/5]',
+    mobile: { colSpan: 'col-span-6', marginBottom: 'mb-12' },
+    desktop: { colStart: 'col-start-9', colSpan: 'col-span-3', marginTop: '-mt-40', zIndex: 5 },
     parallaxSpeed: 0.12
   },
 
@@ -129,9 +129,9 @@ export const BLOCKS: ContentBlock[] = [
   {
     id: 'img-4',
     type: 'image',
-    aspectRatio: 'aspect-[9/16]',
-    mobile: { colSpan: 'col-span-12', marginBottom: 'mb-16' },
-    desktop: { colStart: 'col-start-8', colSpan: 'col-span-5', marginTop: 'mt-32', zIndex: 10 },
+    aspectRatio: 'aspect-[2/3]',
+    mobile: { colSpan: 'col-span-6', marginBottom: 'mb-16' },
+    desktop: { colStart: 'col-start-7', colSpan: 'col-span-6', marginTop: 'mt-36', zIndex: 10 },
     parallaxSpeed: 0.25
   },
 
@@ -139,9 +139,9 @@ export const BLOCKS: ContentBlock[] = [
   {
     id: 'img-extra-5',
     type: 'image',
-    aspectRatio: 'aspect-[4/3]',
-    mobile: { colSpan: 'col-span-12', marginBottom: 'mb-12' },
-    desktop: { colStart: 'col-start-1', colSpan: 'col-span-6', marginTop: 'mt-12', zIndex: 15 },
+    aspectRatio: 'aspect-[16/11]',
+    mobile: { colSpan: 'col-span-6', marginBottom: 'mb-12' },
+    desktop: { colStart: 'col-start-1', colSpan: 'col-span-7', marginTop: 'mt-16', zIndex: 15 },
     parallaxSpeed: 0.1
   },
 
@@ -150,7 +150,7 @@ export const BLOCKS: ContentBlock[] = [
     id: 'text-just-in-time',
     type: 'text',
     content: 'Just In Time.',
-    mobile: { colSpan: 'col-span-12', marginBottom: 'mb-8' },
+    mobile: { colSpan: 'col-span-6', marginBottom: 'mb-8' },
     desktop: { colStart: 'col-start-2', colSpan: 'col-span-4', marginTop: 'mt-32', zIndex: 10 },
     parallaxSpeed: 0.05
   },
@@ -159,9 +159,9 @@ export const BLOCKS: ContentBlock[] = [
   {
     id: 'img-5',
     type: 'image',
-    aspectRatio: 'aspect-[16/9]',
-    mobile: { colSpan: 'col-span-12', marginBottom: 'mb-24' },
-    desktop: { colStart: 'col-start-3', colSpan: 'col-span-10', marginTop: 'mt-24', zIndex: 10 },
+    aspectRatio: 'aspect-[7/4]',
+    mobile: { colSpan: 'col-span-6', marginBottom: 'mb-24' },
+    desktop: { colStart: 'col-start-2', colSpan: 'col-span-11', marginTop: 'mt-28', zIndex: 10 },
     parallaxSpeed: 0.1
   },
   
