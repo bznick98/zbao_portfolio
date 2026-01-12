@@ -46,6 +46,9 @@ const getGridClasses = (mobile: GridPosition, desktop: GridPosition) => {
 export const BlockRenderer: React.FC<BlockRendererProps> = ({ block, className = '' }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const captionRef = useRef<HTMLDivElement>(null);
+  const heroTopRef = useRef<HTMLSpanElement>(null);
+  const heroMidRef = useRef<HTMLSpanElement>(null);
+  const heroBottomRef = useRef<HTMLSpanElement>(null);
   
   useLayoutEffect(() => {
     const el = containerRef.current;
@@ -113,6 +116,69 @@ export const BlockRenderer: React.FC<BlockRendererProps> = ({ block, className =
     };
   }, [block.caption, block.subCaption]);
 
+  useLayoutEffect(() => {
+    if (block.type !== 'hero-text') return;
+    const container = containerRef.current;
+    const top = heroTopRef.current;
+    const mid = heroMidRef.current;
+    const bottom = heroBottomRef.current;
+
+    if (!container || !top || !mid || !bottom) return;
+
+    gsap.set(top, { clipPath: 'inset(0 0 66% 0)' });
+    gsap.set(mid, { clipPath: 'inset(34% 0 34% 0)' });
+    gsap.set(bottom, { clipPath: 'inset(66% 0 0 0)' });
+    gsap.set([top, mid, bottom], { x: 0 });
+
+    const moveTop = gsap.quickTo(top, 'x', { duration: 0.25, ease: 'sine.out' });
+    const moveMid = gsap.quickTo(mid, 'x', { duration: 0.25, ease: 'sine.out' });
+    const moveBottom = gsap.quickTo(bottom, 'x', { duration: 0.25, ease: 'sine.out' });
+    const skewTop = gsap.quickTo(top, 'skewX', { duration: 0.25, ease: 'sine.out' });
+    const skewMid = gsap.quickTo(mid, 'skewX', { duration: 0.25, ease: 'sine.out' });
+    const skewBottom = gsap.quickTo(bottom, 'skewX', { duration: 0.25, ease: 'sine.out' });
+
+    const handleMove = (event: PointerEvent) => {
+      const bounds = container.getBoundingClientRect();
+      const relX = (event.clientX - bounds.left) / bounds.width;
+      const relY = (event.clientY - bounds.top) / bounds.height;
+      const offsetX = (relX - 0.5) * 2;
+      const cursorY = relY * bounds.height;
+
+      const sliceCenters = [
+        bounds.height * 0.17,
+        bounds.height * 0.5,
+        bounds.height * 0.83
+      ];
+      const maxShift = bounds.width * 0.08;
+
+      const shifts = sliceCenters.map((center) => {
+        const distance = Math.abs(cursorY - center);
+        const falloff = gsap.utils.clamp(0, 1, 1 - distance / (bounds.height * 0.6));
+        return offsetX * maxShift * falloff;
+      });
+
+      moveTop(shifts[0]);
+      moveMid(shifts[1] * -0.85);
+      moveBottom(shifts[2]);
+
+      skewTop(offsetX * -6);
+      skewMid(offsetX * 4);
+      skewBottom(offsetX * -6);
+    };
+
+    const handleLeave = () => {
+      gsap.to([top, mid, bottom], { x: 0, skewX: 0, duration: 0.35, ease: 'sine.out' });
+    };
+
+    container.addEventListener('pointermove', handleMove);
+    container.addEventListener('pointerleave', handleLeave);
+
+    return () => {
+      container.removeEventListener('pointermove', handleMove);
+      container.removeEventListener('pointerleave', handleLeave);
+    };
+  }, [block.type]);
+
   const gridClasses = getGridClasses(block.mobile, block.desktop);
   const finalClasses = `${gridClasses} ${className}`;
 
@@ -129,9 +195,32 @@ export const BlockRenderer: React.FC<BlockRendererProps> = ({ block, className =
     return (
       <div
         ref={containerRef}
-        className={`${finalClasses} text-[6vw] md:text-[4vw] leading-normal font-normal uppercase break-words ${alignClass}`}
+        className={`${finalClasses} text-[6vw] md:text-[4vw] leading-normal font-normal uppercase break-words ${alignClass} cursor-pointer select-none`}
       >
-        {block.content}
+        <span className="relative inline-block">
+          <span className="opacity-0 block">{block.content}</span>
+          <span
+            ref={heroTopRef}
+            className="absolute inset-0 block will-change-transform"
+            aria-hidden="true"
+          >
+            {block.content}
+          </span>
+          <span
+            ref={heroMidRef}
+            className="absolute inset-0 block will-change-transform"
+            aria-hidden="true"
+          >
+            {block.content}
+          </span>
+          <span
+            ref={heroBottomRef}
+            className="absolute inset-0 block will-change-transform"
+            aria-hidden="true"
+          >
+            {block.content}
+          </span>
+        </span>
       </div>
     );
   }
