@@ -46,7 +46,8 @@ const getGridClasses = (mobile: GridPosition, desktop: GridPosition) => {
 export const BlockRenderer: React.FC<BlockRendererProps> = ({ block, className = '' }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const captionRef = useRef<HTMLDivElement>(null);
-  const heroOverlayRef = useRef<HTMLSpanElement>(null);
+  const heroTopRef = useRef<HTMLSpanElement>(null);
+  const heroBottomRef = useRef<HTMLSpanElement>(null);
   
   useLayoutEffect(() => {
     const el = containerRef.current;
@@ -116,51 +117,45 @@ export const BlockRenderer: React.FC<BlockRendererProps> = ({ block, className =
 
   useLayoutEffect(() => {
     if (block.type !== 'hero-text') return;
-
     const container = containerRef.current;
-    const overlay = heroOverlayRef.current;
+    const top = heroTopRef.current;
+    const bottom = heroBottomRef.current;
 
-    if (!container || !overlay) return;
+    if (!container || !top || !bottom) return;
 
-    const closedClip = 'polygon(50% 0, 50% 0, 50% 100%, 50% 100%)';
+    gsap.set(top, { y: 0, skewX: 0, clipPath: 'inset(0 0 50% 0)' });
+    gsap.set(bottom, { y: 0, skewX: 0, clipPath: 'inset(50% 0 0 0)' });
 
-    gsap.set(overlay, {
-      clipPath: closedClip,
-      yPercent: 0
+    const waveTimeline = gsap.timeline({
+      paused: true,
+      repeat: -1,
+      yoyo: true,
+      defaults: { duration: 0.6, ease: 'sine.inOut' }
     });
 
-    const handlePointerMove = (event: PointerEvent) => {
-      const bounds = container.getBoundingClientRect();
-      const relativeX = event.clientX - bounds.left;
-      const percent = gsap.utils.clamp(0, 100, (relativeX / bounds.width) * 100);
-      const sliceWidth = 24;
-      const left = Math.max(0, percent - sliceWidth / 2);
-      const right = Math.min(100, percent + sliceWidth / 2);
-      const waveOffset = Math.sin((percent / 100) * Math.PI * 2) * 8;
+    waveTimeline
+      .to(top, { y: -10, skewX: -5, clipPath: 'inset(0 0 62% 0)' }, 0)
+      .to(bottom, { y: 10, skewX: 5, clipPath: 'inset(38% 0 0 0)' }, 0)
+      .to(top, { y: -6, skewX: -2, clipPath: 'inset(0 0 55% 0)' }, 0.6)
+      .to(bottom, { y: 6, skewX: 2, clipPath: 'inset(45% 0 0 0)' }, 0.6);
 
-      gsap.to(overlay, {
-        clipPath: `polygon(${left}% 0, ${right}% 0, ${right}% 100%, ${left}% 100%)`,
-        yPercent: waveOffset,
-        duration: 0.25,
-        ease: 'power2.out'
-      });
+    const handleEnter = () => {
+      waveTimeline.play();
     };
 
-    const handlePointerLeave = () => {
-      gsap.to(overlay, {
-        clipPath: closedClip,
-        yPercent: 0,
-        duration: 0.5,
-        ease: 'power3.out'
-      });
+    const handleLeave = () => {
+      waveTimeline.pause(0);
+      gsap.to(top, { y: 0, skewX: 0, clipPath: 'inset(0 0 50% 0)', duration: 0.4, ease: 'sine.out' });
+      gsap.to(bottom, { y: 0, skewX: 0, clipPath: 'inset(50% 0 0 0)', duration: 0.4, ease: 'sine.out' });
     };
 
-    container.addEventListener('pointermove', handlePointerMove);
-    container.addEventListener('pointerleave', handlePointerLeave);
+    container.addEventListener('pointerenter', handleEnter);
+    container.addEventListener('pointerleave', handleLeave);
 
     return () => {
-      container.removeEventListener('pointermove', handlePointerMove);
-      container.removeEventListener('pointerleave', handlePointerLeave);
+      waveTimeline.kill();
+      container.removeEventListener('pointerenter', handleEnter);
+      container.removeEventListener('pointerleave', handleLeave);
     };
   }, [block.type]);
 
@@ -180,14 +175,24 @@ export const BlockRenderer: React.FC<BlockRendererProps> = ({ block, className =
     return (
       <div
         ref={containerRef}
-        className={`${finalClasses} text-[6vw] md:text-[4vw] leading-normal font-normal uppercase break-words ${alignClass} relative select-none cursor-pointer`}
+        className={`${finalClasses} text-[6vw] md:text-[4vw] leading-normal font-normal uppercase break-words ${alignClass} cursor-pointer select-none`}
       >
-        <span className="relative z-10 block">{block.content}</span>
-        <span
-          ref={heroOverlayRef}
-          className="absolute inset-0 z-20 block text-[#111] mix-blend-multiply"
-        >
-          {block.content}
+        <span className="relative inline-block">
+          <span className="opacity-0 block">{block.content}</span>
+          <span
+            ref={heroTopRef}
+            className="absolute inset-0 block will-change-transform"
+            aria-hidden="true"
+          >
+            {block.content}
+          </span>
+          <span
+            ref={heroBottomRef}
+            className="absolute inset-0 block will-change-transform"
+            aria-hidden="true"
+          >
+            {block.content}
+          </span>
         </span>
       </div>
     );
