@@ -34,6 +34,7 @@ export const Work: React.FC = () => {
   const captionsRequestedRef = useRef(false);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const scrollVelocityRef = useRef(0);
+  const scrollAccelerationRef = useRef(0);
 
   // Unsplash Fetch & GenAI Generation Logic
   useEffect(() => {
@@ -199,7 +200,6 @@ Descriptions: ${JSON.stringify(descriptions)}
     let width = 0;
     let height = 0;
     let animationFrame = 0;
-    let time = 0;
 
     const cursor = {
       x: 0,
@@ -210,37 +210,25 @@ Descriptions: ${JSON.stringify(descriptions)}
     type Particle = {
       x: number;
       y: number;
-      baseX: number;
-      baseY: number;
       radius: number;
-      phase: number;
-      amplitude: number;
-      color: string;
+      vx: number;
+      vy: number;
     };
 
     let particles: Particle[] = [];
 
     const buildParticles = () => {
-      const density = 0.00008;
-      const count = Math.min(220, Math.max(120, Math.floor(width * height * density)));
-      const palette = [
-        'rgba(74, 222, 128, 0.45)',
-        'rgba(34, 197, 94, 0.35)',
-        'rgba(250, 204, 21, 0.4)',
-        'rgba(253, 224, 71, 0.35)'
-      ];
+      const density = 0.00001;
+      const count = Math.min(20, Math.max(10, Math.floor(width * height * density)));
       particles = Array.from({ length: count }, () => {
         const baseX = Math.random() * width;
         const baseY = Math.random() * height;
         return {
           x: baseX,
           y: baseY,
-          baseX,
-          baseY,
-          radius: Math.random() * 2 + 0.6,
-          phase: Math.random() * Math.PI * 2,
-          amplitude: Math.random() * 16 + 6,
-          color: palette[Math.floor(Math.random() * palette.length)]
+          radius: Math.random() * 10 + 8,
+          vx: (Math.random() - 0.5) * 0.6,
+          vy: (Math.random() - 0.5) * 0.6
         };
       });
     };
@@ -276,32 +264,88 @@ Descriptions: ${JSON.stringify(descriptions)}
       start: 'top top',
       end: 'bottom bottom',
       onUpdate: (self) => {
-        scrollVelocityRef.current = gsap.utils.clamp(-2000, 2000, self.getVelocity());
+        const nextVelocity = gsap.utils.clamp(-2000, 2000, self.getVelocity());
+        scrollAccelerationRef.current = nextVelocity - scrollVelocityRef.current;
+        scrollVelocityRef.current = nextVelocity;
       }
     });
 
     const animate = () => {
-      time += 0.01;
       context.clearRect(0, 0, width, height);
 
-      const scrollWave = scrollVelocityRef.current * 0.0005;
+      const scrollForce = scrollAccelerationRef.current * 0.0008;
 
       particles.forEach((particle) => {
         const dx = cursor.x - particle.x;
         const dy = cursor.y - particle.y;
         const distance = Math.sqrt(dx * dx + dy * dy) || 1;
-        const influence = cursor.active ? Math.max(0, 140 - distance) / 140 : 0;
-        const pushX = (dx / distance) * influence * 24;
-        const pushY = (dy / distance) * influence * 24;
+        const influence = cursor.active ? Math.max(0, 200 - distance) / 200 : 0;
+        const pushX = (dx / distance) * influence * 1.8;
+        const pushY = (dy / distance) * influence * 1.8;
 
-        const waveX = Math.cos(time + particle.phase) * particle.amplitude;
-        const waveY = Math.sin(time + particle.phase) * (particle.amplitude + scrollWave * 18);
+        particle.vx += pushX;
+        particle.vy += pushY + scrollForce;
 
-        particle.x = particle.baseX + waveX + pushX;
-        particle.y = particle.baseY + waveY + pushY + scrollWave * 40;
+        particle.vx *= 0.98;
+        particle.vy *= 0.98;
+        particle.x += particle.vx;
+        particle.y += particle.vy;
+      });
+
+      for (let i = 0; i < particles.length; i += 1) {
+        const particle = particles[i];
+        for (let j = i + 1; j < particles.length; j += 1) {
+          const other = particles[j];
+          const dx = other.x - particle.x;
+          const dy = other.y - particle.y;
+          const distance = Math.sqrt(dx * dx + dy * dy) || 1;
+          const minDistance = particle.radius + other.radius;
+
+          if (distance < minDistance) {
+            const overlap = (minDistance - distance) / 2;
+            const nx = dx / distance;
+            const ny = dy / distance;
+
+            particle.x -= nx * overlap;
+            particle.y -= ny * overlap;
+            other.x += nx * overlap;
+            other.y += ny * overlap;
+
+            const relativeVx = other.vx - particle.vx;
+            const relativeVy = other.vy - particle.vy;
+            const impact = relativeVx * nx + relativeVy * ny;
+
+            if (impact < 0) {
+              const impulse = impact * 0.9;
+              particle.vx += impulse * nx;
+              particle.vy += impulse * ny;
+              other.vx -= impulse * nx;
+              other.vy -= impulse * ny;
+            }
+          }
+        }
+      }
+
+      particles.forEach((particle) => {
+        if (particle.x - particle.radius < 0) {
+          particle.x = particle.radius;
+          particle.vx *= -0.9;
+        }
+        if (particle.x + particle.radius > width) {
+          particle.x = width - particle.radius;
+          particle.vx *= -0.9;
+        }
+        if (particle.y - particle.radius < 0) {
+          particle.y = particle.radius;
+          particle.vy *= -0.9;
+        }
+        if (particle.y + particle.radius > height) {
+          particle.y = height - particle.radius;
+          particle.vy *= -0.9;
+        }
 
         context.beginPath();
-        context.fillStyle = particle.color;
+        context.fillStyle = '#0f0f0f';
         context.arc(particle.x, particle.y, particle.radius, 0, Math.PI * 2);
         context.fill();
       });
