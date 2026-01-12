@@ -46,6 +46,8 @@ const getGridClasses = (mobile: GridPosition, desktop: GridPosition) => {
 export const BlockRenderer: React.FC<BlockRendererProps> = ({ block, className = '' }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const captionRef = useRef<HTMLDivElement>(null);
+  const heroTopRef = useRef<HTMLSpanElement>(null);
+  const heroBottomRef = useRef<HTMLSpanElement>(null);
   
   useLayoutEffect(() => {
     const el = containerRef.current;
@@ -113,6 +115,50 @@ export const BlockRenderer: React.FC<BlockRendererProps> = ({ block, className =
     };
   }, [block.caption, block.subCaption]);
 
+  useLayoutEffect(() => {
+    if (block.type !== 'hero-text') return;
+    const container = containerRef.current;
+    const top = heroTopRef.current;
+    const bottom = heroBottomRef.current;
+
+    if (!container || !top || !bottom) return;
+
+    gsap.set(top, { y: 0, skewX: 0, clipPath: 'inset(0 0 50% 0)' });
+    gsap.set(bottom, { y: 0, skewX: 0, clipPath: 'inset(50% 0 0 0)' });
+
+    const waveTimeline = gsap.timeline({
+      paused: true,
+      repeat: -1,
+      yoyo: true,
+      defaults: { duration: 0.6, ease: 'sine.inOut' }
+    });
+
+    waveTimeline
+      .to(top, { y: -10, skewX: -5, clipPath: 'inset(0 0 62% 0)' }, 0)
+      .to(bottom, { y: 10, skewX: 5, clipPath: 'inset(38% 0 0 0)' }, 0)
+      .to(top, { y: -6, skewX: -2, clipPath: 'inset(0 0 55% 0)' }, 0.6)
+      .to(bottom, { y: 6, skewX: 2, clipPath: 'inset(45% 0 0 0)' }, 0.6);
+
+    const handleEnter = () => {
+      waveTimeline.play();
+    };
+
+    const handleLeave = () => {
+      waveTimeline.pause(0);
+      gsap.to(top, { y: 0, skewX: 0, clipPath: 'inset(0 0 50% 0)', duration: 0.4, ease: 'sine.out' });
+      gsap.to(bottom, { y: 0, skewX: 0, clipPath: 'inset(50% 0 0 0)', duration: 0.4, ease: 'sine.out' });
+    };
+
+    container.addEventListener('pointerenter', handleEnter);
+    container.addEventListener('pointerleave', handleLeave);
+
+    return () => {
+      waveTimeline.kill();
+      container.removeEventListener('pointerenter', handleEnter);
+      container.removeEventListener('pointerleave', handleLeave);
+    };
+  }, [block.type]);
+
   const gridClasses = getGridClasses(block.mobile, block.desktop);
   const finalClasses = `${gridClasses} ${className}`;
 
@@ -129,9 +175,25 @@ export const BlockRenderer: React.FC<BlockRendererProps> = ({ block, className =
     return (
       <div
         ref={containerRef}
-        className={`${finalClasses} text-[6vw] md:text-[4vw] leading-normal font-normal uppercase break-words ${alignClass}`}
+        className={`${finalClasses} text-[6vw] md:text-[4vw] leading-normal font-normal uppercase break-words ${alignClass} cursor-pointer select-none`}
       >
-        {block.content}
+        <span className="relative inline-block">
+          <span className="opacity-0 block">{block.content}</span>
+          <span
+            ref={heroTopRef}
+            className="absolute inset-0 block will-change-transform"
+            aria-hidden="true"
+          >
+            {block.content}
+          </span>
+          <span
+            ref={heroBottomRef}
+            className="absolute inset-0 block will-change-transform"
+            aria-hidden="true"
+          >
+            {block.content}
+          </span>
+        </span>
       </div>
     );
   }
