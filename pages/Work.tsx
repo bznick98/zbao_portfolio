@@ -2,8 +2,8 @@ import React, { useLayoutEffect, useMemo, useState, useEffect, useRef } from 're
 import { BLOCKS } from '../data/content';
 import { BlockRenderer } from '../components/BlockRenderer';
 import { ContentBlock } from '../types';
-import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
+import gsap from 'gsap';
 gsap.registerPlugin(ScrollTrigger);
 
 // --- CONFIGURATION ---
