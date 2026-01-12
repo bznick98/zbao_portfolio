@@ -215,6 +215,7 @@ Descriptions: ${JSON.stringify(descriptions)}
       radius: number;
       phase: number;
       amplitude: number;
+      color: string;
     };
 
     let particles: Particle[] = [];
@@ -222,6 +223,12 @@ Descriptions: ${JSON.stringify(descriptions)}
     const buildParticles = () => {
       const density = 0.00008;
       const count = Math.min(220, Math.max(120, Math.floor(width * height * density)));
+      const palette = [
+        'rgba(74, 222, 128, 0.45)',
+        'rgba(34, 197, 94, 0.35)',
+        'rgba(250, 204, 21, 0.4)',
+        'rgba(253, 224, 71, 0.35)'
+      ];
       particles = Array.from({ length: count }, () => {
         const baseX = Math.random() * width;
         const baseY = Math.random() * height;
@@ -232,7 +239,8 @@ Descriptions: ${JSON.stringify(descriptions)}
           baseY,
           radius: Math.random() * 2 + 0.6,
           phase: Math.random() * Math.PI * 2,
-          amplitude: Math.random() * 16 + 6
+          amplitude: Math.random() * 16 + 6,
+          color: palette[Math.floor(Math.random() * palette.length)]
         };
       });
     };
@@ -293,7 +301,7 @@ Descriptions: ${JSON.stringify(descriptions)}
         particle.y = particle.baseY + waveY + pushY + scrollWave * 40;
 
         context.beginPath();
-        context.fillStyle = 'rgba(16, 24, 40, 0.22)';
+        context.fillStyle = particle.color;
         context.arc(particle.x, particle.y, particle.radius, 0, Math.PI * 2);
         context.fill();
       });
@@ -325,7 +333,7 @@ Descriptions: ${JSON.stringify(descriptions)}
   return (
     <div className="w-full relative">
       <canvas ref={canvasRef} className="fixed inset-0 z-0 pointer-events-none" />
-      <div className="fixed inset-0 z-[1] pointer-events-none bg-gradient-to-b from-[#faf9f6] via-[#faf9f6]/90 to-[#faf9f6]" />
+      <div className="fixed inset-0 z-[1] pointer-events-none bg-gradient-to-b from-[#faf9f6]/70 via-[#faf9f6]/50 to-[#faf9f6]/80" />
       <div className="max-w-[1800px] mx-auto relative z-10">
         {/* SCROLLING CONTENT */}
         <div className="relative z-10 px-4 md:px-12 pb-24 pt-16 md:pt-32">
