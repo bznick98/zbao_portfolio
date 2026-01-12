@@ -47,6 +47,7 @@ export const BlockRenderer: React.FC<BlockRendererProps> = ({ block, className =
   const containerRef = useRef<HTMLDivElement>(null);
   const captionRef = useRef<HTMLDivElement>(null);
   const heroTopRef = useRef<HTMLSpanElement>(null);
+  const heroMidRef = useRef<HTMLSpanElement>(null);
   const heroBottomRef = useRef<HTMLSpanElement>(null);
   
   useLayoutEffect(() => {
@@ -119,42 +120,78 @@ export const BlockRenderer: React.FC<BlockRendererProps> = ({ block, className =
     if (block.type !== 'hero-text') return;
     const container = containerRef.current;
     const top = heroTopRef.current;
+    const mid = heroMidRef.current;
     const bottom = heroBottomRef.current;
 
-    if (!container || !top || !bottom) return;
+    if (!container || !top || !mid || !bottom) return;
 
-    gsap.set(top, { y: 0, skewX: 0, clipPath: 'inset(0 0 50% 0)' });
-    gsap.set(bottom, { y: 0, skewX: 0, clipPath: 'inset(50% 0 0 0)' });
+    const resetClips = () => {
+      gsap.set(top, { clipPath: 'inset(0 0 50% 0)' });
+      gsap.set(mid, { clipPath: 'inset(44% 0 44% 0)' });
+      gsap.set(bottom, { clipPath: 'inset(50% 0 0 0)' });
+    };
 
-    const waveTimeline = gsap.timeline({
-      paused: true,
-      repeat: -1,
-      yoyo: true,
-      defaults: { duration: 0.6, ease: 'sine.inOut' }
-    });
-
-    waveTimeline
-      .to(top, { y: -10, skewX: -5, clipPath: 'inset(0 0 62% 0)' }, 0)
-      .to(bottom, { y: 10, skewX: 5, clipPath: 'inset(38% 0 0 0)' }, 0)
-      .to(top, { y: -6, skewX: -2, clipPath: 'inset(0 0 55% 0)' }, 0.6)
-      .to(bottom, { y: 6, skewX: 2, clipPath: 'inset(45% 0 0 0)' }, 0.6);
+    gsap.set([top, mid, bottom], { y: 0, skewX: 0 });
+    resetClips();
 
     const handleEnter = () => {
-      waveTimeline.play();
+      gsap.to(container, { letterSpacing: '0.08em', duration: 0.35, ease: 'sine.out' });
+    };
+
+    const handleMove = (event: PointerEvent) => {
+      const bounds = container.getBoundingClientRect();
+      const relX = (event.clientX - bounds.left) / bounds.width;
+      const relY = (event.clientY - bounds.top) / bounds.height;
+      const offsetX = (relX - 0.5) * 2;
+      const offsetY = (relY - 0.5) * 2;
+      const split = 50 + offsetY * 18;
+      const wave = Math.sin(relX * Math.PI) * 8;
+
+      const topClip = `inset(0 0 ${Math.max(30, 100 - split)}% 0)`;
+      const midClip = `inset(${Math.max(20, split - 6)}% 0 ${Math.max(20, 100 - (split + 6))}% 0)`;
+      const bottomClip = `inset(${Math.min(70, split)}% 0 0 0)`;
+
+      gsap.to(top, {
+        y: -12 - wave,
+        skewX: offsetX * -8,
+        clipPath: topClip,
+        duration: 0.2,
+        ease: 'sine.out',
+        overwrite: true
+      });
+      gsap.to(mid, {
+        y: wave * 0.5,
+        skewX: offsetX * 4,
+        clipPath: midClip,
+        duration: 0.2,
+        ease: 'sine.out',
+        overwrite: true
+      });
+      gsap.to(bottom, {
+        y: 12 + wave,
+        skewX: offsetX * 8,
+        clipPath: bottomClip,
+        duration: 0.2,
+        ease: 'sine.out',
+        overwrite: true
+      });
     };
 
     const handleLeave = () => {
-      waveTimeline.pause(0);
-      gsap.to(top, { y: 0, skewX: 0, clipPath: 'inset(0 0 50% 0)', duration: 0.4, ease: 'sine.out' });
-      gsap.to(bottom, { y: 0, skewX: 0, clipPath: 'inset(50% 0 0 0)', duration: 0.4, ease: 'sine.out' });
+      gsap.to(container, { letterSpacing: '0em', duration: 0.3, ease: 'sine.out' });
+      gsap.to([top, mid, bottom], { y: 0, skewX: 0, duration: 0.35, ease: 'sine.out' });
+      gsap.to(top, { clipPath: 'inset(0 0 50% 0)', duration: 0.35, ease: 'sine.out' });
+      gsap.to(mid, { clipPath: 'inset(44% 0 44% 0)', duration: 0.35, ease: 'sine.out' });
+      gsap.to(bottom, { clipPath: 'inset(50% 0 0 0)', duration: 0.35, ease: 'sine.out' });
     };
 
     container.addEventListener('pointerenter', handleEnter);
+    container.addEventListener('pointermove', handleMove);
     container.addEventListener('pointerleave', handleLeave);
 
     return () => {
-      waveTimeline.kill();
       container.removeEventListener('pointerenter', handleEnter);
+      container.removeEventListener('pointermove', handleMove);
       container.removeEventListener('pointerleave', handleLeave);
     };
   }, [block.type]);
@@ -181,6 +218,13 @@ export const BlockRenderer: React.FC<BlockRendererProps> = ({ block, className =
           <span className="opacity-0 block">{block.content}</span>
           <span
             ref={heroTopRef}
+            className="absolute inset-0 block will-change-transform"
+            aria-hidden="true"
+          >
+            {block.content}
+          </span>
+          <span
+            ref={heroMidRef}
             className="absolute inset-0 block will-change-transform"
             aria-hidden="true"
           >
