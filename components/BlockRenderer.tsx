@@ -46,6 +46,7 @@ const getGridClasses = (mobile: GridPosition, desktop: GridPosition) => {
 export const BlockRenderer: React.FC<BlockRendererProps> = ({ block, className = '' }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const captionRef = useRef<HTMLDivElement>(null);
+  const heroOverlayRef = useRef<HTMLSpanElement>(null);
   
   useLayoutEffect(() => {
     const el = containerRef.current;
@@ -113,6 +114,56 @@ export const BlockRenderer: React.FC<BlockRendererProps> = ({ block, className =
     };
   }, [block.caption, block.subCaption]);
 
+  useLayoutEffect(() => {
+    if (block.type !== 'hero-text') return;
+
+    const container = containerRef.current;
+    const overlay = heroOverlayRef.current;
+
+    if (!container || !overlay) return;
+
+    const closedClip = 'polygon(50% 0, 50% 0, 50% 100%, 50% 100%)';
+
+    gsap.set(overlay, {
+      clipPath: closedClip,
+      yPercent: 0
+    });
+
+    const handlePointerMove = (event: PointerEvent) => {
+      const bounds = container.getBoundingClientRect();
+      const relativeX = event.clientX - bounds.left;
+      const percent = gsap.utils.clamp(0, 100, (relativeX / bounds.width) * 100);
+      const sliceWidth = 24;
+      const left = Math.max(0, percent - sliceWidth / 2);
+      const right = Math.min(100, percent + sliceWidth / 2);
+      const waveOffset = Math.sin((percent / 100) * Math.PI * 2) * 8;
+
+      gsap.to(overlay, {
+        clipPath: `polygon(${left}% 0, ${right}% 0, ${right}% 100%, ${left}% 100%)`,
+        yPercent: waveOffset,
+        duration: 0.25,
+        ease: 'power2.out'
+      });
+    };
+
+    const handlePointerLeave = () => {
+      gsap.to(overlay, {
+        clipPath: closedClip,
+        yPercent: 0,
+        duration: 0.5,
+        ease: 'power3.out'
+      });
+    };
+
+    container.addEventListener('pointermove', handlePointerMove);
+    container.addEventListener('pointerleave', handlePointerLeave);
+
+    return () => {
+      container.removeEventListener('pointermove', handlePointerMove);
+      container.removeEventListener('pointerleave', handlePointerLeave);
+    };
+  }, [block.type]);
+
   const gridClasses = getGridClasses(block.mobile, block.desktop);
   const finalClasses = `${gridClasses} ${className}`;
 
@@ -129,9 +180,15 @@ export const BlockRenderer: React.FC<BlockRendererProps> = ({ block, className =
     return (
       <div
         ref={containerRef}
-        className={`${finalClasses} text-[6vw] md:text-[4vw] leading-normal font-normal uppercase break-words ${alignClass}`}
+        className={`${finalClasses} text-[6vw] md:text-[4vw] leading-normal font-normal uppercase break-words ${alignClass} relative select-none cursor-pointer`}
       >
-        {block.content}
+        <span className="relative z-10 block">{block.content}</span>
+        <span
+          ref={heroOverlayRef}
+          className="absolute inset-0 z-20 block text-[#111] mix-blend-multiply"
+        >
+          {block.content}
+        </span>
       </div>
     );
   }

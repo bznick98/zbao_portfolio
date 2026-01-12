@@ -2,8 +2,8 @@ import React, { useLayoutEffect, useMemo, useState, useEffect, useRef } from 're
 import { BLOCKS } from '../data/content';
 import { BlockRenderer } from '../components/BlockRenderer';
 import { ContentBlock } from '../types';
-import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
+import gsap from 'gsap';
 gsap.registerPlugin(ScrollTrigger);
 
 // --- CONFIGURATION ---
@@ -32,9 +32,6 @@ export const Work: React.FC = () => {
   const [blocks, setBlocks] = useState<ContentBlock[]>(BLOCKS);
   const hasInitializedRef = useRef(false);
   const captionsRequestedRef = useRef(false);
-  const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  const scrollVelocityRef = useRef(0);
-  const scrollAccelerationRef = useRef(0);
 
   // Unsplash Fetch & GenAI Generation Logic
   useEffect(() => {
@@ -186,197 +183,12 @@ Descriptions: ${JSON.stringify(descriptions)}
     return () => clearTimeout(timer);
   }, [blocks]);
 
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) {
-      return;
-    }
-
-    const context = canvas.getContext('2d');
-    if (!context) {
-      return;
-    }
-
-    let width = 0;
-    let height = 0;
-    let animationFrame = 0;
-
-    const cursor = {
-      x: 0,
-      y: 0,
-      active: false
-    };
-
-    type Particle = {
-      x: number;
-      y: number;
-      radius: number;
-      vx: number;
-      vy: number;
-    };
-
-    let particles: Particle[] = [];
-
-    const buildParticles = () => {
-      const density = 0.00001;
-      const count = Math.min(20, Math.max(10, Math.floor(width * height * density)));
-      particles = Array.from({ length: count }, () => {
-        const baseX = Math.random() * width;
-        const baseY = Math.random() * height;
-        return {
-          x: baseX,
-          y: baseY,
-          radius: Math.random() * 10 + 8,
-          vx: (Math.random() - 0.5) * 0.6,
-          vy: (Math.random() - 0.5) * 0.6
-        };
-      });
-    };
-
-    const handleResize = () => {
-      width = window.innerWidth;
-      height = window.innerHeight;
-      cursor.x = width / 2;
-      cursor.y = height / 2;
-      const ratio = window.devicePixelRatio || 1;
-      canvas.width = width * ratio;
-      canvas.height = height * ratio;
-      canvas.style.width = `${width}px`;
-      canvas.style.height = `${height}px`;
-      context.setTransform(ratio, 0, 0, ratio, 0, 0);
-      buildParticles();
-    };
-
-    const handlePointerMove = (event: PointerEvent) => {
-      cursor.x = event.clientX;
-      cursor.y = event.clientY;
-      cursor.active = true;
-    };
-
-    const handlePointerLeave = () => {
-      cursor.active = false;
-    };
-
-    handleResize();
-
-    const scrollTrigger = ScrollTrigger.create({
-      trigger: document.body,
-      start: 'top top',
-      end: 'bottom bottom',
-      onUpdate: (self) => {
-        const nextVelocity = gsap.utils.clamp(-2000, 2000, self.getVelocity());
-        scrollAccelerationRef.current = nextVelocity - scrollVelocityRef.current;
-        scrollVelocityRef.current = nextVelocity;
-      }
-    });
-
-    const animate = () => {
-      context.clearRect(0, 0, width, height);
-
-      const scrollForce = scrollAccelerationRef.current * 0.0008;
-
-      particles.forEach((particle) => {
-        const dx = cursor.x - particle.x;
-        const dy = cursor.y - particle.y;
-        const distance = Math.sqrt(dx * dx + dy * dy) || 1;
-        const influence = cursor.active ? Math.max(0, 200 - distance) / 200 : 0;
-        const pushX = (dx / distance) * influence * 1.8;
-        const pushY = (dy / distance) * influence * 1.8;
-
-        particle.vx += pushX;
-        particle.vy += pushY + scrollForce;
-
-        particle.vx *= 0.98;
-        particle.vy *= 0.98;
-        particle.x += particle.vx;
-        particle.y += particle.vy;
-      });
-
-      for (let i = 0; i < particles.length; i += 1) {
-        const particle = particles[i];
-        for (let j = i + 1; j < particles.length; j += 1) {
-          const other = particles[j];
-          const dx = other.x - particle.x;
-          const dy = other.y - particle.y;
-          const distance = Math.sqrt(dx * dx + dy * dy) || 1;
-          const minDistance = particle.radius + other.radius;
-
-          if (distance < minDistance) {
-            const overlap = (minDistance - distance) / 2;
-            const nx = dx / distance;
-            const ny = dy / distance;
-
-            particle.x -= nx * overlap;
-            particle.y -= ny * overlap;
-            other.x += nx * overlap;
-            other.y += ny * overlap;
-
-            const relativeVx = other.vx - particle.vx;
-            const relativeVy = other.vy - particle.vy;
-            const impact = relativeVx * nx + relativeVy * ny;
-
-            if (impact < 0) {
-              const impulse = impact * 0.9;
-              particle.vx += impulse * nx;
-              particle.vy += impulse * ny;
-              other.vx -= impulse * nx;
-              other.vy -= impulse * ny;
-            }
-          }
-        }
-      }
-
-      particles.forEach((particle) => {
-        if (particle.x - particle.radius < 0) {
-          particle.x = particle.radius;
-          particle.vx *= -0.9;
-        }
-        if (particle.x + particle.radius > width) {
-          particle.x = width - particle.radius;
-          particle.vx *= -0.9;
-        }
-        if (particle.y - particle.radius < 0) {
-          particle.y = particle.radius;
-          particle.vy *= -0.9;
-        }
-        if (particle.y + particle.radius > height) {
-          particle.y = height - particle.radius;
-          particle.vy *= -0.9;
-        }
-
-        context.beginPath();
-        context.fillStyle = '#0f0f0f';
-        context.arc(particle.x, particle.y, particle.radius, 0, Math.PI * 2);
-        context.fill();
-      });
-
-      animationFrame = window.requestAnimationFrame(animate);
-    };
-
-    animationFrame = window.requestAnimationFrame(animate);
-
-    window.addEventListener('resize', handleResize);
-    window.addEventListener('pointermove', handlePointerMove);
-    window.addEventListener('pointerdown', handlePointerMove);
-    window.addEventListener('pointerleave', handlePointerLeave);
-
-    return () => {
-      window.cancelAnimationFrame(animationFrame);
-      window.removeEventListener('resize', handleResize);
-      window.removeEventListener('pointermove', handlePointerMove);
-      window.removeEventListener('pointerdown', handlePointerMove);
-      window.removeEventListener('pointerleave', handlePointerLeave);
-      scrollTrigger.kill();
-    };
-  }, []);
-
   const scrollBlocks = useMemo(() => {
     return blocks.filter(b => !b.isFixed);
   }, [blocks]);
 
   return (
     <div className="w-full relative">
-      <canvas ref={canvasRef} className="fixed inset-0 z-0 pointer-events-none" />
       <div className="fixed inset-0 z-[1] pointer-events-none bg-gradient-to-b from-[#faf9f6]/70 via-[#faf9f6]/50 to-[#faf9f6]/80" />
       <div className="max-w-[1800px] mx-auto relative z-10">
         {/* SCROLLING CONTENT */}
