@@ -129,7 +129,7 @@ export const BlockRenderer: React.FC<BlockRendererProps> = ({ block, className =
     return (
       <div
         ref={containerRef}
-        className={`${finalClasses} text-[4.5vw] md:text-[3vw] leading-normal font-normal uppercase break-words font-majorMono ${alignClass}`}
+        className={`${finalClasses} text-[4.5vw] md:text-[3vw] leading-normal font-normal break-words font-majorMono ${alignClass}`}
       >
         {block.content}
       </div>

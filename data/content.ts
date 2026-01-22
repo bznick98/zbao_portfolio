@@ -5,7 +5,7 @@ export const BLOCKS: ContentBlock[] = [
   {
     id: 'hero-zongnan',
     type: 'hero-text',
-    content: 'ZONGNAN',
+    content: 'zongnan',
     isFixed: true,
     mobile: { colSpan: 'col-span-6', marginBottom: 'mb-2', justifySelf: 'center' },
     desktop: { colStart: 'col-start-1', colSpan: 'col-span-6', zIndex: 0, justifySelf: 'center', marginTop: 'mt-8' },
@@ -13,7 +13,7 @@ export const BLOCKS: ContentBlock[] = [
   {
     id: 'hero-bao',
     type: 'hero-text',
-    content: 'BAO',
+    content: 'BAo',
     isFixed: true,
     mobile: { colSpan: 'col-span-6', marginBottom: 'mb-6', justifySelf: 'end' },
     desktop: { colStart: 'col-start-7', colSpan: 'col-span-6', justifySelf: 'center', marginTop: 'mt-8', zIndex: 0 },
