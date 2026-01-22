@@ -32,7 +32,7 @@ const App: React.FC = () => {
           className="rounded-full border border-black/60 bg-white/90 px-4 py-2 text-xs uppercase tracking-[0.2em] text-black shadow-sm transition hover:bg-black hover:text-white"
           aria-pressed={isEyeEnabled}
         >
-          Eye Tracking: {isEyeEnabled ? 'on' : 'off'}
+          Eye: {isEyeEnabled ? 'on' : 'off'}
         </button>
       </div>
 
