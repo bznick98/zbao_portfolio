@@ -124,15 +124,52 @@ export const Eye: React.FC<{ className?: string }> = ({ className }) => {
     };
 
     const handlePointerUp = (event: PointerEvent) => {
-      if (event.pointerType === 'touch') {
+      if (event.pointerType !== 'mouse') {
         pointerState.current.active = false;
       }
     };
 
     const handlePointerCancel = (event: PointerEvent) => {
-      if (event.pointerType === 'touch') {
+      if (event.pointerType !== 'mouse') {
         pointerState.current.active = false;
       }
+    };
+
+    const handleTouchStart = (event: TouchEvent) => {
+      const touch = event.touches[0];
+      if (!touch) {
+        return;
+      }
+      pointerState.current = {
+        active: true,
+        x: touch.clientX,
+        y: touch.clientY,
+        type: 'touch',
+      };
+      requestOrientationPermission();
+    };
+
+    const handleTouchMove = (event: TouchEvent) => {
+      const touch = event.touches[0];
+      if (!touch) {
+        return;
+      }
+      pointerState.current = {
+        active: true,
+        x: touch.clientX,
+        y: touch.clientY,
+        type: 'touch',
+      };
+    };
+
+    const handleTouchEnd = (event: TouchEvent) => {
+      if (event.touches.length === 0) {
+        pointerState.current.active = false;
+      }
+    };
+
+    const handleTouchCancel = () => {
+      pointerState.current.active = false;
     };
 
     const handleOrientation = (event: DeviceOrientationEvent) => {
@@ -150,10 +187,15 @@ export const Eye: React.FC<{ className?: string }> = ({ className }) => {
     window.addEventListener('pointerdown', handlePointerDown, { passive: true });
     window.addEventListener('pointerup', handlePointerUp, { passive: true });
     window.addEventListener('pointercancel', handlePointerCancel, { passive: true });
+    window.addEventListener('touchstart', handleTouchStart, { passive: true });
+    window.addEventListener('touchmove', handleTouchMove, { passive: true });
+    window.addEventListener('touchend', handleTouchEnd, { passive: true });
+    window.addEventListener('touchcancel', handleTouchCancel, { passive: true });
     window.addEventListener('deviceorientation', handleOrientation, { passive: true });
     window.addEventListener('deviceorientationabsolute', handleOrientation, { passive: true });
 
     let animationFrame = 0;
+    const currentTarget = new THREE.Vector2(0, 0);
     const animate = () => {
       const target = new THREE.Vector2(0, 0);
       if (pointerState.current.active) {
@@ -175,9 +217,10 @@ export const Eye: React.FC<{ className?: string }> = ({ className }) => {
         );
       }
 
+      currentTarget.lerp(target, 0.12);
       irisGroup.position.set(
-        target.x * MAX_GAZE_OFFSET,
-        -target.y * MAX_GAZE_OFFSET,
+        currentTarget.x * MAX_GAZE_OFFSET,
+        -currentTarget.y * MAX_GAZE_OFFSET,
         GAZE_DEPTH,
       );
       irisGroup.lookAt(0, 0, 2);
@@ -195,6 +238,10 @@ export const Eye: React.FC<{ className?: string }> = ({ className }) => {
       window.removeEventListener('pointerdown', handlePointerDown);
       window.removeEventListener('pointerup', handlePointerUp);
       window.removeEventListener('pointercancel', handlePointerCancel);
+      window.removeEventListener('touchstart', handleTouchStart);
+      window.removeEventListener('touchmove', handleTouchMove);
+      window.removeEventListener('touchend', handleTouchEnd);
+      window.removeEventListener('touchcancel', handleTouchCancel);
       window.removeEventListener('deviceorientation', handleOrientation);
       window.removeEventListener('deviceorientationabsolute', handleOrientation);
       irisGeometry.dispose();
