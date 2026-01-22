@@ -24,7 +24,7 @@ const App: React.FC = () => {
       <Menu onNavigate={setCurrentPage} />
 
       {currentPage === 'Work' && (
-        <div className="fixed inset-0 w-full h-full pointer-events-none z-40 px-4 md:px-12 pt-24 md:pt-32 mix-blend-difference text-white">
+        <div className="fixed inset-0 w-full h-full pointer-events-none z-40 px-4 md:px-12 pt-24 md:pt-32 text-[#111]">
           <div className="grid grid-cols-12 gap-x-4 md:gap-x-8 w-full h-full">
             {heroBlocks.map((block) => (
               <BlockRenderer key={block.id} block={block} />
