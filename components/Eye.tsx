@@ -151,21 +151,22 @@ export const Eye: React.FC<{ className?: string }> = ({ className }) => {
     window.addEventListener('pointerup', handlePointerUp, { passive: true });
     window.addEventListener('pointercancel', handlePointerCancel, { passive: true });
     window.addEventListener('deviceorientation', handleOrientation, { passive: true });
+    window.addEventListener('deviceorientationabsolute', handleOrientation, { passive: true });
 
     let animationFrame = 0;
     const animate = () => {
       const target = new THREE.Vector2(0, 0);
-      const rect = wrapper.getBoundingClientRect();
-
       if (pointerState.current.active) {
+        const rect = wrapper.getBoundingClientRect();
         const centerX = rect.left + rect.width / 2;
         const centerY = rect.top + rect.height / 2;
         const dx = pointerState.current.x - centerX;
         const dy = pointerState.current.y - centerY;
-        const maxRadius = Math.max(rect.width, rect.height) * 0.45;
+        const maxRadiusX = Math.max(1, window.innerWidth / 2);
+        const maxRadiusY = Math.max(1, window.innerHeight / 2);
         target.set(
-          THREE.MathUtils.clamp(dx / maxRadius, -1, 1),
-          THREE.MathUtils.clamp(dy / maxRadius, -1, 1),
+          THREE.MathUtils.clamp(dx / maxRadiusX, -1, 1),
+          THREE.MathUtils.clamp(dy / maxRadiusY, -1, 1),
         );
       } else if (gyroState.current.available) {
         target.set(
@@ -195,6 +196,7 @@ export const Eye: React.FC<{ className?: string }> = ({ className }) => {
       window.removeEventListener('pointerup', handlePointerUp);
       window.removeEventListener('pointercancel', handlePointerCancel);
       window.removeEventListener('deviceorientation', handleOrientation);
+      window.removeEventListener('deviceorientationabsolute', handleOrientation);
       irisGeometry.dispose();
       irisMaterial.dispose();
       pupilGeometry.dispose();
