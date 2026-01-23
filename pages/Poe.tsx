@@ -6,16 +6,16 @@ type PoeOutcome = 'positive' | 'negative' | 'laughing';
 
 const OUTCOME_COPY: Record<PoeOutcome, { title: string; description: string }> = {
   positive: {
-    title: '圣杯 · Yes',
-    description: 'One flat side and one round side. The answer is a clear yes.',
+    title: '聖筊 (yes)',
+    description: '聖筊 (yes)',
   },
   negative: {
-    title: '阴杯 · No',
-    description: 'Both flat sides. The answer is a firm no.',
+    title: '陰筊 (no)',
+    description: '陰筊 (no)',
   },
   laughing: {
-    title: '笑杯 · Try again',
-    description: 'Both round sides. The spirits are laughing — ask again.',
+    title: '笑筊 (not sure)',
+    description: '笑筊 (not sure)',
   },
 };
 
@@ -46,7 +46,6 @@ export const Poe: React.FC = () => {
     if (!wrapper) return;
 
     const scene = new THREE.Scene();
-    scene.background = new THREE.Color('#f6f0e8');
     sceneRef.current = scene;
 
     const camera = new THREE.PerspectiveCamera(40, 1, 0.1, 100);
@@ -59,27 +58,35 @@ export const Poe: React.FC = () => {
     rendererRef.current = renderer;
     wrapper.appendChild(renderer.domElement);
 
-    const ambient = new THREE.AmbientLight('#ffffff', 0.8);
-    const directional = new THREE.DirectionalLight('#ffffff', 0.9);
-    directional.position.set(4, 8, 6);
+    const ambient = new THREE.AmbientLight('#ffffff', 0.9);
+    const directional = new THREE.DirectionalLight('#ffffff', 1);
+    directional.position.set(3, 6, 6);
     scene.add(ambient, directional);
 
-    const baseMaterial = new THREE.MeshStandardMaterial({ color: '#e6e0d5', roughness: 0.5 });
-    const flatMaterial = new THREE.MeshStandardMaterial({ color: '#f9f7f2', roughness: 0.35 });
-    const roundMaterial = new THREE.MeshStandardMaterial({ color: '#111111', roughness: 0.6 });
+    const material = new THREE.MeshPhysicalMaterial({
+      color: '#b21f2d',
+      roughness: 0.3,
+      metalness: 0.05,
+      clearcoat: 0.8,
+      clearcoatRoughness: 0.2,
+    });
 
-    const materials = [
-      baseMaterial,
-      baseMaterial,
-      flatMaterial,
-      roundMaterial,
-      baseMaterial,
-      baseMaterial,
-    ];
+    const blockShape = new THREE.Shape();
+    blockShape.absarc(0, 0, 1.35, Math.PI * 0.1, Math.PI * 1.9, false);
+    const innerHole = new THREE.Path();
+    innerHole.absarc(0.1, 0.1, 0.85, Math.PI * 0.1, Math.PI * 1.9, true);
+    blockShape.holes.push(innerHole);
 
-    const blockGeometry = new THREE.BoxGeometry(2.2, 0.55, 1.2, 1, 1, 1);
+    const blockGeometry = new THREE.ExtrudeGeometry(blockShape, {
+      depth: 0.45,
+      bevelEnabled: true,
+      bevelThickness: 0.1,
+      bevelSize: 0.08,
+      bevelSegments: 3,
+    });
+    blockGeometry.center();
 
-    const leftBlock = new THREE.Mesh(blockGeometry, materials);
+    const leftBlock = new THREE.Mesh(blockGeometry, material);
     leftBlock.position.set(-1.7, 0, 0);
     leftBlock.rotation.set(
       initialRotations[0].x,
@@ -87,7 +94,7 @@ export const Poe: React.FC = () => {
       initialRotations[0].z
     );
 
-    const rightBlock = new THREE.Mesh(blockGeometry, materials);
+    const rightBlock = new THREE.Mesh(blockGeometry, material);
     rightBlock.position.set(1.7, 0, 0);
     rightBlock.rotation.set(
       initialRotations[1].x,
@@ -122,9 +129,7 @@ export const Poe: React.FC = () => {
       if (animationFrameRef.current) cancelAnimationFrame(animationFrameRef.current);
       renderer.dispose();
       blockGeometry.dispose();
-      baseMaterial.dispose();
-      flatMaterial.dispose();
-      roundMaterial.dispose();
+      material.dispose();
       wrapper.removeChild(renderer.domElement);
     };
   }, [initialRotations]);
@@ -149,18 +154,36 @@ export const Poe: React.FC = () => {
     blocksRef.current.forEach((block, index) => {
       const flatUp = results[index];
       const targetRotation = flatUp ? 0 : Math.PI;
-      gsap.to(block.rotation, {
-        x: targetRotation,
-        y: Math.random() * Math.PI * 2,
-        z: Math.random() * Math.PI * 2,
-        duration: THROW_DURATION,
-        ease: 'power3.out',
-      });
-      gsap.fromTo(
-        block.position,
-        { y: 0 },
-        { y: 1.6, duration: THROW_DURATION * 0.4, ease: 'power2.out', yoyo: true, repeat: 1 }
-      );
+      const timeline = gsap.timeline();
+      timeline
+        .to(block.rotation, {
+          x: targetRotation + Math.PI * 2,
+          y: Math.random() * Math.PI * 2,
+          z: Math.random() * Math.PI * 2,
+          duration: THROW_DURATION,
+          ease: 'power3.out',
+        })
+        .to(
+          block.position,
+          {
+            y: 2.2,
+            z: 0.6,
+            duration: THROW_DURATION * 0.45,
+            ease: 'power2.out',
+            yoyo: true,
+            repeat: 1,
+          },
+          0
+        )
+        .to(
+          block.position,
+          {
+            x: index === 0 ? -1.8 : 1.8,
+            duration: THROW_DURATION,
+            ease: 'power2.inOut',
+          },
+          0
+        );
     });
 
     window.setTimeout(() => {
@@ -175,18 +198,6 @@ export const Poe: React.FC = () => {
       }
       setIsThrowing(false);
     }, THROW_DURATION * 1000);
-  };
-
-  const resetThrow = () => {
-    setOutcome(null);
-    blocksRef.current.forEach((block, index) => {
-      block.position.set(index === 0 ? -1.7 : 1.7, 0, 0);
-      block.rotation.set(
-        initialRotations[index].x,
-        initialRotations[index].y,
-        initialRotations[index].z
-      );
-    });
   };
 
   const handlePointerDown = (event: React.PointerEvent<HTMLDivElement>) => {
@@ -208,78 +219,40 @@ export const Poe: React.FC = () => {
 
   return (
     <div className="w-full px-6 md:px-12 pt-32 pb-24 min-h-screen bg-[#faf9f6]">
-      <div className="max-w-[1400px] mx-auto flex flex-col gap-10">
-        <div className="flex flex-col gap-6">
-          <p className="text-sm uppercase tracking-[0.3em] text-black/60">Poe Divination · 掷筊</p>
-          <h1 className="text-[12vw] md:text-[8vw] leading-[0.85] font-bold tracking-tighter uppercase text-black">
-            Toss the blocks
-          </h1>
-          <p className="max-w-2xl text-lg md:text-xl text-black/70">
-            Swipe through the blocks (desktop) or tap the throw button to ask your question. Two
-            wooden halves will answer with yes, no, or “ask again.”
-          </p>
-        </div>
+      <div className="max-w-[1200px] mx-auto flex flex-col items-center gap-10">
+        <h1 className="text-5xl md:text-7xl font-semibold text-black tracking-[0.3em]">掷筊</h1>
 
-        <div className="rounded-[32px] border border-black/10 bg-white/60 shadow-[0_30px_80px_-50px_rgba(0,0,0,0.4)] p-6 md:p-10">
-          <div
-            ref={canvasWrapperRef}
-            onPointerDown={handlePointerDown}
-            onPointerMove={handlePointerMove}
-            onPointerUp={handlePointerUp}
-            onPointerLeave={handlePointerUp}
-            className="h-[320px] md:h-[420px] w-full cursor-grab active:cursor-grabbing"
-          />
+        <div
+          ref={canvasWrapperRef}
+          onPointerDown={handlePointerDown}
+          onPointerMove={handlePointerMove}
+          onPointerUp={handlePointerUp}
+          onPointerLeave={handlePointerUp}
+          className="h-[340px] md:h-[440px] w-full cursor-grab active:cursor-grabbing"
+        />
 
-          <div className="mt-8 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-            <div>
-              <p className="text-xs uppercase tracking-[0.3em] text-black/40">Result</p>
-              {outcome ? (
-                <div className="mt-2">
-                  <p className="text-2xl md:text-3xl font-semibold text-black">
-                    {OUTCOME_COPY[outcome].title}
-                  </p>
-                  <p className="mt-1 text-sm md:text-base text-black/60">
-                    {OUTCOME_COPY[outcome].description}
-                  </p>
-                </div>
-              ) : (
-                <p className="mt-2 text-lg text-black/40">Awaiting a toss.</p>
-              )}
+        <div className="flex flex-col items-center gap-4">
+          {outcome ? (
+            <div className="text-center">
+              <p className="text-3xl md:text-4xl font-semibold text-black">
+                {OUTCOME_COPY[outcome].title}
+              </p>
+              <p className="mt-2 text-base md:text-lg text-black/60">
+                {OUTCOME_COPY[outcome].description}
+              </p>
             </div>
+          ) : (
+            <p className="text-lg text-black/40">—</p>
+          )}
 
-            <div className="flex flex-wrap gap-3">
-              <button
-                type="button"
-                onClick={triggerThrow}
-                disabled={isThrowing}
-                className="rounded-full border border-black bg-black px-6 py-3 text-sm uppercase tracking-[0.3em] text-white transition hover:bg-transparent hover:text-black disabled:cursor-not-allowed disabled:opacity-40"
-              >
-                {isThrowing ? 'Casting…' : 'Throw'}
-              </button>
-              <button
-                type="button"
-                onClick={resetThrow}
-                className="rounded-full border border-black/50 px-6 py-3 text-sm uppercase tracking-[0.3em] text-black/70 transition hover:border-black hover:text-black"
-              >
-                Reset
-              </button>
-            </div>
-          </div>
-        </div>
-
-        <div className="grid gap-6 md:grid-cols-3 text-sm text-black/60">
-          <div className="rounded-2xl border border-black/10 bg-white/50 p-5">
-            <p className="text-xs uppercase tracking-[0.3em] text-black/40">圣杯</p>
-            <p className="mt-2 text-base text-black/80">One flat, one round — proceed.</p>
-          </div>
-          <div className="rounded-2xl border border-black/10 bg-white/50 p-5">
-            <p className="text-xs uppercase tracking-[0.3em] text-black/40">阴杯</p>
-            <p className="mt-2 text-base text-black/80">Two flat sides — a firm no.</p>
-          </div>
-          <div className="rounded-2xl border border-black/10 bg-white/50 p-5">
-            <p className="text-xs uppercase tracking-[0.3em] text-black/40">笑杯</p>
-            <p className="mt-2 text-base text-black/80">Two round sides — ask again.</p>
-          </div>
+          <button
+            type="button"
+            onClick={triggerThrow}
+            disabled={isThrowing}
+            className="rounded-full border border-black bg-black px-8 py-3 text-sm uppercase tracking-[0.4em] text-white transition hover:bg-transparent hover:text-black disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            {isThrowing ? '掷…' : '掷 (throw)'}
+          </button>
         </div>
       </div>
     </div>
