@@ -21,6 +21,7 @@ export const Poe: React.FC = () => {
     ],
     []
   );
+  const groundY = -0.6;
 
   useEffect(() => {
     const wrapper = canvasWrapperRef.current;
@@ -55,16 +56,16 @@ export const Poe: React.FC = () => {
     const outerRadius = 1.5;
     const blockShape = new THREE.Shape();
     blockShape.absarc(0, 0, outerRadius, Math.PI, 0, false);
-    blockShape.lineTo(outerRadius, 0);
-    blockShape.lineTo(-outerRadius, 0);
+    blockShape.lineTo(outerRadius, -0.2);
+    blockShape.lineTo(-outerRadius, -0.2);
     blockShape.closePath();
 
     const blockGeometry = new THREE.ExtrudeGeometry(blockShape, {
       depth: 0.7,
       bevelEnabled: true,
-      bevelThickness: 0.18,
-      bevelSize: 0.14,
-      bevelSegments: 6,
+      bevelThickness: 0.1,
+      bevelSize: 0.08,
+      bevelSegments: 3,
     });
     blockGeometry.center();
     const positionAttribute = blockGeometry.getAttribute('position');
@@ -72,9 +73,10 @@ export const Poe: React.FC = () => {
     for (let i = 0; i < positionAttribute.count; i += 1) {
       const x = positionAttribute.getX(i);
       const y = positionAttribute.getY(i);
-      const bend = 0.25 * (1 - (x / maxX) ** 2);
+      const bend = 0.35 * (1 - (x / maxX) ** 2);
+      const flatFactor = Math.max(0, (y + 0.2) * 0.9);
       positionAttribute.setZ(i, positionAttribute.getZ(i) + bend);
-      positionAttribute.setY(i, y + bend * 0.2);
+      positionAttribute.setY(i, y + bend * 0.1 + flatFactor * 0.05);
     }
     blockGeometry.computeVertexNormals();
 
@@ -126,19 +128,6 @@ export const Poe: React.FC = () => {
     };
   }, [initialRotations]);
 
-  const settleBlocks = (flatUpStates: boolean[]) => {
-    blocksRef.current.forEach((block, index) => {
-      const isFlatUp = flatUpStates[index];
-      const tilt = isFlatUp ? -0.18 : Math.PI - 0.18;
-      block.rotation.set(
-        tilt,
-        (index === 0 ? -0.3 : 0.3) + Math.random() * 0.25,
-        (index === 0 ? 0.2 : -0.2) + Math.random() * 0.25
-      );
-      block.position.y = 0.1;
-    });
-  };
-
   const triggerThrow = () => {
     if (isThrowing || blocksRef.current.length === 0) return;
     setIsThrowing(true);
@@ -154,13 +143,15 @@ export const Poe: React.FC = () => {
     });
 
     blocksRef.current.forEach((block, index) => {
-      const drift = (index === 0 ? -1 : 1) * (0.6 + Math.random() * 0.4);
-      const spin = (Math.random() * 4 + 6) * Math.PI;
-      const wobble = (Math.random() - 0.5) * 2;
+      const drift = (index === 0 ? -1 : 1) * (0.7 + Math.random() * 0.5);
+      const spin = (Math.random() * 4 + 8) * Math.PI;
+      const wobble = (Math.random() - 0.5) * 1.4;
+      const finalFlat = results[index];
+      const finalTilt = finalFlat ? 0 : Math.PI;
+      const finalYaw = (index === 0 ? -0.3 : 0.3) + Math.random() * 0.35;
       const timeline = gsap.timeline({
         onComplete: () => {
           if (index === blocksRef.current.length - 1) {
-            settleBlocks(results);
             setIsThrowing(false);
           }
         },
@@ -169,42 +160,47 @@ export const Poe: React.FC = () => {
       timeline
         .to(block.position, {
           x: block.position.x + drift,
-          y: 3.8 + Math.random() * 1,
+          y: 4.8 + Math.random() * 1.2,
           z: (Math.random() - 0.5) * 0.8,
-          duration: 0.5,
-          ease: 'power2.out',
-        })
-        .to(block.position, {
-          y: 0.4,
           duration: 0.55,
-          ease: 'power2.in',
-        })
-        .to(block.position, {
-          y: 1.4,
-          duration: 0.22,
           ease: 'power2.out',
         })
         .to(block.position, {
-          y: 0.25,
-          duration: 0.28,
+          y: groundY + 0.2,
+          duration: 0.6,
           ease: 'power2.in',
         })
         .to(block.position, {
-          y: 0.75,
-          duration: 0.18,
+          y: groundY + 1.6,
+          duration: 0.24,
           ease: 'power2.out',
         })
         .to(block.position, {
-          y: 0.2,
-          duration: 0.22,
+          y: groundY + 0.15,
+          duration: 0.32,
           ease: 'power2.in',
+        })
+        .to(block.position, {
+          y: groundY + 0.9,
+          duration: 0.2,
+          ease: 'power2.out',
+        })
+        .to(block.position, {
+          y: groundY + 0.1,
+          duration: 0.26,
+          ease: 'power2.in',
+        })
+        .to(block.position, {
+          y: groundY + 0.1,
+          duration: 0.2,
+          ease: 'power1.out',
         });
 
       gsap.to(block.rotation, {
-        x: block.rotation.x + spin,
-        y: block.rotation.y + spin * 0.7,
+        x: block.rotation.x + spin + finalTilt,
+        y: block.rotation.y + spin * 0.7 + finalYaw,
         z: block.rotation.z + spin * 0.4 + wobble,
-        duration: 1.5,
+        duration: 1.6,
         ease: 'power3.out',
       });
     });
@@ -240,7 +236,7 @@ export const Poe: React.FC = () => {
           onPointerMove={handlePointerMove}
           onPointerUp={handlePointerUp}
           onPointerLeave={handlePointerUp}
-          className="h-[320px] md:h-[420px] w-full cursor-grab active:cursor-grabbing"
+          className="h-[420px] md:h-[520px] w-full cursor-grab active:cursor-grabbing"
         />
 
         <div className="flex flex-col items-center gap-4">
