@@ -19,9 +19,9 @@ const OUTCOME_COPY: Record<PoeOutcome, { title: string; description: string }> =
 };
 
 const SWIPE_THRESHOLD = 120;
-const GRAVITY = new THREE.Vector3(0, -12, 0);
-const RESTITUTION = 0.45;
-const FRICTION = 0.82;
+const GRAVITY = new THREE.Vector3(0, -14, 0);
+const RESTITUTION = 0.6;
+const FRICTION = 0.84;
 const SETTLE_SPEED = 0.4;
 const SETTLE_TIME_MS = 500;
 
@@ -80,19 +80,16 @@ export const Poe: React.FC = () => {
       clearcoatRoughness: 0.2,
     });
 
-    const blockShape = new THREE.Shape();
-    blockShape.absarc(0, 0, 1.35, Math.PI * 0.1, Math.PI * 1.9, false);
-    const innerHole = new THREE.Path();
-    innerHole.absarc(0.1, 0.1, 0.85, Math.PI * 0.1, Math.PI * 1.9, true);
-    blockShape.holes.push(innerHole);
-
-    const blockGeometry = new THREE.ExtrudeGeometry(blockShape, {
-      depth: 0.45,
-      bevelEnabled: true,
-      bevelThickness: 0.1,
-      bevelSize: 0.08,
-      bevelSegments: 3,
-    });
+    const curve = new THREE.CatmullRomCurve3(
+      [
+        new THREE.Vector3(-1.1, 0, 0),
+        new THREE.Vector3(-0.5, 0.15, 0.1),
+        new THREE.Vector3(0.4, 0.25, 0.2),
+        new THREE.Vector3(1.1, 0.15, 0.1),
+      ],
+      false
+    );
+    const blockGeometry = new THREE.TubeGeometry(curve, 40, 0.35, 18, false);
     blockGeometry.center();
     blockGeometry.computeBoundingSphere();
     const radius = blockGeometry.boundingSphere?.radius ?? 1.2;
@@ -220,7 +217,7 @@ export const Poe: React.FC = () => {
         state.velocity.y = Math.abs(state.velocity.y) * RESTITUTION;
         state.velocity.x *= FRICTION;
         state.velocity.z *= FRICTION;
-        state.angularVelocity.multiplyScalar(0.8);
+        state.angularVelocity.multiplyScalar(0.9);
       }
 
       state.velocity.multiplyScalar(0.995);
@@ -283,9 +280,9 @@ export const Poe: React.FC = () => {
 
     physicsRef.current.forEach((state, index) => {
       state.velocity.set(
-        (Math.random() - 0.5) * 2.8,
-        6 + Math.random() * 2,
-        (Math.random() - 0.5) * 2
+        (Math.random() - 0.5) * 3.2,
+        8 + Math.random() * 3,
+        (Math.random() - 0.5) * 2.4
       );
       state.angularVelocity.set(
         (Math.random() - 0.5) * 8,
@@ -320,7 +317,9 @@ export const Poe: React.FC = () => {
   return (
     <div className="h-screen w-full overflow-hidden bg-[#faf9f6]">
       <div className="mx-auto flex h-full max-w-[1200px] flex-col items-center justify-center gap-10 px-6 md:px-12">
-        <h1 className="text-4xl md:text-6xl font-semibold text-black tracking-[0.35em]">Poe</h1>
+        <h1 className="w-full text-left text-4xl md:text-6xl font-semibold text-black tracking-[0.35em]">
+          Poe
+        </h1>
 
         <div
           ref={canvasWrapperRef}
@@ -333,14 +332,9 @@ export const Poe: React.FC = () => {
 
         <div className="flex flex-col items-center gap-4">
           {outcome ? (
-            <div className="text-center">
-              <p className="text-3xl md:text-4xl font-semibold text-black">
-                {OUTCOME_COPY[outcome].title}
-              </p>
-              <p className="mt-2 text-base md:text-lg text-black/60">
-                {OUTCOME_COPY[outcome].description}
-              </p>
-            </div>
+            <p className="text-3xl md:text-4xl font-semibold text-black">
+              {OUTCOME_COPY[outcome].title}
+            </p>
           ) : (
             <p className="text-lg text-black/40">—</p>
           )}
