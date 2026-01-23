@@ -1,29 +1,8 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import * as THREE from 'three';
-
-type PoeOutcome = 'positive' | 'negative' | 'laughing';
-
-const OUTCOME_COPY: Record<PoeOutcome, { title: string; description: string }> = {
-  positive: {
-    title: '聖筊 (yes)',
-    description: '聖筊 (yes)',
-  },
-  negative: {
-    title: '陰筊 (no)',
-    description: '陰筊 (no)',
-  },
-  laughing: {
-    title: '笑筊 (not sure)',
-    description: '笑筊 (not sure)',
-  },
-};
+import gsap from 'gsap';
 
 const SWIPE_THRESHOLD = 120;
-const GRAVITY = new THREE.Vector3(0, -14, 0);
-const RESTITUTION = 0.6;
-const FRICTION = 0.84;
-const SETTLE_SPEED = 0.4;
-const SETTLE_TIME_MS = 500;
 
 export const Poe: React.FC = () => {
   const canvasWrapperRef = useRef<HTMLDivElement>(null);
@@ -31,15 +10,8 @@ export const Poe: React.FC = () => {
   const sceneRef = useRef<THREE.Scene | null>(null);
   const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
   const blocksRef = useRef<THREE.Mesh[]>([]);
-  const physicsRef = useRef<
-    { velocity: THREE.Vector3; angularVelocity: THREE.Vector3; radius: number }[]
-  >([]);
   const animationFrameRef = useRef<number | null>(null);
-  const lastFrameRef = useRef<number | null>(null);
-  const settleStartRef = useRef<number | null>(null);
-  const isThrowingRef = useRef(false);
   const dragStartRef = useRef<number | null>(null);
-  const [outcome, setOutcome] = useState<PoeOutcome | null>(null);
   const [isThrowing, setIsThrowing] = useState(false);
 
   const initialRotations = useMemo(
@@ -80,19 +52,31 @@ export const Poe: React.FC = () => {
       clearcoatRoughness: 0.2,
     });
 
-    const curve = new THREE.CatmullRomCurve3(
-      [
-        new THREE.Vector3(-1.1, 0, 0),
-        new THREE.Vector3(-0.5, 0.15, 0.1),
-        new THREE.Vector3(0.4, 0.25, 0.2),
-        new THREE.Vector3(1.1, 0.15, 0.1),
-      ],
-      false
-    );
-    const blockGeometry = new THREE.TubeGeometry(curve, 40, 0.35, 18, false);
+    const outerRadius = 1.5;
+    const blockShape = new THREE.Shape();
+    blockShape.absarc(0, 0, outerRadius, Math.PI, 0, false);
+    blockShape.lineTo(outerRadius, 0);
+    blockShape.lineTo(-outerRadius, 0);
+    blockShape.closePath();
+
+    const blockGeometry = new THREE.ExtrudeGeometry(blockShape, {
+      depth: 0.7,
+      bevelEnabled: true,
+      bevelThickness: 0.18,
+      bevelSize: 0.14,
+      bevelSegments: 6,
+    });
     blockGeometry.center();
-    blockGeometry.computeBoundingSphere();
-    const radius = blockGeometry.boundingSphere?.radius ?? 1.2;
+    const positionAttribute = blockGeometry.getAttribute('position');
+    const maxX = outerRadius;
+    for (let i = 0; i < positionAttribute.count; i += 1) {
+      const x = positionAttribute.getX(i);
+      const y = positionAttribute.getY(i);
+      const bend = 0.25 * (1 - (x / maxX) ** 2);
+      positionAttribute.setZ(i, positionAttribute.getZ(i) + bend);
+      positionAttribute.setY(i, y + bend * 0.2);
+    }
+    blockGeometry.computeVertexNormals();
 
     const leftBlock = new THREE.Mesh(blockGeometry, material);
     leftBlock.position.set(-1.7, 0, 0);
@@ -111,18 +95,6 @@ export const Poe: React.FC = () => {
     );
 
     blocksRef.current = [leftBlock, rightBlock];
-    physicsRef.current = [
-      {
-        velocity: new THREE.Vector3(),
-        angularVelocity: new THREE.Vector3(),
-        radius,
-      },
-      {
-        velocity: new THREE.Vector3(),
-        angularVelocity: new THREE.Vector3(),
-        radius,
-      },
-    ];
     scene.add(leftBlock, rightBlock);
 
     const resize = () => {
@@ -137,18 +109,12 @@ export const Poe: React.FC = () => {
     resize();
     window.addEventListener('resize', resize);
 
-    const animate = (time: number) => {
+    const animate = () => {
       if (!rendererRef.current || !sceneRef.current || !cameraRef.current) return;
-      const lastFrame = lastFrameRef.current ?? time;
-      const delta = Math.min(0.033, (time - lastFrame) / 1000);
-      lastFrameRef.current = time;
-      if (isThrowingRef.current) {
-        stepPhysics(delta);
-      }
       rendererRef.current.render(sceneRef.current, cameraRef.current);
       animationFrameRef.current = requestAnimationFrame(animate);
     };
-    animate(performance.now());
+    animate();
 
     return () => {
       window.removeEventListener('resize', resize);
@@ -160,114 +126,23 @@ export const Poe: React.FC = () => {
     };
   }, [initialRotations]);
 
-  useEffect(() => {
-    isThrowingRef.current = isThrowing;
-  }, [isThrowing]);
-
-  const setBlocks = (flatUpStates: boolean[]) => {
+  const settleBlocks = (flatUpStates: boolean[]) => {
     blocksRef.current.forEach((block, index) => {
       const isFlatUp = flatUpStates[index];
-      const tilt = isFlatUp ? -0.12 : Math.PI - 0.12;
-      block.rotation.x = tilt;
-      block.rotation.y = (index === 0 ? -0.3 : 0.3) + Math.random() * 0.3;
-      block.rotation.z = (index === 0 ? 0.1 : -0.1) + Math.random() * 0.2;
-    });
-  };
-
-  const resolveBlockCollision = (indexA: number, indexB: number) => {
-    const blocks = blocksRef.current;
-    const physics = physicsRef.current;
-    const blockA = blocks[indexA];
-    const blockB = blocks[indexB];
-    if (!blockA || !blockB) return;
-    const stateA = physics[indexA];
-    const stateB = physics[indexB];
-    const delta = new THREE.Vector3().subVectors(blockB.position, blockA.position);
-    const distance = delta.length();
-    const minDistance = stateA.radius + stateB.radius;
-    if (distance >= minDistance || distance === 0) return;
-    const normal = delta.normalize();
-    const overlap = minDistance - distance;
-    blockA.position.addScaledVector(normal, -overlap * 0.5);
-    blockB.position.addScaledVector(normal, overlap * 0.5);
-
-    const relativeVelocity = new THREE.Vector3().subVectors(stateB.velocity, stateA.velocity);
-    const separatingSpeed = relativeVelocity.dot(normal);
-    if (separatingSpeed > 0) return;
-    const impulse = -(1 + RESTITUTION) * separatingSpeed * 0.5;
-    stateA.velocity.addScaledVector(normal, -impulse);
-    stateB.velocity.addScaledVector(normal, impulse);
-  };
-
-  const stepPhysics = (delta: number) => {
-    const floorY = -0.9;
-    const blocks = blocksRef.current;
-    const physics = physicsRef.current;
-    const isSettled = blocks.every((block, index) => {
-      const state = physics[index];
-      state.velocity.addScaledVector(GRAVITY, delta);
-      block.position.addScaledVector(state.velocity, delta);
-
-      block.rotation.x += state.angularVelocity.x * delta;
-      block.rotation.y += state.angularVelocity.y * delta;
-      block.rotation.z += state.angularVelocity.z * delta;
-
-      if (block.position.y - state.radius < floorY) {
-        block.position.y = floorY + state.radius;
-        state.velocity.y = Math.abs(state.velocity.y) * RESTITUTION;
-        state.velocity.x *= FRICTION;
-        state.velocity.z *= FRICTION;
-        state.angularVelocity.multiplyScalar(0.9);
-      }
-
-      state.velocity.multiplyScalar(0.995);
-      state.angularVelocity.multiplyScalar(0.985);
-
-      return (
-        state.velocity.length() < SETTLE_SPEED &&
-        state.angularVelocity.length() < SETTLE_SPEED
+      const tilt = isFlatUp ? -0.18 : Math.PI - 0.18;
+      block.rotation.set(
+        tilt,
+        (index === 0 ? -0.3 : 0.3) + Math.random() * 0.25,
+        (index === 0 ? 0.2 : -0.2) + Math.random() * 0.25
       );
+      block.position.y = 0.1;
     });
-
-    if (blocks.length === 2) {
-      resolveBlockCollision(0, 1);
-    }
-
-    const now = performance.now();
-    if (isSettled) {
-      if (!settleStartRef.current) {
-        settleStartRef.current = now;
-      } else if (now - settleStartRef.current > SETTLE_TIME_MS) {
-        settleStartRef.current = null;
-        finalizeOutcome();
-      }
-    } else {
-      settleStartRef.current = null;
-    }
-  };
-
-  const finalizeOutcome = () => {
-    const flatUpStates = blocksRef.current.map((block) => {
-      const flatNormal = new THREE.Vector3(0, 0, 1).applyQuaternion(block.quaternion);
-      return flatNormal.y > 0;
-    });
-    setBlocks(flatUpStates);
-    const [leftFlat, rightFlat] = flatUpStates;
-    if (leftFlat && rightFlat) {
-      setOutcome('negative');
-    } else if (!leftFlat && !rightFlat) {
-      setOutcome('laughing');
-    } else {
-      setOutcome('positive');
-    }
-    setIsThrowing(false);
   };
 
   const triggerThrow = () => {
     if (isThrowing || blocksRef.current.length === 0) return;
     setIsThrowing(true);
-    setOutcome(null);
-    settleStartRef.current = null;
+    const results = blocksRef.current.map(() => Math.random() > 0.5);
 
     blocksRef.current.forEach((block, index) => {
       block.position.set(index === 0 ? -1.7 : 1.7, 0.2, 0);
@@ -278,22 +153,60 @@ export const Poe: React.FC = () => {
       );
     });
 
-    physicsRef.current.forEach((state, index) => {
-      state.velocity.set(
-        (Math.random() - 0.5) * 3.2,
-        8 + Math.random() * 3,
-        (Math.random() - 0.5) * 2.4
-      );
-      state.angularVelocity.set(
-        (Math.random() - 0.5) * 8,
-        (Math.random() - 0.5) * 8,
-        (Math.random() - 0.5) * 8
-      );
-      if (index === 0) {
-        state.velocity.x -= 1.2;
-      } else {
-        state.velocity.x += 1.2;
-      }
+    blocksRef.current.forEach((block, index) => {
+      const drift = (index === 0 ? -1 : 1) * (0.6 + Math.random() * 0.4);
+      const spin = (Math.random() * 4 + 6) * Math.PI;
+      const wobble = (Math.random() - 0.5) * 2;
+      const timeline = gsap.timeline({
+        onComplete: () => {
+          if (index === blocksRef.current.length - 1) {
+            settleBlocks(results);
+            setIsThrowing(false);
+          }
+        },
+      });
+
+      timeline
+        .to(block.position, {
+          x: block.position.x + drift,
+          y: 3.8 + Math.random() * 1,
+          z: (Math.random() - 0.5) * 0.8,
+          duration: 0.5,
+          ease: 'power2.out',
+        })
+        .to(block.position, {
+          y: 0.4,
+          duration: 0.55,
+          ease: 'power2.in',
+        })
+        .to(block.position, {
+          y: 1.4,
+          duration: 0.22,
+          ease: 'power2.out',
+        })
+        .to(block.position, {
+          y: 0.25,
+          duration: 0.28,
+          ease: 'power2.in',
+        })
+        .to(block.position, {
+          y: 0.75,
+          duration: 0.18,
+          ease: 'power2.out',
+        })
+        .to(block.position, {
+          y: 0.2,
+          duration: 0.22,
+          ease: 'power2.in',
+        });
+
+      gsap.to(block.rotation, {
+        x: block.rotation.x + spin,
+        y: block.rotation.y + spin * 0.7,
+        z: block.rotation.z + spin * 0.4 + wobble,
+        duration: 1.5,
+        ease: 'power3.out',
+      });
     });
   };
 
@@ -331,14 +244,6 @@ export const Poe: React.FC = () => {
         />
 
         <div className="flex flex-col items-center gap-4">
-          {outcome ? (
-            <p className="text-3xl md:text-4xl font-semibold text-black">
-              {OUTCOME_COPY[outcome].title}
-            </p>
-          ) : (
-            <p className="text-lg text-black/40">—</p>
-          )}
-
           <button
             type="button"
             onClick={triggerThrow}
