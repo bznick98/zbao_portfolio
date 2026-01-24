@@ -1,6 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import * as THREE from 'three';
-import gsap from 'gsap';
 
 const SWIPE_THRESHOLD = 120;
 
@@ -10,7 +9,11 @@ export const Poe: React.FC = () => {
   const sceneRef = useRef<THREE.Scene | null>(null);
   const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
   const blocksRef = useRef<THREE.Mesh[]>([]);
+  const physicsRef = useRef<
+    { velocity: THREE.Vector3; angularVelocity: THREE.Vector3; radius: number }[]
+  >([]);
   const animationFrameRef = useRef<number | null>(null);
+  const lastFrameRef = useRef<number | null>(null);
   const dragStartRef = useRef<number | null>(null);
   const [isThrowing, setIsThrowing] = useState(false);
 
@@ -22,6 +25,7 @@ export const Poe: React.FC = () => {
     []
   );
   const groundY = -0.6;
+  const gravity = useMemo(() => new THREE.Vector3(0, -12, 0), []);
 
   useEffect(() => {
     const wrapper = canvasWrapperRef.current;
@@ -75,7 +79,9 @@ export const Poe: React.FC = () => {
       const y = positionAttribute.getY(i);
       const bend = 0.35 * (1 - (x / maxX) ** 2);
       const flatFactor = Math.max(0, (y + 0.2) * 0.9);
-      positionAttribute.setZ(i, positionAttribute.getZ(i) + bend);
+      const z = positionAttribute.getZ(i);
+      const bulge = z > 0 ? bend : 0;
+      positionAttribute.setZ(i, z < 0 ? -0.02 : z + bulge);
       positionAttribute.setY(i, y + bend * 0.1 + flatFactor * 0.05);
     }
     blockGeometry.computeVertexNormals();
@@ -97,7 +103,33 @@ export const Poe: React.FC = () => {
     );
 
     blocksRef.current = [leftBlock, rightBlock];
+    blockGeometry.computeBoundingSphere();
+    const radius = blockGeometry.boundingSphere?.radius ?? 1.1;
+    physicsRef.current = [
+      {
+        velocity: new THREE.Vector3(),
+        angularVelocity: new THREE.Vector3(),
+        radius,
+      },
+      {
+        velocity: new THREE.Vector3(),
+        angularVelocity: new THREE.Vector3(),
+        radius,
+      },
+    ];
     scene.add(leftBlock, rightBlock);
+
+    const groundGeometry = new THREE.PlaneGeometry(20, 8);
+    const groundMaterial = new THREE.MeshStandardMaterial({
+      color: '#e8e1d9',
+      roughness: 0.9,
+      metalness: 0.05,
+    });
+    const groundMesh = new THREE.Mesh(groundGeometry, groundMaterial);
+    groundMesh.rotation.x = -Math.PI / 2;
+    groundMesh.position.y = groundY;
+    groundMesh.receiveShadow = true;
+    scene.add(groundMesh);
 
     const resize = () => {
       if (!wrapper || !rendererRef.current || !cameraRef.current) return;
@@ -111,12 +143,16 @@ export const Poe: React.FC = () => {
     resize();
     window.addEventListener('resize', resize);
 
-    const animate = () => {
+    const animate = (time: number) => {
       if (!rendererRef.current || !sceneRef.current || !cameraRef.current) return;
+      const lastFrame = lastFrameRef.current ?? time;
+      const delta = Math.min(0.033, (time - lastFrame) / 1000);
+      lastFrameRef.current = time;
+      stepPhysics(delta);
       rendererRef.current.render(sceneRef.current, cameraRef.current);
       animationFrameRef.current = requestAnimationFrame(animate);
     };
-    animate();
+    animate(performance.now());
 
     return () => {
       window.removeEventListener('resize', resize);
@@ -124,15 +160,89 @@ export const Poe: React.FC = () => {
       renderer.dispose();
       blockGeometry.dispose();
       material.dispose();
+      groundGeometry.dispose();
+      groundMaterial.dispose();
       wrapper.removeChild(renderer.domElement);
     };
-  }, [initialRotations]);
+  }, [gravity, initialRotations]);
+
+  const resolveBlockCollision = (indexA: number, indexB: number) => {
+    const blocks = blocksRef.current;
+    const physics = physicsRef.current;
+    const blockA = blocks[indexA];
+    const blockB = blocks[indexB];
+    if (!blockA || !blockB) return;
+    const stateA = physics[indexA];
+    const stateB = physics[indexB];
+    const delta = new THREE.Vector3().subVectors(blockB.position, blockA.position);
+    const distance = delta.length();
+    const minDistance = stateA.radius + stateB.radius;
+    if (distance >= minDistance || distance === 0) return;
+    const normal = delta.normalize();
+    const overlap = minDistance - distance;
+    blockA.position.addScaledVector(normal, -overlap * 0.5);
+    blockB.position.addScaledVector(normal, overlap * 0.5);
+
+    const relativeVelocity = new THREE.Vector3().subVectors(stateB.velocity, stateA.velocity);
+    const separatingSpeed = relativeVelocity.dot(normal);
+    if (separatingSpeed > 0) return;
+    const impulse = -(1.1) * separatingSpeed * 0.5;
+    stateA.velocity.addScaledVector(normal, -impulse);
+    stateB.velocity.addScaledVector(normal, impulse);
+  };
+
+  const stepPhysics = (delta: number) => {
+    const blocks = blocksRef.current;
+    const physics = physicsRef.current;
+    const isSettled = blocks.every((block, index) => {
+      const state = physics[index];
+      state.velocity.addScaledVector(gravity, delta);
+      block.position.addScaledVector(state.velocity, delta);
+
+      block.rotation.x += state.angularVelocity.x * delta;
+      block.rotation.y += state.angularVelocity.y * delta;
+      block.rotation.z += state.angularVelocity.z * delta;
+
+      const contactY = groundY + state.radius * 0.55;
+      if (block.position.y - state.radius < contactY) {
+        block.position.y = contactY + state.radius;
+        state.velocity.y = Math.abs(state.velocity.y) * 0.55;
+        state.velocity.x *= 0.82;
+        state.velocity.z *= 0.82;
+        state.angularVelocity.multiplyScalar(0.85);
+      }
+
+      state.velocity.multiplyScalar(0.992);
+      state.angularVelocity.multiplyScalar(0.982);
+
+      return (
+        state.velocity.length() < 0.2 &&
+        state.angularVelocity.length() < 0.2
+      );
+    });
+
+    if (blocks.length === 2) {
+      resolveBlockCollision(0, 1);
+    }
+
+    if (isSettled && isThrowing) {
+      blocks.forEach((block, index) => {
+        const flatUp = Math.random() > 0.5;
+        const tilt = flatUp ? 0 : Math.PI;
+        block.rotation.set(
+          tilt,
+          (index === 0 ? -0.3 : 0.3) + Math.random() * 0.2,
+          (index === 0 ? 0.2 : -0.2) + Math.random() * 0.2
+        );
+        block.position.y = groundY + 0.2;
+      });
+      setIsThrowing(false);
+    }
+  };
 
   const triggerThrow = () => {
     if (isThrowing || blocksRef.current.length === 0) return;
     setIsThrowing(true);
-    const results = blocksRef.current.map(() => Math.random() > 0.5);
-
     blocksRef.current.forEach((block, index) => {
       block.position.set(index === 0 ? -1.7 : 1.7, 0.2, 0);
       block.rotation.set(
@@ -142,67 +252,17 @@ export const Poe: React.FC = () => {
       );
     });
 
-    blocksRef.current.forEach((block, index) => {
-      const drift = (index === 0 ? -1 : 1) * (0.7 + Math.random() * 0.5);
-      const spin = (Math.random() * 4 + 8) * Math.PI;
-      const wobble = (Math.random() - 0.5) * 1.4;
-      const finalFlat = results[index];
-      const finalTilt = finalFlat ? 0 : Math.PI;
-      const finalYaw = (index === 0 ? -0.3 : 0.3) + Math.random() * 0.35;
-      const timeline = gsap.timeline({
-        onComplete: () => {
-          if (index === blocksRef.current.length - 1) {
-            setIsThrowing(false);
-          }
-        },
-      });
-
-      timeline
-        .to(block.position, {
-          x: block.position.x + drift,
-          y: 4.8 + Math.random() * 1.2,
-          z: (Math.random() - 0.5) * 0.8,
-          duration: 0.55,
-          ease: 'power2.out',
-        })
-        .to(block.position, {
-          y: groundY + 0.2,
-          duration: 0.6,
-          ease: 'power2.in',
-        })
-        .to(block.position, {
-          y: groundY + 1.6,
-          duration: 0.24,
-          ease: 'power2.out',
-        })
-        .to(block.position, {
-          y: groundY + 0.15,
-          duration: 0.32,
-          ease: 'power2.in',
-        })
-        .to(block.position, {
-          y: groundY + 0.9,
-          duration: 0.2,
-          ease: 'power2.out',
-        })
-        .to(block.position, {
-          y: groundY + 0.1,
-          duration: 0.26,
-          ease: 'power2.in',
-        })
-        .to(block.position, {
-          y: groundY + 0.1,
-          duration: 0.2,
-          ease: 'power1.out',
-        });
-
-      gsap.to(block.rotation, {
-        x: block.rotation.x + spin + finalTilt,
-        y: block.rotation.y + spin * 0.7 + finalYaw,
-        z: block.rotation.z + spin * 0.4 + wobble,
-        duration: 1.6,
-        ease: 'power3.out',
-      });
+    physicsRef.current.forEach((state, index) => {
+      state.velocity.set(
+        (index === 0 ? -1 : 1) * (1.2 + Math.random() * 0.6),
+        7.5 + Math.random() * 2,
+        (Math.random() - 0.5) * 1.6
+      );
+      state.angularVelocity.set(
+        (Math.random() - 0.5) * 8,
+        (Math.random() - 0.5) * 8,
+        (Math.random() - 0.5) * 8
+      );
     });
   };
 
