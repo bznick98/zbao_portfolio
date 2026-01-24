@@ -26,6 +26,7 @@ export const Poe: React.FC = () => {
   );
   const groundY = -0.7;
   const gravity = useMemo(() => ({ x: 0, y: -12, z: 0 }), []);
+  const cameraTargetRef = useRef(new THREE.Vector3());
 
   useEffect(() => {
     const wrapper = canvasWrapperRef.current;
@@ -112,10 +113,42 @@ export const Poe: React.FC = () => {
       scene.add(leftBlock, rightBlock);
 
       const groundGeometry = new THREE.PlaneGeometry(20, 8);
+      const woodCanvas = document.createElement('canvas');
+      woodCanvas.width = 256;
+      woodCanvas.height = 256;
+      const woodContext = woodCanvas.getContext('2d');
+      if (woodContext) {
+        woodContext.fillStyle = '#d8c4a8';
+        woodContext.fillRect(0, 0, woodCanvas.width, woodCanvas.height);
+        woodContext.fillStyle = 'rgba(115, 82, 54, 0.35)';
+        for (let i = 0; i < 12; i += 1) {
+          const y = (i / 12) * woodCanvas.height;
+          woodContext.fillRect(0, y, woodCanvas.width, 8);
+        }
+        woodContext.strokeStyle = 'rgba(90, 64, 42, 0.25)';
+        for (let i = 0; i < 24; i += 1) {
+          woodContext.beginPath();
+          woodContext.moveTo(0, (i / 24) * woodCanvas.height);
+          woodContext.bezierCurveTo(
+            woodCanvas.width * 0.3,
+            (i / 24) * woodCanvas.height + 6,
+            woodCanvas.width * 0.7,
+            (i / 24) * woodCanvas.height - 6,
+            woodCanvas.width,
+            (i / 24) * woodCanvas.height
+          );
+          woodContext.stroke();
+        }
+      }
+      const woodTexture = new THREE.CanvasTexture(woodCanvas);
+      woodTexture.wrapS = THREE.RepeatWrapping;
+      woodTexture.wrapT = THREE.RepeatWrapping;
+      woodTexture.repeat.set(2, 1);
       const groundMaterial = new THREE.MeshStandardMaterial({
-        color: '#e8e1d9',
-        roughness: 0.9,
+        color: '#e0c9ad',
+        roughness: 0.85,
         metalness: 0.05,
+        map: woodTexture,
       });
       const groundMesh = new THREE.Mesh(groundGeometry, groundMaterial);
       groundMesh.rotation.x = -Math.PI / 2;
@@ -170,6 +203,7 @@ export const Poe: React.FC = () => {
         const delta = Math.min(0.033, (time - lastFrame) / 1000);
         lastFrameRef.current = time;
         stepPhysics(delta);
+        updateCamera();
         rendererRef.current.render(sceneRef.current, cameraRef.current);
         animationFrameRef.current = requestAnimationFrame(animate);
       };
@@ -183,6 +217,7 @@ export const Poe: React.FC = () => {
         renderer.dispose();
         blockGeometry.dispose();
         material.dispose();
+        woodTexture.dispose();
         groundGeometry.dispose();
         groundMaterial.dispose();
         if (renderer.domElement.parentElement) {
@@ -216,6 +251,26 @@ export const Poe: React.FC = () => {
     if (isThrowing && rigidBodiesRef.current.every((body) => body.isSleeping())) {
       setIsThrowing(false);
     }
+  };
+
+  const updateCamera = () => {
+    const camera = cameraRef.current;
+    if (!camera) return;
+    const positions = blocksRef.current.map((block) => block.position);
+    if (positions.length === 0) return;
+    const center = positions
+      .reduce((acc, pos) => acc.add(pos), new THREE.Vector3())
+      .multiplyScalar(1 / positions.length);
+    const maxDistance = positions.reduce(
+      (distance, pos) => Math.max(distance, pos.distanceTo(center)),
+      0
+    );
+    const target = cameraTargetRef.current;
+    target.lerp(center, 0.08);
+    const height = 5.2 + maxDistance * 0.6;
+    const depth = 9.2 + maxDistance * 0.8;
+    camera.position.lerp(new THREE.Vector3(target.x, height, depth), 0.08);
+    camera.lookAt(target.x, target.y, 0);
   };
 
   const triggerThrow = () => {
