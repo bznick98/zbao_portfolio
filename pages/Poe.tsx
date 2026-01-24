@@ -15,6 +15,7 @@ export const Poe: React.FC = () => {
   const animationFrameRef = useRef<number | null>(null);
   const lastFrameRef = useRef<number | null>(null);
   const dragStartRef = useRef<number | null>(null);
+  const settleStartRef = useRef<number | null>(null);
   const [isThrowing, setIsThrowing] = useState(false);
 
   const initialRotations = useMemo(
@@ -62,6 +63,7 @@ export const Poe: React.FC = () => {
         metalness: 0.05,
         clearcoat: 0.8,
         clearcoatRoughness: 0.2,
+        vertexColors: true,
       });
 
       const outerRadius = 1.5;
@@ -81,6 +83,7 @@ export const Poe: React.FC = () => {
       blockGeometry.center();
       const positionAttribute = blockGeometry.getAttribute('position');
       const maxX = outerRadius;
+      const colors = [];
       for (let i = 0; i < positionAttribute.count; i += 1) {
         const x = positionAttribute.getX(i);
         const y = positionAttribute.getY(i);
@@ -90,7 +93,13 @@ export const Poe: React.FC = () => {
         const bulge = z > 0 ? bend : 0;
         positionAttribute.setZ(i, z < 0 ? -0.03 : z + bulge);
         positionAttribute.setY(i, y + bend * 0.1 + flatFactor * 0.06);
+        if (z < 0) {
+          colors.push(0.1, 0.1, 0.1);
+        } else {
+          colors.push(0.7, 0.12, 0.18);
+        }
       }
+      blockGeometry.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
       blockGeometry.computeVertexNormals();
 
       const leftBlock = new THREE.Mesh(blockGeometry, material);
@@ -248,8 +257,17 @@ export const Poe: React.FC = () => {
       block.quaternion.set(rotation.x, rotation.y, rotation.z, rotation.w);
     });
 
-    if (isThrowing && rigidBodiesRef.current.every((body) => body.isSleeping())) {
-      setIsThrowing(false);
+    const allSleeping = rigidBodiesRef.current.every((body) => body.isSleeping());
+    if (isThrowing && allSleeping) {
+      const now = performance.now();
+      if (!settleStartRef.current) {
+        settleStartRef.current = now;
+      } else if (now - settleStartRef.current > 400) {
+        settleStartRef.current = null;
+        setIsThrowing(false);
+      }
+    } else if (!allSleeping) {
+      settleStartRef.current = null;
     }
   };
 
@@ -276,6 +294,7 @@ export const Poe: React.FC = () => {
   const triggerThrow = () => {
     if (isThrowing || blocksRef.current.length === 0) return;
     setIsThrowing(true);
+    settleStartRef.current = null;
 
     blocksRef.current.forEach((block, index) => {
       block.position.set(index === 0 ? -1.7 : 1.7, 0.2, 0);
@@ -344,7 +363,7 @@ export const Poe: React.FC = () => {
           className="h-[420px] md:h-[520px] w-full cursor-grab active:cursor-grabbing"
         />
 
-        <div className="flex flex-col items-center gap-4">
+        <div className="flex items-center gap-3">
           <button
             type="button"
             onClick={triggerThrow}
@@ -353,6 +372,14 @@ export const Poe: React.FC = () => {
           >
             {isThrowing ? '掷…' : '掷 (throw)'}
           </button>
+          <div className="group relative flex items-center">
+            <span className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-black/40 text-[11px] font-semibold text-black/70">
+              i
+            </span>
+            <div className="pointer-events-none absolute left-1/2 top-full z-10 mt-3 w-[280px] -translate-x-1/2 rounded-2xl border border-black/10 bg-white px-4 py-3 text-[11px] uppercase tracking-[0.2em] text-black/70 opacity-0 shadow-lg transition group-hover:opacity-100">
+              Front = red croissant side. Back = black flat side. Two fronts = 聖杯 (yes). Two backs = 陰杯 (no). Mixed = 笑杯 (not sure).
+            </div>
+          </div>
         </div>
       </div>
     </div>
