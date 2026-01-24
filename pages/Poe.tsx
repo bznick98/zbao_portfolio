@@ -16,6 +16,7 @@ export const Poe: React.FC = () => {
   const lastFrameRef = useRef<number | null>(null);
   const dragStartRef = useRef<number | null>(null);
   const settleStartRef = useRef<number | null>(null);
+  const throwTimeoutRef = useRef<number | null>(null);
   const [isThrowing, setIsThrowing] = useState(false);
 
   const initialRotations = useMemo(
@@ -221,6 +222,7 @@ export const Poe: React.FC = () => {
       cleanup = () => {
         window.removeEventListener('resize', resize);
         if (animationFrameRef.current) cancelAnimationFrame(animationFrameRef.current);
+        if (throwTimeoutRef.current) window.clearTimeout(throwTimeoutRef.current);
         rigidBodiesRef.current = [];
         worldRef.current = null;
         renderer.dispose();
@@ -258,7 +260,14 @@ export const Poe: React.FC = () => {
     });
 
     const allSleeping = rigidBodiesRef.current.every((body) => body.isSleeping());
-    if (isThrowing && allSleeping) {
+    const settledBySpeed = rigidBodiesRef.current.every((body) => {
+      const linvel = body.linvel();
+      const angvel = body.angvel();
+      const linearSpeed = Math.hypot(linvel.x, linvel.y, linvel.z);
+      const angularSpeed = Math.hypot(angvel.x, angvel.y, angvel.z);
+      return linearSpeed < 0.15 && angularSpeed < 0.15;
+    });
+    if (isThrowing && (allSleeping || settledBySpeed)) {
       const now = performance.now();
       if (!settleStartRef.current) {
         settleStartRef.current = now;
@@ -266,7 +275,7 @@ export const Poe: React.FC = () => {
         settleStartRef.current = null;
         setIsThrowing(false);
       }
-    } else if (!allSleeping) {
+    } else if (!allSleeping && !settledBySpeed) {
       settleStartRef.current = null;
     }
   };
@@ -295,6 +304,7 @@ export const Poe: React.FC = () => {
     if (isThrowing || blocksRef.current.length === 0) return;
     setIsThrowing(true);
     settleStartRef.current = null;
+    if (throwTimeoutRef.current) window.clearTimeout(throwTimeoutRef.current);
 
     blocksRef.current.forEach((block, index) => {
       block.position.set(index === 0 ? -1.7 : 1.7, 0.2, 0);
@@ -328,6 +338,10 @@ export const Poe: React.FC = () => {
       );
       body.wakeUp();
     });
+    throwTimeoutRef.current = window.setTimeout(() => {
+      setIsThrowing(false);
+      settleStartRef.current = null;
+    }, 5000);
   };
 
   const handlePointerDown = (event: React.PointerEvent<HTMLDivElement>) => {
@@ -376,7 +390,7 @@ export const Poe: React.FC = () => {
             <span className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-black/40 text-[11px] font-semibold text-black/70">
               i
             </span>
-            <div className="pointer-events-none absolute left-1/2 top-full z-10 mt-3 w-[280px] -translate-x-1/2 rounded-2xl border border-black/10 bg-white px-4 py-3 text-[11px] uppercase tracking-[0.2em] text-black/70 opacity-0 shadow-lg transition group-hover:opacity-100">
+            <div className="pointer-events-none absolute bottom-full left-1/2 z-10 mb-3 w-[360px] -translate-x-1/2 rounded-2xl border border-black/10 bg-white px-4 py-3 text-[11px] uppercase tracking-[0.2em] text-black/70 opacity-0 shadow-lg transition group-hover:opacity-100 font-[Rubik]">
               Front = red croissant side. Back = black flat side. Two fronts = 聖杯 (yes). Two backs = 陰杯 (no). Mixed = 笑杯 (not sure).
             </div>
           </div>
