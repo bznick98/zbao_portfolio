@@ -57,7 +57,7 @@ export const Menu: React.FC<MenuProps> = ({ onNavigate }) => {
         </button>
 
         <div className="flex flex-col items-center gap-8 md:gap-12 text-center">
-          {['Work', 'Profile', 'Contact'].map((item) => (
+          {['Work', 'Profile', 'Contact', 'Poe'].map((item) => (
             <button 
               key={item} 
               onClick={() => handleNavClick(item)}
