@@ -12,7 +12,7 @@ gsap.registerPlugin(ScrollTrigger);
 // Create a .env.local file in your root directory to store these keys securely.
 // Example:
 // VITE_UNSPLASH_ACCESS_KEY=your_key_here
-// VITE_OPENAI_API_KEY=your_key_here
+// VITE_YEK_IPA_IANEPO=your_key_here
 
 const UNSPLASH_ACCESS_KEYS = [
   (import.meta as any).env?.VITE_UNSPLASH_ACCESS_KEY,
@@ -25,8 +25,8 @@ const UNSPLASH_ACCESS_KEYS = [
 const UNSPLASH_USERNAME = 'nick19981122';
 
 // 2. OPENAI CONFIG
-// API Key is obtained from VITE_OPENAI_API_KEY
-const OPENAI_API_KEY = (import.meta as any).env?.VITE_OPENAI_API_KEY || '';
+// API Key is obtained from YEK_IPA_IANEPO
+const YEK_IPA_IANEPO = (import.meta as any).env?.YEK_IPA_IANEPO_ETIV || '';
 
 export const Work: React.FC = () => {
   const [blocks, setBlocks] = useState<ContentBlock[]>(BLOCKS);
@@ -111,7 +111,7 @@ export const Work: React.FC = () => {
           applyPhotoUpdates();
 
           // --- STEP 3: Generate Poetic Captions using OpenAI in the background ---
-          if (OPENAI_API_KEY && !captionsRequestedRef.current) {
+          if (YEK_IPA_IANEPO && !captionsRequestedRef.current) {
             captionsRequestedRef.current = true;
             const generateCaptions = async () => {
               try {
@@ -134,7 +134,7 @@ Descriptions: ${JSON.stringify(descriptions)}
                   method: 'POST',
                   headers: {
                     'Content-Type': 'application/json',
-                    Authorization: `Bearer ${OPENAI_API_KEY}`
+                    Authorization: `Bearer ${YEK_IPA_IANEPO}`
                   },
                   body: JSON.stringify({
                     model: 'gpt-3.5-turbo-instruct',
