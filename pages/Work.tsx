@@ -12,7 +12,6 @@ gsap.registerPlugin(ScrollTrigger);
 // Create a .env.local file in your root directory to store these keys securely.
 // Example:
 // VITE_UNSPLASH_ACCESS_KEY=your_key_here
-// VITE_YEK_IPA_IANEPO=your_key_here
 
 const UNSPLASH_ACCESS_KEYS = [
   (import.meta as any).env?.VITE_UNSPLASH_ACCESS_KEY,
@@ -23,10 +22,6 @@ const UNSPLASH_ACCESS_KEYS = [
   (import.meta as any).env?.VITE_UNSPLASH_ACCESS_KEY_5
 ].filter(Boolean) as string[];
 const UNSPLASH_USERNAME = 'nick19981122';
-
-// 2. OPENAI CONFIG
-// API Key is obtained from YEK_IPA_IANEPO
-const YEK_IPA_IANEPO = (import.meta as any).env?.YEK_IPA_IANEPO_ETIV || '';
 
 export const Work: React.FC = () => {
   const [blocks, setBlocks] = useState<ContentBlock[]>(BLOCKS);
@@ -110,38 +105,22 @@ export const Work: React.FC = () => {
           // --- STEP 2: Update UI immediately with images (no titles yet) ---
           applyPhotoUpdates();
 
-          // --- STEP 3: Generate Poetic Captions using OpenAI in the background ---
-          if (YEK_IPA_IANEPO && !captionsRequestedRef.current) {
+          // --- STEP 3: Generate Poetic Captions using OpenAI via serverless API ---
+          if (!captionsRequestedRef.current) {
             captionsRequestedRef.current = true;
             const generateCaptions = async () => {
               try {
                 // Prepare context for the model
-                const descriptions = selectedPhotos.map((p: any, i: number) => ({
-                  index: i,
-                  desc: p.description || p.alt_description || "Poetic image description"
-                }));
+                const descriptions = selectedPhotos.map((p: any) => p.description || p.alt_description || 'Poetic image description');
 
-                const prompt = `
-You are a poet.
-Generate ${descriptions.length} short abstract, poetic titles (max 6 words each).
-Make them elegant, creative, and with a focus on the main image subject.
-Return JSON with shape: {"titles":["...","..."]} in the same order as this list.
-Descriptions: ${JSON.stringify(descriptions)}
-                `.trim();
-
-                // Call OpenAI API (fast, lightweight model)
-                const response = await fetch('https://api.openai.com/v1/completions', {
+                // Call serverless API (keeps key off the client)
+                const response = await fetch('/api/generate-captions', {
                   method: 'POST',
                   headers: {
-                    'Content-Type': 'application/json',
-                    Authorization: `Bearer ${YEK_IPA_IANEPO}`
+                    'Content-Type': 'application/json'
                   },
                   body: JSON.stringify({
-                    model: 'gpt-3.5-turbo-instruct',
-                    prompt,
-                    max_tokens: 160,
-                    temperature: 0.85,
-                    top_p: 0.95
+                    descriptions
                   })
                 });
 
@@ -150,11 +129,8 @@ Descriptions: ${JSON.stringify(descriptions)}
                 }
 
                 const data = await response.json();
-                const content = data?.choices?.[0]?.text?.trim();
-
-                if (content) {
-                  const parsed = JSON.parse(content);
-                  const generatedCaptions = Array.isArray(parsed?.titles) ? parsed.titles : [];
+                if (Array.isArray(data?.titles)) {
+                  const generatedCaptions = data.titles;
                   applyPhotoUpdates(generatedCaptions);
                 }
               } catch (e) {
