@@ -27,6 +27,87 @@ export const Work: React.FC = () => {
   const [blocks, setBlocks] = useState<ContentBlock[]>(BLOCKS);
   const hasInitializedRef = useRef(false);
   const captionsRequestedRef = useRef(false);
+  const poeticTextRequestedRef = useRef(false);
+
+  useEffect(() => {
+    if (poeticTextRequestedRef.current) {
+      return;
+    }
+    poeticTextRequestedRef.current = true;
+
+    const textBlocks = BLOCKS.filter(block => block.type === 'text');
+    if (textBlocks.length === 0) {
+      return;
+    }
+
+    const generateHomeTexts = async () => {
+      try {
+        const browserContext = {
+          locale: navigator.language,
+          timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+          platform: navigator.platform,
+          viewport: `${window.innerWidth}x${window.innerHeight}`,
+          colorScheme: window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light',
+          localTime: new Date().toLocaleString()
+        };
+
+        const response = await fetch('/api/generate-home-text', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            textBlocks: textBlocks.map(block => ({
+              id: block.id,
+              fallbackContent: block.content || '',
+              fallbackCaption: block.caption || ''
+            })),
+            browserContext
+          })
+        });
+
+        if (!response.ok) {
+          throw new Error('Home text generation request failed');
+        }
+
+        const data = await response.json();
+        if (!Array.isArray(data?.texts)) {
+          return;
+        }
+
+        const generatedById = new Map(
+          data.texts
+            .filter((item: any) => typeof item?.id === 'string')
+            .map((item: any) => [item.id, item])
+        );
+
+        setBlocks(prevBlocks => prevBlocks.map(block => {
+          if (block.type !== 'text') {
+            return block;
+          }
+
+          const generated = generatedById.get(block.id);
+          if (!generated) {
+            return block;
+          }
+
+          return {
+            ...block,
+            content: typeof generated.content === 'string' && generated.content.trim()
+              ? generated.content.trim()
+              : block.content,
+            caption: typeof generated.caption === 'string' && generated.caption.trim()
+              ? generated.caption.trim()
+              : block.caption
+          };
+        }));
+      } catch (error) {
+        console.error('Failed to generate poetic home text:', error);
+      }
+    };
+
+    generateHomeTexts();
+  }, []);
 
   // Unsplash Fetch & GenAI Generation Logic
   useEffect(() => {
