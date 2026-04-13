@@ -350,25 +350,22 @@ export const Work: React.FC = () => {
       </div>
 
       {activeImage?.src && (
-        <button
-          type="button"
-          className="fixed inset-0 z-[100] bg-transparent"
-          onClick={closeSelectedImage}
-          aria-label="Close enlarged photo"
-        >
-          <div ref={overlayLayerRef} className="pointer-events-none fixed inset-0 bg-black/80 opacity-0" />
+        <div className="fixed inset-0 z-[100]" aria-live="polite">
+          <div
+            ref={overlayLayerRef}
+            className="fixed inset-0 bg-black/80 opacity-0"
+            onClick={closeSelectedImage}
+          />
           <img
             ref={overlayImageRef}
             src={activeImage.src}
             alt={activeImage.alt || 'Selected portfolio work'}
-            className="fixed object-contain shadow-2xl"
+            className="fixed z-[1] object-contain shadow-2xl"
             style={selectedImageStyle}
-            onClick={(e) => e.stopPropagation()}
           />
           {(activeImage.caption || activeImage.subCaption) && overlayPhase === 'open' && (
             <div
-              onClick={(e) => e.stopPropagation()}
-              className="fixed text-center text-white"
+              className="fixed z-[2] text-center text-white"
               style={selectedCaptionStyle}
             >
               <div className={`transition-all duration-500 ${isCaptionVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-3'}`}>
@@ -381,7 +378,7 @@ export const Work: React.FC = () => {
               </div>
             </div>
           )}
-        </button>
+        </div>
       )}
     </div>
   );
