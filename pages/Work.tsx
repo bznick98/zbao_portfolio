@@ -25,11 +25,16 @@ const UNSPLASH_USERNAME = 'zbao';
 
 export const Work: React.FC = () => {
   const [blocks, setBlocks] = useState<ContentBlock[]>(BLOCKS);
-  const [selectedImageBlock, setSelectedImageBlock] = useState<ContentBlock | null>(null);
+  const [selectedImageBlock, setSelectedImageBlock] = useState<(ContentBlock & {
+    targetRect: { top: number; left: number; width: number; height: number };
+  }) | null>(null);
   const [transitionImage, setTransitionImage] = useState<(ContentBlock & {
     startRect: { top: number; left: number; width: number; height: number };
+    targetRect: { top: number; left: number; width: number; height: number };
   }) | null>(null);
+  const [isCaptionVisible, setIsCaptionVisible] = useState(false);
   const transitionImageRef = useRef<HTMLImageElement>(null);
+  const transitionLayerRef = useRef<HTMLDivElement>(null);
   const hasInitializedRef = useRef(false);
   const captionsRequestedRef = useRef(false);
 
@@ -168,6 +173,7 @@ export const Work: React.FC = () => {
     const onEscape = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
         setSelectedImageBlock(null);
+        setTransitionImage(null);
       }
     };
 
@@ -185,22 +191,22 @@ export const Work: React.FC = () => {
   useEffect(() => {
     if (!transitionImage || !transitionImageRef.current) return;
     const animatedImage = transitionImageRef.current;
+    const layer = transitionLayerRef.current;
+    const { targetRect } = transitionImage;
 
-    const ratio = transitionImage.startRect.width / transitionImage.startRect.height;
-    const maxW = window.innerWidth * 0.92;
-    const maxH = window.innerHeight * 0.78;
+    const timeline = gsap.timeline({
+      onComplete: () => {
+        setSelectedImageBlock(transitionImage);
+        setTransitionImage(null);
+        setTimeout(() => setIsCaptionVisible(true), 120);
+      }
+    });
 
-    let targetWidth = maxW;
-    let targetHeight = targetWidth / ratio;
-    if (targetHeight > maxH) {
-      targetHeight = maxH;
-      targetWidth = targetHeight * ratio;
+    if (layer) {
+      timeline.fromTo(layer, { opacity: 0 }, { opacity: 1, duration: 0.25, ease: 'power1.out' }, 0);
     }
 
-    const targetLeft = (window.innerWidth - targetWidth) / 2;
-    const targetTop = (window.innerHeight - targetHeight) / 2;
-
-    const animation = gsap.fromTo(
+    timeline.fromTo(
       animatedImage,
       {
         top: transitionImage.startRect.top,
@@ -210,28 +216,54 @@ export const Work: React.FC = () => {
         borderRadius: 10
       },
       {
-        top: targetTop,
-        left: targetLeft,
-        width: targetWidth,
-        height: targetHeight,
+        top: targetRect.top,
+        left: targetRect.left,
+        width: targetRect.width,
+        height: targetRect.height,
         borderRadius: 0,
         duration: 0.75,
-        ease: 'power3.out',
-        onComplete: () => {
-          setSelectedImageBlock(transitionImage);
-          setTransitionImage(null);
-        }
-      }
+        ease: 'power3.inOut'
+      },
+      0
     );
 
     return () => {
-      animation.kill();
+      timeline.kill();
     };
   }, [transitionImage]);
 
-  const handleImageSelect = (block: ContentBlock, sourceElement: HTMLDivElement) => {
+  const getImageRatio = (src: string, fallbackRatio: number) =>
+    new Promise<number>((resolve) => {
+      const image = new Image();
+      image.src = src;
+      image.onload = () => resolve(image.naturalWidth / image.naturalHeight || fallbackRatio);
+      image.onerror = () => resolve(fallbackRatio);
+    });
+
+  const getCenteredRect = (ratio: number) => {
+    const maxW = window.innerWidth * 0.92;
+    const maxH = window.innerHeight * 0.78;
+    let width = maxW;
+    let height = width / ratio;
+    if (height > maxH) {
+      height = maxH;
+      width = height * ratio;
+    }
+    return {
+      width,
+      height,
+      left: (window.innerWidth - width) / 2,
+      top: (window.innerHeight - height) / 2
+    };
+  };
+
+  const handleImageSelect = async (block: ContentBlock, sourceElement: HTMLDivElement) => {
     if (!block.src) return;
     const rect = sourceElement.getBoundingClientRect();
+    const fallbackRatio = rect.width / rect.height;
+    const ratio = await getImageRatio(block.src, fallbackRatio);
+    const targetRect = getCenteredRect(ratio);
+    setIsCaptionVisible(false);
     setTransitionImage({
       ...block,
       startRect: {
@@ -239,7 +271,8 @@ export const Work: React.FC = () => {
         left: rect.left,
         width: rect.width,
         height: rect.height
-      }
+      },
+      targetRect
     });
   };
 
@@ -281,7 +314,10 @@ export const Work: React.FC = () => {
         <button
           type="button"
           className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 p-4 md:p-10"
-          onClick={() => setSelectedImageBlock(null)}
+          onClick={() => {
+            setSelectedImageBlock(null);
+            setIsCaptionVisible(false);
+          }}
           aria-label="Close enlarged photo"
         >
           <div
@@ -291,10 +327,14 @@ export const Work: React.FC = () => {
             <img
               src={selectedImageBlock.src}
               alt={selectedImageBlock.alt || 'Selected portfolio work'}
-              className="max-h-[78vh] w-auto max-w-[92vw] object-contain shadow-2xl"
+              className="object-contain shadow-2xl"
+              style={{
+                width: selectedImageBlock.targetRect.width,
+                height: selectedImageBlock.targetRect.height
+              }}
             />
             {(selectedImageBlock.caption || selectedImageBlock.subCaption) && (
-              <div className="mt-4 text-center text-white">
+              <div className={`mt-4 text-center text-white transition-all duration-500 ${isCaptionVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-3'}`}>
                 {selectedImageBlock.caption && (
                   <p className="font-serif text-xl italic">{selectedImageBlock.caption}</p>
                 )}
@@ -308,12 +348,12 @@ export const Work: React.FC = () => {
       )}
 
       {transitionImage?.src && (
-        <div className="pointer-events-none fixed inset-0 z-[95] bg-black/70">
+        <div ref={transitionLayerRef} className="pointer-events-none fixed inset-0 z-[95] bg-black/70 opacity-0">
           <img
             ref={transitionImageRef}
             src={transitionImage.src}
             alt={transitionImage.alt || 'Selected portfolio work'}
-            className="fixed object-cover shadow-2xl will-change-[top,left,width,height,border-radius]"
+            className="fixed object-contain shadow-2xl will-change-[top,left,width,height,border-radius]"
           />
         </div>
       )}
