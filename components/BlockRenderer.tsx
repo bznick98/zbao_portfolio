@@ -1,4 +1,4 @@
-import React, { useRef, useLayoutEffect } from 'react';
+import React, { useRef, useLayoutEffect, useEffect, useState } from 'react';
 import { ContentBlock, GridPosition } from '../types';
 import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
@@ -9,6 +9,58 @@ interface BlockRendererProps {
   block: ContentBlock;
   className?: string; // Allow parent to inject fixed/layout classes
 }
+
+const EYE_RANGE = 10;
+
+const HeroBaoWord: React.FC = () => {
+  const [offset, setOffset] = useState({ x: 0, y: 0 });
+
+  useEffect(() => {
+    const updateOffset = (clientX: number, clientY: number) => {
+      const x = ((clientX / window.innerWidth) * 2 - 1) * EYE_RANGE;
+      const y = ((clientY / window.innerHeight) * 2 - 1) * EYE_RANGE;
+      setOffset({ x, y });
+    };
+
+    const handlePointerMove = (event: PointerEvent) => {
+      updateOffset(event.clientX, event.clientY);
+    };
+
+    const handleTouchMove = (event: TouchEvent) => {
+      const touch = event.touches[0];
+      if (!touch) return;
+      updateOffset(touch.clientX, touch.clientY);
+    };
+
+    window.addEventListener('pointermove', handlePointerMove, { passive: true });
+    window.addEventListener('touchmove', handleTouchMove, { passive: true });
+
+    return () => {
+      window.removeEventListener('pointermove', handlePointerMove);
+      window.removeEventListener('touchmove', handleTouchMove);
+    };
+  }, []);
+
+  return (
+    <span className="inline-flex items-center gap-[0.28em]" aria-label="BAO">
+      <span>B</span>
+      <span>△</span>
+      <span
+        className="relative inline-flex h-[1.02em] w-[0.84em] items-center justify-center rounded-full border-[0.085em] border-current align-middle overflow-hidden"
+        aria-hidden="true"
+      >
+        <span
+          className="absolute h-[0.42em] w-[0.42em] rounded-full bg-current transition-transform duration-75 ease-out"
+          style={{ transform: `translate(${offset.x}px, ${offset.y}px)` }}
+        />
+        <span
+          className="absolute h-[0.16em] w-[0.16em] rounded-full bg-[#faf9f6]"
+          style={{ transform: `translate(${offset.x}px, ${offset.y}px) translate(0.07em, -0.06em)` }}
+        />
+      </span>
+    </span>
+  );
+};
 
 const getGridClasses = (mobile: GridPosition, desktop: GridPosition) => {
   const m = mobile;
@@ -131,7 +183,7 @@ export const BlockRenderer: React.FC<BlockRendererProps> = ({ block, className =
         ref={containerRef}
         className={`${finalClasses} text-[4.5vw] md:text-[3vw] leading-normal font-normal break-words font-majorMono ${alignClass}`}
       >
-        {block.content}
+        {block.id === 'hero-bao' ? <HeroBaoWord /> : block.content}
       </div>
     );
   }
@@ -195,7 +247,9 @@ export const BlockRenderer: React.FC<BlockRendererProps> = ({ block, className =
               <span className="font-serif text-lg md:text-xl italic text-[#111]">{block.caption}</span>
             )}
             {block.subCaption && (
-              <span className="font-sans text-xs uppercase tracking-widest opacity-50 text-[#111]">{block.subCaption}</span>
+              <span className="font-sans text-xs uppercase tracking-[0.22em] text-[#111]/70">
+                {block.subCaption}
+              </span>
             )}
           </div>
         </div>
