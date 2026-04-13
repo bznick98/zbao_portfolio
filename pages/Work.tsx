@@ -349,6 +349,8 @@ export const Work: React.FC = () => {
     };
   }, [selectedImageBlock]);
 
+  const activeImageId = transitionImage?.id || selectedImageBlock?.id || closingImage?.id;
+
   return (
     <div className="w-full">
       <div className="max-w-[1800px] mx-auto relative">
@@ -360,6 +362,7 @@ export const Work: React.FC = () => {
                 key={block.id}
                 block={block}
                 onImageSelect={block.type === 'image' ? handleImageSelect : undefined}
+                isSelectedForTransition={Boolean(activeImageId && block.id === activeImageId)}
               />
             ))}
           </div>
@@ -417,7 +420,7 @@ export const Work: React.FC = () => {
       )}
 
       {transitionImage?.src && (
-        <div ref={transitionLayerRef} className="pointer-events-none fixed inset-0 z-[95] bg-black/70 opacity-0">
+        <div ref={transitionLayerRef} className="pointer-events-none fixed inset-0 z-[95] bg-black/80 opacity-0">
           <img
             ref={transitionImageRef}
             src={transitionImage.src}

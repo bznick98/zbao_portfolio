@@ -9,6 +9,7 @@ interface BlockRendererProps {
   block: ContentBlock;
   className?: string; // Allow parent to inject fixed/layout classes
   onImageSelect?: (block: ContentBlock, sourceElement: HTMLDivElement) => void;
+  isSelectedForTransition?: boolean;
 }
 
 const getGridClasses = (mobile: GridPosition, desktop: GridPosition) => {
@@ -44,7 +45,7 @@ const getGridClasses = (mobile: GridPosition, desktop: GridPosition) => {
   return classes;
 };
 
-export const BlockRenderer: React.FC<BlockRendererProps> = ({ block, className = '', onImageSelect }) => {
+export const BlockRenderer: React.FC<BlockRendererProps> = ({ block, className = '', onImageSelect, isSelectedForTransition = false }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const captionRef = useRef<HTMLDivElement>(null);
   const imageFrameRef = useRef<HTMLDivElement>(null);
@@ -239,7 +240,7 @@ export const BlockRenderer: React.FC<BlockRendererProps> = ({ block, className =
         <div className="group relative">
           <div 
             ref={imageFrameRef}
-            className={`w-full ${aspectClass} overflow-hidden bg-[#e5e5e5] relative transition-all duration-500 ${onImageSelect ? 'cursor-pointer' : ''}`}
+            className={`w-full ${aspectClass} overflow-hidden bg-[#e5e5e5] relative transition-all duration-500 ${onImageSelect ? 'cursor-pointer' : ''} ${isSelectedForTransition ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}
             style={inlineStyle}
             onClick={(event) => onImageSelect?.(block, event.currentTarget)}
           >
