@@ -10,7 +10,7 @@ import { Poe } from './pages/Poe';
 
 const App: React.FC = () => {
   const [currentPage, setCurrentPage] = useState('Work');
-  const [isEyeEnabled, setIsEyeEnabled] = useState(true);
+  const [isEyeEnabled, setIsEyeEnabled] = useState(false);
   const heroBlocks = useMemo(() => BLOCKS.filter(block => block.isFixed), []);
 
   const renderPage = () => {
@@ -45,8 +45,8 @@ const App: React.FC = () => {
       )}
 
       {currentPage === 'Work' && (
-        <div className="fixed inset-0 w-full h-full pointer-events-none z-40 px-4 md:px-12 pt-24 md:pt-32 mix-blend-difference text-white">
-          <div className="grid grid-cols-12 gap-x-4 md:gap-x-8 w-full h-full">
+        <div className="fixed inset-0 w-full h-full pointer-events-none z-40 px-4 md:px-12 mix-blend-difference text-white">
+          <div className="grid grid-cols-12 gap-x-4 md:gap-x-8 w-full h-full content-center">
             {heroBlocks.map((block) => (
               <BlockRenderer key={block.id} block={block} />
             ))}
