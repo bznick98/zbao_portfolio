@@ -189,7 +189,7 @@ export const Work: React.FC = () => {
   }, [activeImage]);
 
   useEffect(() => {
-    if (!activeImage || !overlayImageRef.current || !overlayLayerRef.current || !overlayPhase) return;
+    if (!activeImage || !overlayImageRef.current || !overlayLayerRef.current || !overlayPhase || overlayPhase === 'open') return;
 
     const animatedImage = overlayImageRef.current;
     const layer = overlayLayerRef.current;
