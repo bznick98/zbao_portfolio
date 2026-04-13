@@ -339,6 +339,16 @@ export const Work: React.FC = () => {
     return blocks.filter(b => !b.isFixed);
   }, [blocks]);
 
+  const selectedImageStyle = useMemo(() => {
+    if (!selectedImageBlock) return undefined;
+    return {
+      top: selectedImageBlock.targetRect.top,
+      left: selectedImageBlock.targetRect.left,
+      width: selectedImageBlock.targetRect.width,
+      height: selectedImageBlock.targetRect.height
+    };
+  }, [selectedImageBlock]);
+
   return (
     <div className="w-full">
       <div className="max-w-[1800px] mx-auto relative">
@@ -380,12 +390,7 @@ export const Work: React.FC = () => {
             src={selectedImageBlock.src}
             alt={selectedImageBlock.alt || 'Selected portfolio work'}
             className="fixed object-contain shadow-2xl"
-            style={{
-              top: selectedImageBlock.targetRect.top,
-              left: selectedImageBlock.targetRect.left,
-              width: selectedImageBlock.targetRect.width,
-              height: selectedImageBlock.targetRect.height
-            }}
+            style={selectedImageStyle}
             onClick={(e) => e.stopPropagation()}
           />
           {(selectedImageBlock.caption || selectedImageBlock.subCaption) && (
@@ -393,7 +398,7 @@ export const Work: React.FC = () => {
               onClick={(e) => e.stopPropagation()}
               className="fixed text-center text-white"
               style={{
-                top: selectedImageBlock.targetRect.top + selectedImageBlock.targetRect.height + 16,
+                bottom: 24,
                 left: '50%',
                 transform: 'translateX(-50%)'
               }}
