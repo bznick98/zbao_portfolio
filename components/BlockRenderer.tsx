@@ -1,4 +1,4 @@
-import React, { useRef, useLayoutEffect } from 'react';
+import React, { useRef, useLayoutEffect, useEffect } from 'react';
 import { ContentBlock, GridPosition } from '../types';
 import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
@@ -46,6 +46,9 @@ const getGridClasses = (mobile: GridPosition, desktop: GridPosition) => {
 export const BlockRenderer: React.FC<BlockRendererProps> = ({ block, className = '' }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const captionRef = useRef<HTMLDivElement>(null);
+  const imageFrameRef = useRef<HTMLDivElement>(null);
+  const imageRef = useRef<HTMLImageElement>(null);
+  const rafRef = useRef<number | null>(null);
   
   useLayoutEffect(() => {
     const el = containerRef.current;
@@ -113,6 +116,64 @@ export const BlockRenderer: React.FC<BlockRendererProps> = ({ block, className =
     };
   }, [block.caption, block.subCaption]);
 
+  useEffect(() => {
+    if (block.type !== 'image') return;
+    const frame = imageFrameRef.current;
+    const image = imageRef.current;
+    if (!frame || !image) return;
+
+    const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (reducedMotion) return;
+
+    const moveImage = (translateX: number, translateY: number, rotateX: number, rotateY: number) => {
+      if (rafRef.current) cancelAnimationFrame(rafRef.current);
+      rafRef.current = requestAnimationFrame(() => {
+        frame.style.transform = `perspective(1000px) rotateX(${rotateX}deg) rotateY(${rotateY}deg)`;
+        image.style.transform = `scale(1.08) translate3d(${translateX}px, ${translateY}px, 0)`;
+      });
+    };
+
+    const resetImage = () => {
+      if (rafRef.current) cancelAnimationFrame(rafRef.current);
+      rafRef.current = requestAnimationFrame(() => {
+        frame.style.transform = 'perspective(1000px) rotateX(0deg) rotateY(0deg)';
+        image.style.transform = 'scale(1) translate3d(0px, 0px, 0)';
+      });
+    };
+
+    const updateFromPoint = (clientX: number, clientY: number) => {
+      const rect = frame.getBoundingClientRect();
+      const x = (clientX - rect.left) / rect.width;
+      const y = (clientY - rect.top) / rect.height;
+      const clampX = Math.min(Math.max(x, 0), 1);
+      const clampY = Math.min(Math.max(y, 0), 1);
+      const offsetX = (clampX - 0.5) * 18;
+      const offsetY = (clampY - 0.5) * 18;
+      const rotateY = (clampX - 0.5) * 6;
+      const rotateX = (0.5 - clampY) * 6;
+      moveImage(offsetX, offsetY, rotateX, rotateY);
+    };
+
+    const onPointerMove = (e: PointerEvent) => updateFromPoint(e.clientX, e.clientY);
+    const onTouchMove = (e: TouchEvent) => {
+      if (!e.touches[0]) return;
+      updateFromPoint(e.touches[0].clientX, e.touches[0].clientY);
+    };
+
+    frame.addEventListener('pointermove', onPointerMove);
+    frame.addEventListener('pointerleave', resetImage);
+    frame.addEventListener('touchmove', onTouchMove, { passive: true });
+    frame.addEventListener('touchend', resetImage);
+
+    return () => {
+      frame.removeEventListener('pointermove', onPointerMove);
+      frame.removeEventListener('pointerleave', resetImage);
+      frame.removeEventListener('touchmove', onTouchMove);
+      frame.removeEventListener('touchend', resetImage);
+      if (rafRef.current) cancelAnimationFrame(rafRef.current);
+    };
+  }, [block.type, block.id]);
+
   const gridClasses = getGridClasses(block.mobile, block.desktop);
   const finalClasses = `${gridClasses} ${className}`;
 
@@ -171,14 +232,16 @@ export const BlockRenderer: React.FC<BlockRendererProps> = ({ block, className =
       <div ref={containerRef} className={finalClasses}>
         <div className="group relative">
           <div 
+            ref={imageFrameRef}
             className={`w-full ${aspectClass} overflow-hidden bg-[#e5e5e5] relative transition-all duration-500`}
             style={inlineStyle}
           >
             {block.src ? (
               <img 
+                ref={imageRef}
                 src={block.src} 
                 alt={block.alt}
-                className={imageClassName}
+                className={`${imageClassName} transform-gpu will-change-transform transition-[transform,opacity] duration-500 ease-out`}
                 loading="lazy"
                 onLoad={(e) => (e.target as HTMLImageElement).classList.remove('opacity-0')}
               />
