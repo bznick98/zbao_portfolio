@@ -208,7 +208,9 @@ export const Work: React.FC = () => {
     const timeline = gsap.timeline({
       onComplete: () => {
         setSelectedImageBlock(transitionImage);
-        setTransitionImage(null);
+        window.requestAnimationFrame(() => {
+          setTransitionImage(null);
+        });
         setTimeout(() => setIsCaptionVisible(true), 120);
       }
     });
@@ -332,7 +334,9 @@ export const Work: React.FC = () => {
     if (!selectedImageBlock) return;
     setIsCaptionVisible(false);
     setClosingImage(selectedImageBlock);
-    setSelectedImageBlock(null);
+    window.requestAnimationFrame(() => {
+      setSelectedImageBlock(null);
+    });
   };
 
   const scrollBlocks = useMemo(() => {
@@ -346,6 +350,15 @@ export const Work: React.FC = () => {
       left: selectedImageBlock.targetRect.left,
       width: selectedImageBlock.targetRect.width,
       height: selectedImageBlock.targetRect.height
+    };
+  }, [selectedImageBlock]);
+  
+  const selectedCaptionStyle = useMemo(() => {
+    if (!selectedImageBlock) return undefined;
+    return {
+      top: selectedImageBlock.targetRect.top + selectedImageBlock.targetRect.height + 14,
+      left: selectedImageBlock.targetRect.left,
+      width: selectedImageBlock.targetRect.width
     };
   }, [selectedImageBlock]);
 
@@ -400,11 +413,7 @@ export const Work: React.FC = () => {
             <div
               onClick={(e) => e.stopPropagation()}
               className="fixed text-center text-white"
-              style={{
-                bottom: 24,
-                left: '50%',
-                transform: 'translateX(-50%)'
-              }}
+              style={selectedCaptionStyle}
             >
               <div className={`transition-all duration-500 ${isCaptionVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-3'}`}>
                 {selectedImageBlock.caption && (
