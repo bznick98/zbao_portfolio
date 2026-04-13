@@ -26,7 +26,7 @@ export const BLOCKS: ContentBlock[] = [
     id: 'spacer-top',
     type: 'spacer',
     mobile: { colSpan: 'col-span-2', marginBottom: 'h-[24vh]' },
-    desktop: { colSpan: 'col-span-12', marginBottom: 'h-[30vh]' },
+    desktop: { colSpan: 'col-span-12', marginBottom: 'h-[36vh]' },
   },
 
   // --- Denser Layout: Added more image blocks interspersed ---
@@ -38,7 +38,7 @@ export const BLOCKS: ContentBlock[] = [
     aspectRatio: 'aspect-[3/4]',
     useNaturalAspectRatio: true,
     mobile: { colSpan: 'col-span-1', marginTop: 'mt-2', marginBottom: 'mb-8' },
-    desktop: { colStart: 'col-start-2', colSpan: 'col-span-5', marginTop: '-mt-24', zIndex: 20 },
+    desktop: { colStart: 'col-start-2', colSpan: 'col-span-5', marginTop: '-mt-6', zIndex: 20 },
     parallaxSpeed: 0.15
   },
 
@@ -49,7 +49,7 @@ export const BLOCKS: ContentBlock[] = [
     aspectRatio: 'aspect-[3/4]',
     useNaturalAspectRatio: true,
     mobile: { colSpan: 'col-span-1', marginTop: 'mt-8', marginBottom: 'mb-12', justifySelf: 'end' },
-    desktop: { colStart: 'col-start-7', colSpan: 'col-span-6', marginTop: '-mt-12', zIndex: 10 },
+    desktop: { colStart: 'col-start-7', colSpan: 'col-span-6', marginTop: 'mt-6', zIndex: 10 },
     parallaxSpeed: 0.1
   },
 

@@ -22,26 +22,18 @@ const UNSPLASH_ACCESS_KEYS = [
   (import.meta as any).env?.VITE_UNSPLASH_ACCESS_KEY_5
 ].filter(Boolean) as string[];
 const UNSPLASH_USERNAME = 'zbao';
+type ImageOverlayState = ContentBlock & {
+  startRect: { top: number; left: number; width: number; height: number };
+  targetRect: { top: number; left: number; width: number; height: number };
+};
 
 export const Work: React.FC = () => {
   const [blocks, setBlocks] = useState<ContentBlock[]>(BLOCKS);
-  const [selectedImageBlock, setSelectedImageBlock] = useState<(ContentBlock & {
-    targetRect: { top: number; left: number; width: number; height: number };
-    startRect: { top: number; left: number; width: number; height: number };
-  }) | null>(null);
-  const [transitionImage, setTransitionImage] = useState<(ContentBlock & {
-    startRect: { top: number; left: number; width: number; height: number };
-    targetRect: { top: number; left: number; width: number; height: number };
-  }) | null>(null);
+  const [activeImage, setActiveImage] = useState<ImageOverlayState | null>(null);
+  const [overlayPhase, setOverlayPhase] = useState<'opening' | 'open' | 'closing' | null>(null);
   const [isCaptionVisible, setIsCaptionVisible] = useState(false);
-  const transitionImageRef = useRef<HTMLImageElement>(null);
-  const transitionLayerRef = useRef<HTMLDivElement>(null);
-  const [closingImage, setClosingImage] = useState<(ContentBlock & {
-    startRect: { top: number; left: number; width: number; height: number };
-    targetRect: { top: number; left: number; width: number; height: number };
-  }) | null>(null);
-  const closingImageRef = useRef<HTMLImageElement>(null);
-  const closingLayerRef = useRef<HTMLDivElement>(null);
+  const overlayImageRef = useRef<HTMLImageElement>(null);
+  const overlayLayerRef = useRef<HTMLDivElement>(null);
   const hasInitializedRef = useRef(false);
   const captionsRequestedRef = useRef(false);
 
@@ -178,113 +170,73 @@ export const Work: React.FC = () => {
 
   useEffect(() => {
     const onEscape = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
-        if (selectedImageBlock) {
-          setIsCaptionVisible(false);
-          setClosingImage(selectedImageBlock);
-          setSelectedImageBlock(null);
-        }
-        setTransitionImage(null);
+      if (event.key === 'Escape' && overlayPhase === 'open') {
+        setIsCaptionVisible(false);
+        setOverlayPhase('closing');
       }
     };
 
     window.addEventListener('keydown', onEscape);
     return () => window.removeEventListener('keydown', onEscape);
-  }, [selectedImageBlock]);
+  }, [overlayPhase]);
 
   useEffect(() => {
-    document.body.style.overflow = selectedImageBlock || transitionImage || closingImage ? 'hidden' : '';
+    document.body.style.overflow = activeImage ? 'hidden' : '';
     return () => {
       document.body.style.overflow = '';
     };
-  }, [selectedImageBlock, transitionImage, closingImage]);
+  }, [activeImage]);
 
   useEffect(() => {
-    if (!transitionImage || !transitionImageRef.current) return;
-    const animatedImage = transitionImageRef.current;
-    const layer = transitionLayerRef.current;
-    const { targetRect } = transitionImage;
+    if (!activeImage || !overlayImageRef.current || !overlayLayerRef.current || !overlayPhase) return;
+
+    const animatedImage = overlayImageRef.current;
+    const layer = overlayLayerRef.current;
+    const fromRect = overlayPhase === 'opening' ? activeImage.startRect : activeImage.targetRect;
+    const toRect = overlayPhase === 'opening' ? activeImage.targetRect : activeImage.startRect;
 
     const timeline = gsap.timeline({
+      defaults: { ease: 'power3.inOut' },
       onComplete: () => {
-        setSelectedImageBlock(transitionImage);
-        window.requestAnimationFrame(() => {
-          setTransitionImage(null);
-        });
-        setTimeout(() => setIsCaptionVisible(true), 120);
-      }
-    });
-
-    if (layer) {
-      timeline.fromTo(layer, { opacity: 0 }, { opacity: 1, duration: 0.25, ease: 'power1.out' }, 0);
-    }
-
-    timeline.fromTo(
-      animatedImage,
-      {
-        top: transitionImage.startRect.top,
-        left: transitionImage.startRect.left,
-        width: transitionImage.startRect.width,
-        height: transitionImage.startRect.height,
-        borderRadius: 10
-      },
-      {
-        top: targetRect.top,
-        left: targetRect.left,
-        width: targetRect.width,
-        height: targetRect.height,
-        borderRadius: 0,
-        duration: 0.75,
-        ease: 'power3.inOut'
-      },
-      0
-    );
-
-    return () => {
-      timeline.kill();
-    };
-  }, [transitionImage]);
-
-  useEffect(() => {
-    if (!closingImage || !closingImageRef.current) return;
-    const animatedImage = closingImageRef.current;
-    const layer = closingLayerRef.current;
-
-    const timeline = gsap.timeline({
-      onComplete: () => {
-        setClosingImage(null);
+        if (overlayPhase === 'opening') {
+          setOverlayPhase('open');
+          setTimeout(() => setIsCaptionVisible(true), 120);
+          return;
+        }
+        setOverlayPhase(null);
+        setActiveImage(null);
       }
     });
 
     timeline.fromTo(
+      layer,
+      { opacity: overlayPhase === 'opening' ? 0 : 1 },
+      { opacity: overlayPhase === 'opening' ? 1 : 0, duration: overlayPhase === 'opening' ? 0.25 : 0.2 },
+      0
+    );
+
+    timeline.fromTo(
       animatedImage,
       {
-        top: closingImage.targetRect.top,
-        left: closingImage.targetRect.left,
-        width: closingImage.targetRect.width,
-        height: closingImage.targetRect.height,
-        borderRadius: 0
+        top: fromRect.top,
+        left: fromRect.left,
+        width: fromRect.width,
+        height: fromRect.height,
+        borderRadius: overlayPhase === 'opening' ? 10 : 0
       },
       {
-        top: closingImage.startRect.top,
-        left: closingImage.startRect.left,
-        width: closingImage.startRect.width,
-        height: closingImage.startRect.height,
-        borderRadius: 10,
-        duration: 0.65,
-        ease: 'power3.inOut'
+        top: toRect.top,
+        left: toRect.left,
+        width: toRect.width,
+        height: toRect.height,
+        borderRadius: overlayPhase === 'opening' ? 0 : 10,
+        duration: overlayPhase === 'opening' ? 0.75 : 0.65
       },
       0
     );
 
-    if (layer) {
-      timeline.fromTo(layer, { opacity: 1 }, { opacity: 0, duration: 0.13, ease: 'power1.in' }, 0.52);
-    }
-
-    return () => {
-      timeline.kill();
-    };
-  }, [closingImage]);
+    return () => timeline.kill();
+  }, [activeImage, overlayPhase]);
 
   const getImageRatio = (src: string, fallbackRatio: number) =>
     new Promise<number>((resolve) => {
@@ -318,7 +270,7 @@ export const Work: React.FC = () => {
     const ratio = await getImageRatio(block.src, fallbackRatio);
     const targetRect = getCenteredRect(ratio);
     setIsCaptionVisible(false);
-    setTransitionImage({
+    setActiveImage({
       ...block,
       startRect: {
         top: rect.top,
@@ -328,15 +280,13 @@ export const Work: React.FC = () => {
       },
       targetRect
     });
+    setOverlayPhase('opening');
   };
 
   const closeSelectedImage = () => {
-    if (!selectedImageBlock) return;
+    if (!activeImage || overlayPhase !== 'open') return;
     setIsCaptionVisible(false);
-    setClosingImage(selectedImageBlock);
-    window.requestAnimationFrame(() => {
-      setSelectedImageBlock(null);
-    });
+    setOverlayPhase('closing');
   };
 
   const scrollBlocks = useMemo(() => {
@@ -344,25 +294,26 @@ export const Work: React.FC = () => {
   }, [blocks]);
 
   const selectedImageStyle = useMemo(() => {
-    if (!selectedImageBlock) return undefined;
+    if (!activeImage) return undefined;
+    const rect = overlayPhase === 'opening' ? activeImage.startRect : activeImage.targetRect;
     return {
-      top: selectedImageBlock.targetRect.top,
-      left: selectedImageBlock.targetRect.left,
-      width: selectedImageBlock.targetRect.width,
-      height: selectedImageBlock.targetRect.height
+      top: rect.top,
+      left: rect.left,
+      width: rect.width,
+      height: rect.height
     };
-  }, [selectedImageBlock]);
+  }, [activeImage, overlayPhase]);
   
   const selectedCaptionStyle = useMemo(() => {
-    if (!selectedImageBlock) return undefined;
+    if (!activeImage) return undefined;
     return {
-      top: selectedImageBlock.targetRect.top + selectedImageBlock.targetRect.height + 14,
-      left: selectedImageBlock.targetRect.left,
-      width: selectedImageBlock.targetRect.width
+      top: activeImage.targetRect.top + activeImage.targetRect.height + 14,
+      left: activeImage.targetRect.left,
+      width: activeImage.targetRect.width
     };
-  }, [selectedImageBlock]);
+  }, [activeImage]);
 
-  const activeImageId = transitionImage?.id || selectedImageBlock?.id || closingImage?.id;
+  const activeImageId = activeImage?.id;
 
   return (
     <div className="w-full">
@@ -395,59 +346,39 @@ export const Work: React.FC = () => {
         </div>
       </div>
 
-      {selectedImageBlock?.src && (
+      {activeImage?.src && (
         <button
           type="button"
-          className="fixed inset-0 z-[100] bg-black/80"
+          className="fixed inset-0 z-[100] bg-transparent"
           onClick={closeSelectedImage}
           aria-label="Close enlarged photo"
         >
+          <div ref={overlayLayerRef} className="pointer-events-none fixed inset-0 bg-black/80 opacity-0" />
           <img
-            src={selectedImageBlock.src}
-            alt={selectedImageBlock.alt || 'Selected portfolio work'}
+            ref={overlayImageRef}
+            src={activeImage.src}
+            alt={activeImage.alt || 'Selected portfolio work'}
             className="fixed object-contain shadow-2xl"
             style={selectedImageStyle}
             onClick={(e) => e.stopPropagation()}
           />
-          {(selectedImageBlock.caption || selectedImageBlock.subCaption) && (
+          {(activeImage.caption || activeImage.subCaption) && overlayPhase === 'open' && (
             <div
               onClick={(e) => e.stopPropagation()}
               className="fixed text-center text-white"
               style={selectedCaptionStyle}
             >
               <div className={`transition-all duration-500 ${isCaptionVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-3'}`}>
-                {selectedImageBlock.caption && (
-                  <p className="font-serif text-xl italic">{selectedImageBlock.caption}</p>
+                {activeImage.caption && (
+                  <p className="font-serif text-xl italic">{activeImage.caption}</p>
                 )}
-                {selectedImageBlock.subCaption && (
-                  <p className="mt-1 text-xs uppercase tracking-[0.25em] text-white/70">{selectedImageBlock.subCaption}</p>
+                {activeImage.subCaption && (
+                  <p className="mt-1 text-xs uppercase tracking-[0.25em] text-white/70">{activeImage.subCaption}</p>
                 )}
               </div>
             </div>
           )}
         </button>
-      )}
-
-      {transitionImage?.src && (
-        <div ref={transitionLayerRef} className="pointer-events-none fixed inset-0 z-[95] bg-black/80 opacity-0">
-          <img
-            ref={transitionImageRef}
-            src={transitionImage.src}
-            alt={transitionImage.alt || 'Selected portfolio work'}
-            className="fixed object-contain shadow-2xl will-change-[top,left,width,height,border-radius]"
-          />
-        </div>
-      )}
-
-      {closingImage?.src && (
-        <div ref={closingLayerRef} className="pointer-events-none fixed inset-0 z-[99] bg-black/80 opacity-100">
-          <img
-            ref={closingImageRef}
-            src={closingImage.src}
-            alt={closingImage.alt || 'Closing portfolio work'}
-            className="fixed object-contain shadow-2xl will-change-[top,left,width,height,border-radius]"
-          />
-        </div>
       )}
     </div>
   );
