@@ -353,7 +353,7 @@ export const Work: React.FC = () => {
         <div className="fixed inset-0 z-[100]" aria-live="polite">
           <div
             ref={overlayLayerRef}
-            className="fixed inset-0 bg-black/80 opacity-0"
+            className={`fixed inset-0 bg-black/80 opacity-0 ${overlayPhase === 'open' ? 'pointer-events-auto' : 'pointer-events-none'}`}
             onClick={closeSelectedImage}
           />
           <img
