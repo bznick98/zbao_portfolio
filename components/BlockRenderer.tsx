@@ -8,7 +8,7 @@ gsap.registerPlugin(ScrollTrigger);
 interface BlockRendererProps {
   block: ContentBlock;
   className?: string; // Allow parent to inject fixed/layout classes
-  onImageSelect?: (block: ContentBlock) => void;
+  onImageSelect?: (block: ContentBlock, sourceElement: HTMLDivElement) => void;
 }
 
 const getGridClasses = (mobile: GridPosition, desktop: GridPosition) => {
@@ -241,14 +241,14 @@ export const BlockRenderer: React.FC<BlockRendererProps> = ({ block, className =
             ref={imageFrameRef}
             className={`w-full ${aspectClass} overflow-hidden bg-[#e5e5e5] relative transition-all duration-500 ${onImageSelect ? 'cursor-pointer' : ''}`}
             style={inlineStyle}
-            onClick={() => onImageSelect?.(block)}
+            onClick={(event) => onImageSelect?.(block, event.currentTarget)}
           >
             {onImageSelect && (
-              <div className="pointer-events-none absolute right-3 bottom-3 z-20 origin-bottom-right translate-y-2 scale-x-50 scale-y-0 skew-x-12 rounded-full bg-black/75 px-3 py-2 text-[10px] uppercase tracking-[0.2em] text-white opacity-0 shadow-xl backdrop-blur-sm transition-all duration-500 ease-[cubic-bezier(0.2,0.8,0.2,1)] group-hover:translate-y-0 group-hover:scale-x-100 group-hover:scale-y-100 group-hover:skew-x-0 group-hover:opacity-100">
-                <span className="flex items-center gap-2">
+              <div className="pointer-events-none absolute right-3 bottom-3 z-20 flex h-9 w-9 items-center justify-center rounded-full bg-black/70 text-white opacity-0 shadow-lg backdrop-blur-sm transition-all duration-300 ease-out group-hover:translate-y-0 group-hover:opacity-100 group-hover:scale-100 translate-y-1 scale-90">
+                <span className="flex items-center justify-center">
                   <svg
                     viewBox="0 0 24 24"
-                    className="h-3.5 w-3.5 transition-transform duration-500 group-hover:rotate-12 group-hover:scale-110"
+                    className="h-4 w-4 transition-transform duration-300 group-hover:scale-110"
                     fill="none"
                     stroke="currentColor"
                     strokeWidth="1.7"
@@ -261,7 +261,6 @@ export const BlockRenderer: React.FC<BlockRendererProps> = ({ block, className =
                     <path d="M5 5h6" />
                     <path d="M5 5v6" />
                   </svg>
-                  <span>open</span>
                 </span>
               </div>
             )}

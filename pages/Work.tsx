@@ -26,6 +26,10 @@ const UNSPLASH_USERNAME = 'zbao';
 export const Work: React.FC = () => {
   const [blocks, setBlocks] = useState<ContentBlock[]>(BLOCKS);
   const [selectedImageBlock, setSelectedImageBlock] = useState<ContentBlock | null>(null);
+  const [transitionImage, setTransitionImage] = useState<(ContentBlock & {
+    startRect: { top: number; left: number; width: number; height: number };
+  }) | null>(null);
+  const transitionImageRef = useRef<HTMLImageElement>(null);
   const hasInitializedRef = useRef(false);
   const captionsRequestedRef = useRef(false);
 
@@ -172,11 +176,72 @@ export const Work: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    document.body.style.overflow = selectedImageBlock ? 'hidden' : '';
+    document.body.style.overflow = selectedImageBlock || transitionImage ? 'hidden' : '';
     return () => {
       document.body.style.overflow = '';
     };
-  }, [selectedImageBlock]);
+  }, [selectedImageBlock, transitionImage]);
+
+  useEffect(() => {
+    if (!transitionImage || !transitionImageRef.current) return;
+    const animatedImage = transitionImageRef.current;
+
+    const ratio = transitionImage.startRect.width / transitionImage.startRect.height;
+    const maxW = window.innerWidth * 0.92;
+    const maxH = window.innerHeight * 0.78;
+
+    let targetWidth = maxW;
+    let targetHeight = targetWidth / ratio;
+    if (targetHeight > maxH) {
+      targetHeight = maxH;
+      targetWidth = targetHeight * ratio;
+    }
+
+    const targetLeft = (window.innerWidth - targetWidth) / 2;
+    const targetTop = (window.innerHeight - targetHeight) / 2;
+
+    const animation = gsap.fromTo(
+      animatedImage,
+      {
+        top: transitionImage.startRect.top,
+        left: transitionImage.startRect.left,
+        width: transitionImage.startRect.width,
+        height: transitionImage.startRect.height,
+        borderRadius: 10
+      },
+      {
+        top: targetTop,
+        left: targetLeft,
+        width: targetWidth,
+        height: targetHeight,
+        borderRadius: 0,
+        duration: 0.75,
+        ease: 'power3.out',
+        onComplete: () => {
+          setSelectedImageBlock(transitionImage);
+          setTransitionImage(null);
+        }
+      }
+    );
+
+    return () => {
+      animation.kill();
+    };
+  }, [transitionImage]);
+
+  const handleImageSelect = (block: ContentBlock, sourceElement: HTMLDivElement) => {
+    if (!block.src) return;
+    const rect = sourceElement.getBoundingClientRect();
+    setTransitionImage({
+      ...block,
+      startRect: {
+        top: rect.top,
+        left: rect.left,
+        width: rect.width,
+        height: rect.height
+      }
+    });
+  };
 
   const scrollBlocks = useMemo(() => {
     return blocks.filter(b => !b.isFixed);
@@ -192,7 +257,7 @@ export const Work: React.FC = () => {
               <BlockRenderer
                 key={block.id}
                 block={block}
-                onImageSelect={block.type === 'image' ? setSelectedImageBlock : undefined}
+                onImageSelect={block.type === 'image' ? handleImageSelect : undefined}
               />
             ))}
           </div>
@@ -240,6 +305,17 @@ export const Work: React.FC = () => {
             )}
           </div>
         </button>
+      )}
+
+      {transitionImage?.src && (
+        <div className="pointer-events-none fixed inset-0 z-[95] bg-black/70">
+          <img
+            ref={transitionImageRef}
+            src={transitionImage.src}
+            alt={transitionImage.alt || 'Selected portfolio work'}
+            className="fixed object-cover shadow-2xl will-change-[top,left,width,height,border-radius]"
+          />
+        </div>
       )}
     </div>
   );
