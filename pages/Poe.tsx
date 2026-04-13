@@ -364,10 +364,6 @@ export const Poe: React.FC = () => {
   return (
     <div className="h-screen w-full overflow-hidden bg-[#faf9f6]">
       <div className="mx-auto flex h-full max-w-[1200px] flex-col items-center justify-center gap-10 px-6 md:px-12">
-        <h1 className="w-full text-left text-4xl md:text-6xl font-semibold text-black tracking-[0.35em]">
-          Poe
-        </h1>
-
         <div
           ref={canvasWrapperRef}
           onPointerDown={handlePointerDown}
