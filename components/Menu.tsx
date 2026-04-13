@@ -37,7 +37,10 @@ export const Menu: React.FC<MenuProps> = ({ onNavigate, isDarkMode }) => {
 
   return (
     <>
-      <nav className={`fixed top-0 left-0 w-full px-6 py-6 md:px-12 md:py-8 z-50 flex justify-between items-start pointer-events-none ${isDarkMode ? 'text-[#f3f4ef]' : 'mix-blend-difference text-white'}`}>
+      <nav
+        className={`fixed top-0 left-0 w-full px-6 py-6 md:px-12 md:py-8 z-50 flex justify-between items-start pointer-events-none ${isDarkMode ? 'text-white' : 'mix-blend-difference text-white'}`}
+        style={isDarkMode ? { color: '#f3f4ef' } : undefined}
+      >
         <button
           onClick={() => setIsOpen(true)}
           className="pointer-events-auto group flex items-center gap-2 text-sm uppercase tracking-widest font-medium hover:opacity-70 transition-opacity"
@@ -47,7 +50,10 @@ export const Menu: React.FC<MenuProps> = ({ onNavigate, isDarkMode }) => {
         </button>
       </nav>
 
-      <div className={`menu-overlay fixed inset-0 z-[60] transform -translate-y-full flex flex-col justify-center items-center ${isDarkMode ? 'bg-[#f3f4ef] text-[#111]' : 'bg-[#111] text-[#faf9f6]'}`}>
+      <div
+        className="menu-overlay fixed inset-0 z-[60] transform -translate-y-full flex flex-col justify-center items-center"
+        style={isDarkMode ? { backgroundColor: '#f3f4ef', color: '#111111' } : { backgroundColor: '#111111', color: '#faf9f6' }}
+      >
         <button
           onClick={() => setIsOpen(false)}
           className="absolute top-6 left-6 md:top-8 md:left-12 p-2 hover:opacity-70 transition-opacity"
