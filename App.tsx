@@ -29,48 +29,53 @@ const App: React.FC = () => {
   const handleThemeToggle = () => {
     setIsThemeTransitioning(true);
     setIsDarkMode(prev => !prev);
-    window.setTimeout(() => setIsThemeTransitioning(false), 700);
+    window.setTimeout(() => setIsThemeTransitioning(false), 620);
   };
 
   return (
     <div className="relative min-h-screen w-full overflow-x-hidden selection:bg-black selection:text-white">
       <style>{`
-        .theme-shell {
-          transition: filter 650ms cubic-bezier(0.22, 1, 0.36, 1), background-color 650ms ease;
+        .app-theme {
           background-color: #faf9f6;
+          color: #111111;
+          transition: background-color 520ms cubic-bezier(0.22, 1, 0.36, 1), color 520ms cubic-bezier(0.22, 1, 0.36, 1);
         }
 
-        .theme-shell--dark {
-          filter: invert(1) hue-rotate(180deg) saturate(0.88) contrast(0.95);
-          background-color: #111111;
+        .app-theme[data-theme='dark'] {
+          background-color: #101112;
+          color: #f3f4ef;
         }
+
+        .app-theme[data-theme='dark'] .bg-\\[\\#faf9f6\\] { background-color: #101112 !important; }
+        .app-theme[data-theme='dark'] .text-\\[\\#111\\] { color: #f3f4ef !important; }
+        .app-theme[data-theme='dark'] .text-black { color: #f3f4ef !important; }
+        .app-theme[data-theme='dark'] .border-black { border-color: rgba(243, 244, 239, 0.78) !important; }
+        .app-theme[data-theme='dark'] .border-black\\/10 { border-color: rgba(243, 244, 239, 0.2) !important; }
+        .app-theme[data-theme='dark'] .border-black\\/20 { border-color: rgba(243, 244, 239, 0.3) !important; }
+        .app-theme[data-theme='dark'] .border-black\\/60 { border-color: rgba(243, 244, 239, 0.6) !important; }
+        .app-theme[data-theme='dark'] .bg-white { background-color: #1a1b1e !important; }
+        .app-theme[data-theme='dark'] .bg-white\\/90 { background-color: rgba(26, 27, 30, 0.9) !important; }
+        .app-theme[data-theme='dark'] .hover\\:bg-black:hover { background-color: #f3f4ef !important; }
+        .app-theme[data-theme='dark'] .hover\\:text-white:hover { color: #101112 !important; }
 
         .theme-transition-flash {
           position: fixed;
           inset: 0;
           pointer-events: none;
           z-index: 55;
-          background: radial-gradient(circle at top right, rgba(255, 255, 255, 0.55) 0%, rgba(255, 255, 255, 0.12) 35%, rgba(255, 255, 255, 0) 72%);
-          animation: themeRipple 700ms ease forwards;
+          background: radial-gradient(circle at top right, rgba(255, 255, 255, 0.26) 0%, rgba(255, 255, 255, 0.08) 38%, rgba(255, 255, 255, 0) 70%);
+          animation: themeRipple 620ms ease forwards;
         }
 
         @keyframes themeRipple {
-          from {
-            opacity: 0;
-            transform: scale(0.84) rotate(-2deg);
-          }
-          30% {
-            opacity: 1;
-          }
-          to {
-            opacity: 0;
-            transform: scale(1.16) rotate(0deg);
-          }
+          from { opacity: 0; transform: scale(0.92); }
+          30% { opacity: 1; }
+          to { opacity: 0; transform: scale(1.1); }
         }
       `}</style>
 
-      <div className={`theme-shell min-h-screen ${isDarkMode ? 'theme-shell--dark' : ''}`}>
-        <Menu onNavigate={setCurrentPage} />
+      <div className="app-theme min-h-screen" data-theme={isDarkMode ? 'dark' : 'light'}>
+        <Menu onNavigate={setCurrentPage} isDarkMode={isDarkMode} />
 
         <div className="fixed top-4 right-4 z-50 flex items-center gap-2">
           <button
