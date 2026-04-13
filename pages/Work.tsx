@@ -276,7 +276,7 @@ export const Work: React.FC = () => {
     );
 
     if (layer) {
-      timeline.fromTo(layer, { opacity: 1 }, { opacity: 0, duration: 0.28, ease: 'power1.in' }, 0.25);
+      timeline.fromTo(layer, { opacity: 1 }, { opacity: 0, duration: 0.13, ease: 'power1.in' }, 0.52);
     }
 
     return () => {
