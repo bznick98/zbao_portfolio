@@ -8,6 +8,7 @@ gsap.registerPlugin(ScrollTrigger);
 interface BlockRendererProps {
   block: ContentBlock;
   className?: string; // Allow parent to inject fixed/layout classes
+  onImageSelect?: (block: ContentBlock) => void;
 }
 
 const getGridClasses = (mobile: GridPosition, desktop: GridPosition) => {
@@ -43,7 +44,7 @@ const getGridClasses = (mobile: GridPosition, desktop: GridPosition) => {
   return classes;
 };
 
-export const BlockRenderer: React.FC<BlockRendererProps> = ({ block, className = '' }) => {
+export const BlockRenderer: React.FC<BlockRendererProps> = ({ block, className = '', onImageSelect }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const captionRef = useRef<HTMLDivElement>(null);
   const imageFrameRef = useRef<HTMLDivElement>(null);
@@ -155,18 +156,23 @@ export const BlockRenderer: React.FC<BlockRendererProps> = ({ block, className =
     };
 
     const onPointerMove = (e: PointerEvent) => updateFromPoint(e.clientX, e.clientY);
+    const onPointerDown = () => {
+      image.style.transform = 'scale(1.03) translate3d(0px, 0px, 0)';
+    };
     const onTouchMove = (e: TouchEvent) => {
       if (!e.touches[0]) return;
       updateFromPoint(e.touches[0].clientX, e.touches[0].clientY);
     };
 
     frame.addEventListener('pointermove', onPointerMove);
+    frame.addEventListener('pointerdown', onPointerDown);
     frame.addEventListener('pointerleave', resetImage);
     frame.addEventListener('touchmove', onTouchMove, { passive: true });
     frame.addEventListener('touchend', resetImage);
 
     return () => {
       frame.removeEventListener('pointermove', onPointerMove);
+      frame.removeEventListener('pointerdown', onPointerDown);
       frame.removeEventListener('pointerleave', resetImage);
       frame.removeEventListener('touchmove', onTouchMove);
       frame.removeEventListener('touchend', resetImage);
@@ -233,8 +239,9 @@ export const BlockRenderer: React.FC<BlockRendererProps> = ({ block, className =
         <div className="group relative">
           <div 
             ref={imageFrameRef}
-            className={`w-full ${aspectClass} overflow-hidden bg-[#e5e5e5] relative transition-all duration-500`}
+            className={`w-full ${aspectClass} overflow-hidden bg-[#e5e5e5] relative transition-all duration-500 ${onImageSelect ? 'cursor-zoom-in' : ''}`}
             style={inlineStyle}
+            onClick={() => onImageSelect?.(block)}
           >
             {block.src ? (
               <img 

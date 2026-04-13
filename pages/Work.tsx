@@ -25,6 +25,7 @@ const UNSPLASH_USERNAME = 'zbao';
 
 export const Work: React.FC = () => {
   const [blocks, setBlocks] = useState<ContentBlock[]>(BLOCKS);
+  const [selectedImageBlock, setSelectedImageBlock] = useState<ContentBlock | null>(null);
   const hasInitializedRef = useRef(false);
   const captionsRequestedRef = useRef(false);
 
@@ -159,6 +160,24 @@ export const Work: React.FC = () => {
     return () => clearTimeout(timer);
   }, [blocks]);
 
+  useEffect(() => {
+    const onEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setSelectedImageBlock(null);
+      }
+    };
+
+    window.addEventListener('keydown', onEscape);
+    return () => window.removeEventListener('keydown', onEscape);
+  }, []);
+
+  useEffect(() => {
+    document.body.style.overflow = selectedImageBlock ? 'hidden' : '';
+    return () => {
+      document.body.style.overflow = '';
+    };
+  }, [selectedImageBlock]);
+
   const scrollBlocks = useMemo(() => {
     return blocks.filter(b => !b.isFixed);
   }, [blocks]);
@@ -170,7 +189,11 @@ export const Work: React.FC = () => {
         <div className="relative z-10 px-4 md:px-12 pb-24 pt-16 md:pt-32">
           <div className="grid grid-cols-2 md:grid-cols-12 gap-x-4 md:gap-x-8 gap-y-0 auto-rows-min">
             {scrollBlocks.map((block) => (
-              <BlockRenderer key={block.id} block={block} />
+              <BlockRenderer
+                key={block.id}
+                block={block}
+                onImageSelect={block.type === 'image' ? setSelectedImageBlock : undefined}
+              />
             ))}
           </div>
           
@@ -188,6 +211,36 @@ export const Work: React.FC = () => {
           </footer>
         </div>
       </div>
+
+      {selectedImageBlock?.src && (
+        <button
+          type="button"
+          className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 p-4 md:p-10"
+          onClick={() => setSelectedImageBlock(null)}
+          aria-label="Close enlarged photo"
+        >
+          <div
+            className="max-h-[90vh] max-w-[92vw] overflow-hidden"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <img
+              src={selectedImageBlock.src}
+              alt={selectedImageBlock.alt || 'Selected portfolio work'}
+              className="max-h-[78vh] w-auto max-w-[92vw] object-contain shadow-2xl"
+            />
+            {(selectedImageBlock.caption || selectedImageBlock.subCaption) && (
+              <div className="mt-4 text-center text-white">
+                {selectedImageBlock.caption && (
+                  <p className="font-serif text-xl italic">{selectedImageBlock.caption}</p>
+                )}
+                {selectedImageBlock.subCaption && (
+                  <p className="mt-1 text-xs uppercase tracking-[0.25em] text-white/70">{selectedImageBlock.subCaption}</p>
+                )}
+              </div>
+            )}
+          </div>
+        </button>
+      )}
     </div>
   );
 };
