@@ -127,19 +127,17 @@ export const BlockRenderer: React.FC<BlockRendererProps> = ({ block, className =
     const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     if (reducedMotion) return;
 
-    const moveImage = (translateX: number, translateY: number, rotateX: number, rotateY: number) => {
+    const moveImage = (translateX: number, translateY: number) => {
       if (rafRef.current) cancelAnimationFrame(rafRef.current);
       rafRef.current = requestAnimationFrame(() => {
-        frame.style.transform = `perspective(1000px) rotateX(${rotateX}deg) rotateY(${rotateY}deg)`;
-        image.style.transform = `scale(1.08) translate3d(${translateX}px, ${translateY}px, 0)`;
+        image.style.transform = `scale(1.05) translate3d(${translateX}px, ${translateY}px, 0)`;
       });
     };
 
     const resetImage = () => {
       if (rafRef.current) cancelAnimationFrame(rafRef.current);
       rafRef.current = requestAnimationFrame(() => {
-        frame.style.transform = 'perspective(1000px) rotateX(0deg) rotateY(0deg)';
-        image.style.transform = 'scale(1) translate3d(0px, 0px, 0)';
+        image.style.transform = 'scale(1.03) translate3d(0px, 0px, 0)';
       });
     };
 
@@ -149,16 +147,14 @@ export const BlockRenderer: React.FC<BlockRendererProps> = ({ block, className =
       const y = (clientY - rect.top) / rect.height;
       const clampX = Math.min(Math.max(x, 0), 1);
       const clampY = Math.min(Math.max(y, 0), 1);
-      const offsetX = (clampX - 0.5) * 18;
-      const offsetY = (clampY - 0.5) * 18;
-      const rotateY = (clampX - 0.5) * 6;
-      const rotateX = (0.5 - clampY) * 6;
-      moveImage(offsetX, offsetY, rotateX, rotateY);
+      const offsetX = (clampX - 0.5) * 14;
+      const offsetY = (clampY - 0.5) * 14;
+      moveImage(offsetX, offsetY);
     };
 
     const onPointerMove = (e: PointerEvent) => updateFromPoint(e.clientX, e.clientY);
     const onPointerDown = () => {
-      image.style.transform = 'scale(1.03) translate3d(0px, 0px, 0)';
+      image.style.transform = 'scale(1.04) translate3d(0px, 0px, 0)';
     };
     const onTouchMove = (e: TouchEvent) => {
       if (!e.touches[0]) return;
@@ -170,6 +166,7 @@ export const BlockRenderer: React.FC<BlockRendererProps> = ({ block, className =
     frame.addEventListener('pointerleave', resetImage);
     frame.addEventListener('touchmove', onTouchMove, { passive: true });
     frame.addEventListener('touchend', resetImage);
+    resetImage();
 
     return () => {
       frame.removeEventListener('pointermove', onPointerMove);
@@ -240,7 +237,7 @@ export const BlockRenderer: React.FC<BlockRendererProps> = ({ block, className =
         <div className="group relative">
           <div 
             ref={imageFrameRef}
-            className={`w-full ${aspectClass} overflow-hidden bg-[#e5e5e5] relative transition-all duration-500 ${onImageSelect ? 'cursor-pointer' : ''} ${isSelectedForTransition ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}
+            className={`w-full ${aspectClass} overflow-hidden relative ${onImageSelect ? 'cursor-pointer' : ''} ${isSelectedForTransition ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}
             style={inlineStyle}
             onClick={(event) => onImageSelect?.(block, event.currentTarget)}
           >

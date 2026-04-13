@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Moon, Sun } from 'lucide-react';
 import { Menu } from './components/Menu';
 import { BlockRenderer } from './components/BlockRenderer';
@@ -15,6 +15,13 @@ const App: React.FC = () => {
   const [isDarkMode, setIsDarkMode] = useState(true);
   const [isThemeTransitioning, setIsThemeTransitioning] = useState(false);
   const heroBlocks = useMemo(() => BLOCKS.filter(block => block.isFixed), []);
+
+  useEffect(() => {
+    const bgColor = isDarkMode ? '#101112' : '#faf9f6';
+    document.documentElement.style.backgroundColor = bgColor;
+    document.body.style.backgroundColor = bgColor;
+    document.documentElement.style.colorScheme = isDarkMode ? 'dark' : 'light';
+  }, [isDarkMode]);
 
   const renderPage = () => {
     switch (currentPage) {
