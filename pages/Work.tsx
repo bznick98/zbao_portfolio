@@ -27,6 +27,7 @@ export const Work: React.FC = () => {
   const [blocks, setBlocks] = useState<ContentBlock[]>(BLOCKS);
   const [selectedImageBlock, setSelectedImageBlock] = useState<(ContentBlock & {
     targetRect: { top: number; left: number; width: number; height: number };
+    startRect: { top: number; left: number; width: number; height: number };
   }) | null>(null);
   const [transitionImage, setTransitionImage] = useState<(ContentBlock & {
     startRect: { top: number; left: number; width: number; height: number };
@@ -35,6 +36,12 @@ export const Work: React.FC = () => {
   const [isCaptionVisible, setIsCaptionVisible] = useState(false);
   const transitionImageRef = useRef<HTMLImageElement>(null);
   const transitionLayerRef = useRef<HTMLDivElement>(null);
+  const [closingImage, setClosingImage] = useState<(ContentBlock & {
+    startRect: { top: number; left: number; width: number; height: number };
+    targetRect: { top: number; left: number; width: number; height: number };
+  }) | null>(null);
+  const closingImageRef = useRef<HTMLImageElement>(null);
+  const closingLayerRef = useRef<HTMLDivElement>(null);
   const hasInitializedRef = useRef(false);
   const captionsRequestedRef = useRef(false);
 
@@ -172,21 +179,25 @@ export const Work: React.FC = () => {
   useEffect(() => {
     const onEscape = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
-        setSelectedImageBlock(null);
+        if (selectedImageBlock) {
+          setIsCaptionVisible(false);
+          setClosingImage(selectedImageBlock);
+          setSelectedImageBlock(null);
+        }
         setTransitionImage(null);
       }
     };
 
     window.addEventListener('keydown', onEscape);
     return () => window.removeEventListener('keydown', onEscape);
-  }, []);
+  }, [selectedImageBlock]);
 
   useEffect(() => {
-    document.body.style.overflow = selectedImageBlock || transitionImage ? 'hidden' : '';
+    document.body.style.overflow = selectedImageBlock || transitionImage || closingImage ? 'hidden' : '';
     return () => {
       document.body.style.overflow = '';
     };
-  }, [selectedImageBlock, transitionImage]);
+  }, [selectedImageBlock, transitionImage, closingImage]);
 
   useEffect(() => {
     if (!transitionImage || !transitionImageRef.current) return;
@@ -232,6 +243,47 @@ export const Work: React.FC = () => {
     };
   }, [transitionImage]);
 
+  useEffect(() => {
+    if (!closingImage || !closingImageRef.current) return;
+    const animatedImage = closingImageRef.current;
+    const layer = closingLayerRef.current;
+
+    const timeline = gsap.timeline({
+      onComplete: () => {
+        setClosingImage(null);
+      }
+    });
+
+    timeline.fromTo(
+      animatedImage,
+      {
+        top: closingImage.targetRect.top,
+        left: closingImage.targetRect.left,
+        width: closingImage.targetRect.width,
+        height: closingImage.targetRect.height,
+        borderRadius: 0
+      },
+      {
+        top: closingImage.startRect.top,
+        left: closingImage.startRect.left,
+        width: closingImage.startRect.width,
+        height: closingImage.startRect.height,
+        borderRadius: 10,
+        duration: 0.65,
+        ease: 'power3.inOut'
+      },
+      0
+    );
+
+    if (layer) {
+      timeline.fromTo(layer, { opacity: 1 }, { opacity: 0, duration: 0.28, ease: 'power1.in' }, 0.25);
+    }
+
+    return () => {
+      timeline.kill();
+    };
+  }, [closingImage]);
+
   const getImageRatio = (src: string, fallbackRatio: number) =>
     new Promise<number>((resolve) => {
       const image = new Image();
@@ -276,6 +328,13 @@ export const Work: React.FC = () => {
     });
   };
 
+  const closeSelectedImage = () => {
+    if (!selectedImageBlock) return;
+    setIsCaptionVisible(false);
+    setClosingImage(selectedImageBlock);
+    setSelectedImageBlock(null);
+  };
+
   const scrollBlocks = useMemo(() => {
     return blocks.filter(b => !b.isFixed);
   }, [blocks]);
@@ -313,28 +372,33 @@ export const Work: React.FC = () => {
       {selectedImageBlock?.src && (
         <button
           type="button"
-          className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 p-4 md:p-10"
-          onClick={() => {
-            setSelectedImageBlock(null);
-            setIsCaptionVisible(false);
-          }}
+          className="fixed inset-0 z-[100] bg-black/80"
+          onClick={closeSelectedImage}
           aria-label="Close enlarged photo"
         >
-          <div
-            className="max-h-[90vh] max-w-[92vw] overflow-hidden"
+          <img
+            src={selectedImageBlock.src}
+            alt={selectedImageBlock.alt || 'Selected portfolio work'}
+            className="fixed object-contain shadow-2xl"
+            style={{
+              top: selectedImageBlock.targetRect.top,
+              left: selectedImageBlock.targetRect.left,
+              width: selectedImageBlock.targetRect.width,
+              height: selectedImageBlock.targetRect.height
+            }}
             onClick={(e) => e.stopPropagation()}
-          >
-            <img
-              src={selectedImageBlock.src}
-              alt={selectedImageBlock.alt || 'Selected portfolio work'}
-              className="object-contain shadow-2xl"
+          />
+          {(selectedImageBlock.caption || selectedImageBlock.subCaption) && (
+            <div
+              onClick={(e) => e.stopPropagation()}
+              className="fixed text-center text-white"
               style={{
-                width: selectedImageBlock.targetRect.width,
-                height: selectedImageBlock.targetRect.height
+                top: selectedImageBlock.targetRect.top + selectedImageBlock.targetRect.height + 16,
+                left: '50%',
+                transform: 'translateX(-50%)'
               }}
-            />
-            {(selectedImageBlock.caption || selectedImageBlock.subCaption) && (
-              <div className={`mt-4 text-center text-white transition-all duration-500 ${isCaptionVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-3'}`}>
+            >
+              <div className={`transition-all duration-500 ${isCaptionVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-3'}`}>
                 {selectedImageBlock.caption && (
                   <p className="font-serif text-xl italic">{selectedImageBlock.caption}</p>
                 )}
@@ -342,8 +406,8 @@ export const Work: React.FC = () => {
                   <p className="mt-1 text-xs uppercase tracking-[0.25em] text-white/70">{selectedImageBlock.subCaption}</p>
                 )}
               </div>
-            )}
-          </div>
+            </div>
+          )}
         </button>
       )}
 
@@ -353,6 +417,17 @@ export const Work: React.FC = () => {
             ref={transitionImageRef}
             src={transitionImage.src}
             alt={transitionImage.alt || 'Selected portfolio work'}
+            className="fixed object-contain shadow-2xl will-change-[top,left,width,height,border-radius]"
+          />
+        </div>
+      )}
+
+      {closingImage?.src && (
+        <div ref={closingLayerRef} className="pointer-events-none fixed inset-0 z-[99] bg-black/80 opacity-100">
+          <img
+            ref={closingImageRef}
+            src={closingImage.src}
+            alt={closingImage.alt || 'Closing portfolio work'}
             className="fixed object-contain shadow-2xl will-change-[top,left,width,height,border-radius]"
           />
         </div>
