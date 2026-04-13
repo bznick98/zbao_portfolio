@@ -34,6 +34,7 @@ export const Work: React.FC = () => {
   const [isCaptionVisible, setIsCaptionVisible] = useState(false);
   const overlayImageRef = useRef<HTMLImageElement>(null);
   const overlayLayerRef = useRef<HTMLDivElement>(null);
+  const overlayReadyAtRef = useRef(0);
   const hasInitializedRef = useRef(false);
   const captionsRequestedRef = useRef(false);
 
@@ -200,6 +201,7 @@ export const Work: React.FC = () => {
       onComplete: () => {
         if (overlayPhase === 'opening') {
           setOverlayPhase('open');
+          overlayReadyAtRef.current = performance.now() + 220;
           setTimeout(() => setIsCaptionVisible(true), 120);
           return;
         }
@@ -285,6 +287,7 @@ export const Work: React.FC = () => {
 
   const closeSelectedImage = () => {
     if (!activeImage || overlayPhase !== 'open') return;
+    if (performance.now() < overlayReadyAtRef.current) return;
     setIsCaptionVisible(false);
     setOverlayPhase('closing');
   };
