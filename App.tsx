@@ -12,7 +12,7 @@ import { Poe } from './pages/Poe';
 const App: React.FC = () => {
   const [currentPage, setCurrentPage] = useState('Work');
   const [isEyeEnabled, setIsEyeEnabled] = useState(false);
-  const [isDarkMode, setIsDarkMode] = useState(false);
+  const [isDarkMode, setIsDarkMode] = useState(true);
   const [isThemeTransitioning, setIsThemeTransitioning] = useState(false);
   const heroBlocks = useMemo(() => BLOCKS.filter(block => block.isFixed), []);
 
