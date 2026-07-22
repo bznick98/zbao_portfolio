@@ -2,7 +2,14 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import * as THREE from 'three';
 import * as RAPIER from '@dimforge/rapier3d-compat';
 
-const SWIPE_THRESHOLD = 120;
+const SWIPE_THRESHOLD = 80;
+type Result = 'sacred' | 'laughing' | 'negative' | null;
+
+const resultCopy: Record<Exclude<Result, null>, { name: string; detail: string }> = {
+  sacred: { name: '聖杯 · Sacred yes', detail: 'Both crescent faces are revealed. The way is open.' },
+  laughing: { name: '笑杯 · Laughing answer', detail: 'One face of each. Pause, reframe, and ask again.' },
+  negative: { name: '陰杯 · Quiet no', detail: 'Both flat faces are revealed. Let this one rest for now.' },
+};
 
 export const Poe: React.FC = () => {
   const canvasWrapperRef = useRef<HTMLDivElement>(null);
@@ -13,385 +20,219 @@ export const Poe: React.FC = () => {
   const worldRef = useRef<RAPIER.World | null>(null);
   const rigidBodiesRef = useRef<RAPIER.RigidBody[]>([]);
   const animationFrameRef = useRef<number | null>(null);
-  const lastFrameRef = useRef<number | null>(null);
-  const dragStartRef = useRef<number | null>(null);
-  const settleStartRef = useRef<number | null>(null);
   const throwTimeoutRef = useRef<number | null>(null);
+  const draggingRef = useRef<number | null>(null);
+  const isThrowingRef = useRef(false);
+  const resultRef = useRef<Result>(null);
+  const settleStartRef = useRef<number | null>(null);
   const [isThrowing, setIsThrowing] = useState(false);
+  const [result, setResult] = useState<Result>(null);
+  const [throwCount, setThrowCount] = useState(0);
+  const initialRotations = useMemo(() => [
+    new THREE.Euler(-0.18, -0.22, 0.15), new THREE.Euler(-0.2, 0.28, -0.12),
+  ], []);
 
-  const initialRotations = useMemo(
-    () => [
-      { x: -0.4, y: -0.2, z: 0.1 },
-      { x: -0.35, y: 0.25, z: -0.15 },
-    ],
-    []
-  );
-  const groundY = -0.7;
-  const gravity = useMemo(() => ({ x: 0, y: -12, z: 0 }), []);
-  const cameraTargetRef = useRef(new THREE.Vector3());
+  const setThrowing = (value: boolean) => {
+    isThrowingRef.current = value;
+    setIsThrowing(value);
+  };
 
   useEffect(() => {
     const wrapper = canvasWrapperRef.current;
     if (!wrapper) return;
-    let isCancelled = false;
+    let cancelled = false;
     let cleanup = () => {};
 
     const initScene = async () => {
       await RAPIER.init();
-      if (isCancelled) return;
+      if (cancelled) return;
 
       const scene = new THREE.Scene();
+      scene.background = new THREE.Color('#e7ded0');
+      scene.fog = new THREE.Fog('#e7ded0', 13, 27);
       sceneRef.current = scene;
 
-      const camera = new THREE.PerspectiveCamera(42, 1, 0.1, 100);
-      camera.position.set(0, 5.2, 9.2);
+      const camera = new THREE.PerspectiveCamera(36, 1, 0.1, 100);
+      camera.position.set(0, 6.1, 10.7);
       camera.lookAt(0, 0, 0);
       cameraRef.current = camera;
 
-      const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
-      renderer.setPixelRatio(window.devicePixelRatio);
+      const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+      renderer.shadowMap.enabled = true;
+      renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+      renderer.outputColorSpace = THREE.SRGBColorSpace;
+      renderer.toneMapping = THREE.ACESFilmicToneMapping;
+      renderer.toneMappingExposure = 1.08;
       rendererRef.current = renderer;
       wrapper.appendChild(renderer.domElement);
 
-      const ambient = new THREE.AmbientLight('#ffffff', 0.9);
-      const directional = new THREE.DirectionalLight('#ffffff', 1);
-      directional.position.set(3, 6, 6);
-      scene.add(ambient, directional);
+      scene.add(new THREE.HemisphereLight('#fff8e9', '#7d6550', 2.3));
+      const keyLight = new THREE.DirectionalLight('#fff1d4', 3.3);
+      keyLight.position.set(-4, 8, 5);
+      keyLight.castShadow = true;
+      keyLight.shadow.mapSize.set(2048, 2048);
+      keyLight.shadow.camera.left = -8; keyLight.shadow.camera.right = 8;
+      keyLight.shadow.camera.top = 8; keyLight.shadow.camera.bottom = -8;
+      keyLight.shadow.bias = -0.0004;
+      scene.add(keyLight);
+      const fillLight = new THREE.PointLight('#d48b5b', 14, 14, 2);
+      fillLight.position.set(4, 3, 3);
+      scene.add(fillLight);
 
-      const material = new THREE.MeshPhysicalMaterial({
-        color: '#b21f2d',
-        roughness: 0.3,
-        metalness: 0.05,
-        clearcoat: 0.8,
-        clearcoatRoughness: 0.2,
-        vertexColors: true,
-      });
+      const makeWoodTexture = () => {
+        const canvas = document.createElement('canvas'); canvas.width = canvas.height = 512;
+        const ctx = canvas.getContext('2d')!;
+        ctx.fillStyle = '#8f5939'; ctx.fillRect(0, 0, 512, 512);
+        for (let i = 0; i < 1850; i += 1) {
+          const y = Math.random() * 512;
+          ctx.strokeStyle = `rgba(${65 + Math.random() * 55}, ${32 + Math.random() * 28}, 17, ${0.04 + Math.random() * 0.1})`;
+          ctx.lineWidth = Math.random() * 1.7 + 0.35;
+          ctx.beginPath(); ctx.moveTo(0, y);
+          ctx.bezierCurveTo(120, y + (Math.random() - .5) * 14, 340, y + (Math.random() - .5) * 22, 512, y + (Math.random() - .5) * 9);
+          ctx.stroke();
+        }
+        const texture = new THREE.CanvasTexture(canvas);
+        texture.colorSpace = THREE.SRGBColorSpace;
+        texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
+        texture.repeat.set(2.4, 1.8);
+        return texture;
+      };
+      const woodTexture = makeWoodTexture();
 
-      const outerRadius = 1.5;
-      const blockShape = new THREE.Shape();
-      blockShape.absarc(0, 0, outerRadius, Math.PI, 0, false);
-      blockShape.lineTo(outerRadius, -0.2);
-      blockShape.lineTo(-outerRadius, -0.2);
-      blockShape.closePath();
-
-      const blockGeometry = new THREE.ExtrudeGeometry(blockShape, {
-        depth: 0.7,
-        bevelEnabled: true,
-        bevelThickness: 0.08,
-        bevelSize: 0.06,
-        bevelSegments: 3,
+      const shape = new THREE.Shape();
+      const r = 1.28;
+      shape.absarc(0, 0.04, r, Math.PI, 0, false);
+      shape.lineTo(r, -0.26); shape.lineTo(-r, -0.26); shape.closePath();
+      const blockGeometry = new THREE.ExtrudeGeometry(shape, {
+        depth: 0.62, bevelEnabled: true, bevelThickness: 0.075, bevelSize: 0.065, bevelSegments: 5, curveSegments: 48,
       });
       blockGeometry.center();
-      const positionAttribute = blockGeometry.getAttribute('position');
-      const maxX = outerRadius;
-      const colors = [];
-      for (let i = 0; i < positionAttribute.count; i += 1) {
-        const x = positionAttribute.getX(i);
-        const y = positionAttribute.getY(i);
-        const bend = 0.42 * (1 - (x / maxX) ** 2);
-        const flatFactor = Math.max(0, (y + 0.2) * 0.9);
-        const z = positionAttribute.getZ(i);
-        const bulge = z > 0 ? bend : 0;
-        positionAttribute.setZ(i, z < 0 ? -0.03 : z + bulge);
-        positionAttribute.setY(i, y + bend * 0.1 + flatFactor * 0.06);
-        if (z < 0) {
-          colors.push(0.1, 0.1, 0.1);
-        } else {
-          colors.push(0.7, 0.12, 0.18);
-        }
-      }
-      blockGeometry.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
       blockGeometry.computeVertexNormals();
-
-      const leftBlock = new THREE.Mesh(blockGeometry, material);
-      leftBlock.position.set(-1.7, 0, 0);
-      leftBlock.rotation.set(
-        initialRotations[0].x,
-        initialRotations[0].y,
-        initialRotations[0].z
-      );
-
-      const rightBlock = new THREE.Mesh(blockGeometry, material);
-      rightBlock.position.set(1.7, 0, 0);
-      rightBlock.rotation.set(
-        initialRotations[1].x,
-        initialRotations[1].y,
-        initialRotations[1].z
-      );
-
-      blocksRef.current = [leftBlock, rightBlock];
-      scene.add(leftBlock, rightBlock);
-
-      const groundGeometry = new THREE.PlaneGeometry(20, 8);
-      const woodCanvas = document.createElement('canvas');
-      woodCanvas.width = 256;
-      woodCanvas.height = 256;
-      const woodContext = woodCanvas.getContext('2d');
-      if (woodContext) {
-        woodContext.fillStyle = '#d8c4a8';
-        woodContext.fillRect(0, 0, woodCanvas.width, woodCanvas.height);
-        woodContext.fillStyle = 'rgba(115, 82, 54, 0.35)';
-        for (let i = 0; i < 12; i += 1) {
-          const y = (i / 12) * woodCanvas.height;
-          woodContext.fillRect(0, y, woodCanvas.width, 8);
-        }
-        woodContext.strokeStyle = 'rgba(90, 64, 42, 0.25)';
-        for (let i = 0; i < 24; i += 1) {
-          woodContext.beginPath();
-          woodContext.moveTo(0, (i / 24) * woodCanvas.height);
-          woodContext.bezierCurveTo(
-            woodCanvas.width * 0.3,
-            (i / 24) * woodCanvas.height + 6,
-            woodCanvas.width * 0.7,
-            (i / 24) * woodCanvas.height - 6,
-            woodCanvas.width,
-            (i / 24) * woodCanvas.height
-          );
-          woodContext.stroke();
-        }
-      }
-      const woodTexture = new THREE.CanvasTexture(woodCanvas);
-      woodTexture.wrapS = THREE.RepeatWrapping;
-      woodTexture.wrapT = THREE.RepeatWrapping;
-      woodTexture.repeat.set(2, 1);
-      const groundMaterial = new THREE.MeshStandardMaterial({
-        color: '#e0c9ad',
-        roughness: 0.85,
-        metalness: 0.05,
-        map: woodTexture,
+      const blockMaterial = new THREE.MeshPhysicalMaterial({
+        color: '#211714', roughness: 0.3, metalness: 0.04, clearcoat: 0.18, clearcoatRoughness: 0.44,
       });
-      const groundMesh = new THREE.Mesh(groundGeometry, groundMaterial);
-      groundMesh.rotation.x = -Math.PI / 2;
-      groundMesh.position.y = groundY;
-      scene.add(groundMesh);
+      const faceGeometry = new THREE.ShapeGeometry(shape, 48);
+      const faceMaterial = new THREE.MeshPhysicalMaterial({
+        color: '#a83428', roughness: 0.36, clearcoat: 0.35, clearcoatRoughness: 0.4,
+      });
+      const blocks = [-1.5, 1.5].map((x, index) => {
+        const block = new THREE.Mesh(blockGeometry, blockMaterial);
+        const face = new THREE.Mesh(faceGeometry, faceMaterial);
+        face.position.z = 0.313;
+        face.castShadow = true;
+        block.add(face);
+        block.position.set(x, 0.05, 0);
+        block.rotation.copy(initialRotations[index]);
+        block.castShadow = true; block.receiveShadow = true;
+        scene.add(block);
+        return block;
+      });
+      blocksRef.current = blocks;
 
-      const world = new RAPIER.World(new RAPIER.Vector3(gravity.x, gravity.y, gravity.z));
+      const table = new THREE.Mesh(
+        new THREE.BoxGeometry(15, 0.36, 9, 10, 1, 8),
+        new THREE.MeshStandardMaterial({ map: woodTexture, roughness: 0.56, metalness: 0.02 })
+      );
+      table.position.y = -0.78; table.receiveShadow = true; table.castShadow = true;
+      scene.add(table);
+      const edge = new THREE.Mesh(new THREE.BoxGeometry(15.22, 0.19, 0.2), new THREE.MeshStandardMaterial({ color: '#56301e', roughness: .5 }));
+      edge.position.set(0, -0.69, -4.5); edge.castShadow = true; scene.add(edge);
+
+      const backWall = new THREE.Mesh(new THREE.PlaneGeometry(28, 14), new THREE.MeshStandardMaterial({ color: '#d8cec0', roughness: 1 }));
+      backWall.position.set(0, 5.5, -5.5); scene.add(backWall);
+
+      const world = new RAPIER.World(new RAPIER.Vector3(0, -14, 0));
       worldRef.current = world;
-
-      const groundBody = world.createRigidBody(
-        RAPIER.RigidBodyDesc.fixed().setTranslation(0, groundY, 0)
-      );
-      world.createCollider(
-        RAPIER.ColliderDesc.cuboid(10, 0.2, 6).setFriction(0.85).setRestitution(0.35),
-        groundBody
-      );
-
-      const vertices = new Float32Array(positionAttribute.array);
-      const hull = RAPIER.ColliderDesc.convexHull(vertices);
-      const rigidBodies = blocksRef.current.map((block) =>
-        world.createRigidBody(
-          RAPIER.RigidBodyDesc.dynamic()
-            .setTranslation(block.position.x, block.position.y, block.position.z)
-            .setCanSleep(true)
-        )
-      );
-      rigidBodies.forEach((body) => {
-        world.createCollider(
-          (hull ?? RAPIER.ColliderDesc.capsule(0.6, 0.9))
-            .setFriction(0.7)
-            .setRestitution(0.4),
-          body
-        );
+      const tableBody = world.createRigidBody(RAPIER.RigidBodyDesc.fixed().setTranslation(0, -0.78, 0));
+      world.createCollider(RAPIER.ColliderDesc.cuboid(7.5, .18, 4.5).setFriction(.82).setRestitution(.16), tableBody);
+      const vertices = new Float32Array(blockGeometry.getAttribute('position').array);
+      const hull = RAPIER.ColliderDesc.convexHull(vertices) ?? RAPIER.ColliderDesc.capsule(.5, .9);
+      rigidBodiesRef.current = blocks.map((block) => {
+        const body = world.createRigidBody(RAPIER.RigidBodyDesc.dynamic().setTranslation(block.position.x, block.position.y, block.position.z).setLinearDamping(.28).setAngularDamping(.38));
+        world.createCollider(hull.setFriction(.68).setRestitution(.18), body);
+        return body;
       });
-      rigidBodiesRef.current = rigidBodies;
 
       const resize = () => {
-        if (!wrapper || !rendererRef.current || !cameraRef.current) return;
-        const width = wrapper.clientWidth;
-        const height = wrapper.clientHeight;
-        rendererRef.current.setSize(width, height);
-        cameraRef.current.aspect = width / height;
-        cameraRef.current.updateProjectionMatrix();
+        const width = wrapper.clientWidth; const height = wrapper.clientHeight;
+        renderer.setSize(width, height); camera.aspect = width / height; camera.updateProjectionMatrix();
       };
-
-      resize();
-      window.addEventListener('resize', resize);
-
-      const animate = (time: number) => {
-        if (!rendererRef.current || !sceneRef.current || !cameraRef.current) return;
-        const lastFrame = lastFrameRef.current ?? time;
-        const delta = Math.min(0.033, (time - lastFrame) / 1000);
-        lastFrameRef.current = time;
-        stepPhysics(delta);
-        updateCamera();
-        rendererRef.current.render(sceneRef.current, cameraRef.current);
-        animationFrameRef.current = requestAnimationFrame(animate);
+      resize(); window.addEventListener('resize', resize);
+      let last = performance.now();
+      const animate = (now: number) => {
+        const delta = Math.min(.033, (now - last) / 1000); last = now;
+        world.timestep = delta; world.step();
+        blocks.forEach((block, index) => {
+          const body = rigidBodiesRef.current[index]; const p = body.translation(); const q = body.rotation();
+          block.position.set(p.x, p.y, p.z); block.quaternion.set(q.x, q.y, q.z, q.w);
+        });
+        if (isThrowingRef.current && rigidBodiesRef.current.every((body) => {
+          const v = body.linvel(); const a = body.angvel();
+          return Math.hypot(v.x, v.y, v.z) < .12 && Math.hypot(a.x, a.y, a.z) < .18;
+        })) {
+          if (!settleStartRef.current) settleStartRef.current = now;
+          if (now - settleStartRef.current > 450) finishThrow();
+        } else settleStartRef.current = null;
+        renderer.render(scene, camera); animationFrameRef.current = requestAnimationFrame(animate);
       };
-      animate(performance.now());
-
+      const finishThrow = () => {
+        if (!isThrowingRef.current) return;
+        const fronts = blocks.filter((block) => block.localToWorld(new THREE.Vector3(0, 0, 1)).y > block.position.y).length;
+        const next: Result = fronts === 2 ? 'sacred' : fronts === 0 ? 'negative' : 'laughing';
+        resultRef.current = next; setResult(next); setThrowing(false); settleStartRef.current = null;
+      };
+      animationFrameRef.current = requestAnimationFrame(animate);
       cleanup = () => {
         window.removeEventListener('resize', resize);
         if (animationFrameRef.current) cancelAnimationFrame(animationFrameRef.current);
         if (throwTimeoutRef.current) window.clearTimeout(throwTimeoutRef.current);
-        rigidBodiesRef.current = [];
-        worldRef.current = null;
-        renderer.dispose();
-        blockGeometry.dispose();
-        material.dispose();
-        woodTexture.dispose();
-        groundGeometry.dispose();
-        groundMaterial.dispose();
-        if (renderer.domElement.parentElement) {
-          wrapper.removeChild(renderer.domElement);
-        }
+        renderer.dispose(); blockGeometry.dispose(); faceGeometry.dispose(); blockMaterial.dispose(); faceMaterial.dispose(); woodTexture.dispose();
+        if (renderer.domElement.parentElement === wrapper) wrapper.removeChild(renderer.domElement);
+        worldRef.current = null; rigidBodiesRef.current = []; blocksRef.current = [];
       };
     };
-
     initScene();
-    return () => {
-      isCancelled = true;
-      cleanup();
-    };
-  }, [gravity, initialRotations]);
-
-  const stepPhysics = (delta: number) => {
-    const world = worldRef.current;
-    if (!world) return;
-    world.timestep = delta;
-    world.step();
-
-    blocksRef.current.forEach((block, index) => {
-      const body = rigidBodiesRef.current[index];
-      if (!body) return;
-      const position = body.translation();
-      const rotation = body.rotation();
-      block.position.set(position.x, position.y, position.z);
-      block.quaternion.set(rotation.x, rotation.y, rotation.z, rotation.w);
-    });
-
-    const allSleeping = rigidBodiesRef.current.every((body) => body.isSleeping());
-    const settledBySpeed = rigidBodiesRef.current.every((body) => {
-      const linvel = body.linvel();
-      const angvel = body.angvel();
-      const linearSpeed = Math.hypot(linvel.x, linvel.y, linvel.z);
-      const angularSpeed = Math.hypot(angvel.x, angvel.y, angvel.z);
-      return linearSpeed < 0.15 && angularSpeed < 0.15;
-    });
-    if (isThrowing && (allSleeping || settledBySpeed)) {
-      const now = performance.now();
-      if (!settleStartRef.current) {
-        settleStartRef.current = now;
-      } else if (now - settleStartRef.current > 400) {
-        settleStartRef.current = null;
-        setIsThrowing(false);
-      }
-    } else if (!allSleeping && !settledBySpeed) {
-      settleStartRef.current = null;
-    }
-  };
-
-  const updateCamera = () => {
-    const camera = cameraRef.current;
-    if (!camera) return;
-    const positions = blocksRef.current.map((block) => block.position);
-    if (positions.length === 0) return;
-    const center = positions
-      .reduce((acc, pos) => acc.add(pos), new THREE.Vector3())
-      .multiplyScalar(1 / positions.length);
-    const maxDistance = positions.reduce(
-      (distance, pos) => Math.max(distance, pos.distanceTo(center)),
-      0
-    );
-    const target = cameraTargetRef.current;
-    target.lerp(center, 0.08);
-    const height = 5.2 + maxDistance * 0.6;
-    const depth = 9.2 + maxDistance * 0.8;
-    camera.position.lerp(new THREE.Vector3(target.x, height, depth), 0.08);
-    camera.lookAt(target.x, target.y, 0);
-  };
+    return () => { cancelled = true; cleanup(); };
+  }, [initialRotations]);
 
   const triggerThrow = () => {
-    if (isThrowing || blocksRef.current.length === 0) return;
-    setIsThrowing(true);
-    settleStartRef.current = null;
+    if (isThrowingRef.current || !rigidBodiesRef.current.length) return;
     if (throwTimeoutRef.current) window.clearTimeout(throwTimeoutRef.current);
-
-    blocksRef.current.forEach((block, index) => {
-      block.position.set(index === 0 ? -1.7 : 1.7, 0.2, 0);
-      block.rotation.set(
-        initialRotations[index].x,
-        initialRotations[index].y,
-        initialRotations[index].z
-      );
-    });
-
+    resultRef.current = null; setResult(null); setThrowing(true); setThrowCount((count) => count + 1);
     rigidBodiesRef.current.forEach((body, index) => {
-      body.setTranslation(
-        { x: index === 0 ? -1.7 : 1.7, y: 0.2, z: 0 },
-        true
-      );
-      body.setLinvel(
-        {
-          x: (index === 0 ? -1 : 1) * (1.2 + Math.random() * 0.6),
-          y: 7.5 + Math.random() * 2,
-          z: (Math.random() - 0.5) * 1.6,
-        },
-        true
-      );
-      body.setAngvel(
-        {
-          x: (Math.random() - 0.5) * 8,
-          y: (Math.random() - 0.5) * 8,
-          z: (Math.random() - 0.5) * 8,
-        },
-        true
-      );
+      const x = index === 0 ? -1.25 : 1.25;
+      body.setTranslation({ x, y: .15, z: 0 }, true);
+      body.setRotation(initialRotations[index], true);
+      body.setLinvel({ x: (index ? 1 : -1) * (.65 + Math.random() * .55), y: 6.5 + Math.random() * 1.8, z: (Math.random() - .5) * 1.5 }, true);
+      body.setAngvel({ x: (Math.random() - .5) * 10, y: (Math.random() - .5) * 8, z: (Math.random() - .5) * 9 }, true);
       body.wakeUp();
     });
-    throwTimeoutRef.current = window.setTimeout(() => {
-      setIsThrowing(false);
-      settleStartRef.current = null;
-    }, 5000);
-  };
-
-  const handlePointerDown = (event: React.PointerEvent<HTMLDivElement>) => {
-    dragStartRef.current = event.clientX;
-  };
-
-  const handlePointerMove = (event: React.PointerEvent<HTMLDivElement>) => {
-    if (dragStartRef.current === null || isThrowing) return;
-    const delta = Math.abs(event.clientX - dragStartRef.current);
-    if (delta > SWIPE_THRESHOLD) {
-      dragStartRef.current = null;
-      triggerThrow();
-    }
-  };
-
-  const handlePointerUp = () => {
-    dragStartRef.current = null;
+    throwTimeoutRef.current = window.setTimeout(() => { if (isThrowingRef.current) setThrowing(false); }, 5500);
   };
 
   return (
-    <div className="h-screen w-full overflow-hidden bg-[#faf9f6]">
-      <div className="mx-auto flex h-full max-w-[1200px] flex-col items-center justify-center gap-10 px-6 md:px-12">
-        <div
-          ref={canvasWrapperRef}
-          onPointerDown={handlePointerDown}
-          onPointerMove={handlePointerMove}
-          onPointerUp={handlePointerUp}
-          onPointerLeave={handlePointerUp}
-          className="h-[420px] md:h-[520px] w-full cursor-grab active:cursor-grabbing"
-        />
-
-        <div className="flex items-center gap-3">
-          <button
-            type="button"
-            onClick={triggerThrow}
-            disabled={isThrowing}
-            className="rounded-full border border-black bg-black px-8 py-3 text-sm uppercase tracking-[0.4em] text-white transition hover:bg-transparent hover:text-black disabled:cursor-not-allowed disabled:opacity-40"
-          >
-            {isThrowing ? '掷…' : '掷 (throw)'}
-          </button>
-          <div className="group relative flex items-center">
-            <span className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-black/40 text-[11px] font-semibold text-black/70">
-              i
-            </span>
-            <div className="pointer-events-none absolute bottom-full left-1/2 z-10 mb-3 w-[360px] -translate-x-1/2 rounded-2xl border border-black/10 bg-white px-4 py-3 text-[11px] uppercase tracking-[0.2em] text-black/70 opacity-0 shadow-lg transition group-hover:opacity-100 font-[Rubik]">
-              Front = red croissant side. Back = black flat side. Two fronts = 聖杯 (yes). Two backs = 陰杯 (no). Mixed = 笑杯 (not sure).
-            </div>
+    <div className="min-h-screen bg-[#f4efe6] px-4 py-20 text-[#211811] sm:px-8">
+      <style>{`.poe-stage canvas { display:block; width:100%!important; height:100%!important; }`}</style>
+      <main className="mx-auto grid min-h-[calc(100vh-10rem)] max-w-6xl items-center gap-8 lg:grid-cols-[.78fr_1.22fr] lg:gap-14">
+        <section className="order-2 lg:order-1">
+          <p className="mb-5 font-[Rubik] text-[10px] font-medium uppercase tracking-[.32em] text-[#7d3d25]">A small divination game · {String(throwCount).padStart(2, '0')} casts</p>
+          <h1 className="max-w-md font-[Cormorant_Upright] text-6xl leading-[.82] sm:text-7xl">Ask, then<br /><em className="font-light">let it fall.</em></h1>
+          <p className="mt-8 max-w-sm font-[Rubik] text-sm leading-7 text-[#5f5046]">Hold a question gently. Cast the two moon blocks and see what lands face-up.</p>
+          <div className="mt-9 rounded-[1.5rem] border border-[#5e3422]/15 bg-white/50 p-5 backdrop-blur-sm">
+            {result ? <><p className="font-[Rubik] text-[10px] font-semibold uppercase tracking-[.24em] text-[#9b2b22]">The answer</p><h2 className="mt-2 font-[Cormorant_Upright] text-3xl">{resultCopy[result].name}</h2><p className="mt-2 font-[Rubik] text-xs leading-5 text-[#65554a]">{resultCopy[result].detail}</p></> : <><p className="font-[Rubik] text-[10px] font-semibold uppercase tracking-[.24em] text-[#9b2b22]">Before you cast</p><p className="mt-2 font-[Cormorant_Upright] text-2xl leading-tight">Take one breath. Keep your question to yourself.</p></>}
           </div>
-        </div>
-      </div>
+          <button type="button" onClick={triggerThrow} disabled={isThrowing} className="mt-7 inline-flex items-center gap-3 rounded-full bg-[#27170f] px-6 py-3.5 font-[Rubik] text-[11px] font-medium uppercase tracking-[.2em] text-white shadow-[0_12px_25px_rgba(62,31,16,.18)] transition hover:-translate-y-0.5 hover:bg-[#9b2b22] disabled:cursor-wait disabled:opacity-60">
+            <span className="text-lg leading-none">{isThrowing ? '· · ·' : '✦'}</span>{isThrowing ? 'Listening' : result ? 'Cast again' : 'Cast the moon blocks'}
+          </button>
+        </section>
+        <section className="order-1 lg:order-2">
+          <div className="poe-stage relative h-[360px] overflow-hidden rounded-[2rem] border border-[#4e2919]/15 bg-[#e7ded0] shadow-[0_25px_60px_rgba(83,48,27,.18)] sm:h-[510px]" ref={canvasWrapperRef} onPointerDown={(event) => { draggingRef.current = event.clientX; }} onPointerMove={(event) => { if (draggingRef.current !== null && Math.abs(event.clientX - draggingRef.current) > SWIPE_THRESHOLD) { draggingRef.current = null; triggerThrow(); } }} onPointerUp={() => { draggingRef.current = null; }} onPointerLeave={() => { draggingRef.current = null; }}>
+            <div className="pointer-events-none absolute left-5 top-5 z-10 rounded-full border border-white/50 bg-[#f8f1e5]/80 px-3 py-1.5 font-[Rubik] text-[9px] uppercase tracking-[.22em] text-[#684837]">Swipe to cast</div>
+            <div className="pointer-events-none absolute bottom-5 right-5 z-10 font-[Rubik] text-[9px] uppercase tracking-[.18em] text-[#5c3a2a]/65">red · crescent / dark · flat</div>
+          </div>
+        </section>
+      </main>
     </div>
   );
 };
