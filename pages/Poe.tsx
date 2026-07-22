@@ -6,9 +6,9 @@ const SWIPE_THRESHOLD = 80;
 type Result = 'sacred' | 'laughing' | 'negative' | null;
 
 const resultCopy: Record<Exclude<Result, null>, { name: string; detail: string }> = {
-  sacred: { name: '聖杯 · Sacred yes', detail: 'Both crescent faces are revealed. The way is open.' },
-  laughing: { name: '笑杯 · Laughing answer', detail: 'One face of each. Pause, reframe, and ask again.' },
-  negative: { name: '陰杯 · Quiet no', detail: 'Both flat faces are revealed. Let this one rest for now.' },
+  sacred: { name: '聖杯', detail: 'Two crescent faces · yes' },
+  laughing: { name: '笑杯', detail: 'One of each · wait' },
+  negative: { name: '陰杯', detail: 'Two flat faces · no' },
 };
 
 export const Poe: React.FC = () => {
@@ -23,14 +23,11 @@ export const Poe: React.FC = () => {
   const throwTimeoutRef = useRef<number | null>(null);
   const draggingRef = useRef<number | null>(null);
   const isThrowingRef = useRef(false);
-  const resultRef = useRef<Result>(null);
+  const finishThrowRef = useRef<() => void>(() => {});
   const settleStartRef = useRef<number | null>(null);
   const [isThrowing, setIsThrowing] = useState(false);
   const [result, setResult] = useState<Result>(null);
-  const [throwCount, setThrowCount] = useState(0);
-  const initialRotations = useMemo(() => [
-    new THREE.Euler(-0.18, -0.22, 0.15), new THREE.Euler(-0.2, 0.28, -0.12),
-  ], []);
+  const initialRotation = useMemo(() => new THREE.Euler(-0.18, -0.22, 0.15), []);
 
   const setThrowing = (value: boolean) => {
     isThrowingRef.current = value;
@@ -116,18 +113,16 @@ export const Poe: React.FC = () => {
       const faceMaterial = new THREE.MeshPhysicalMaterial({
         color: '#a83428', roughness: 0.36, clearcoat: 0.35, clearcoatRoughness: 0.4,
       });
-      const blocks = [-1.5, 1.5].map((x, index) => {
-        const block = new THREE.Mesh(blockGeometry, blockMaterial);
-        const face = new THREE.Mesh(faceGeometry, faceMaterial);
-        face.position.z = 0.313;
-        face.castShadow = true;
-        block.add(face);
-        block.position.set(x, 0.05, 0);
-        block.rotation.copy(initialRotations[index]);
-        block.castShadow = true; block.receiveShadow = true;
-        scene.add(block);
-        return block;
-      });
+      const block = new THREE.Mesh(blockGeometry, blockMaterial);
+      const face = new THREE.Mesh(faceGeometry, faceMaterial);
+      face.position.z = 0.313;
+      face.castShadow = true;
+      block.add(face);
+      block.position.set(0, 0.05, 0);
+      block.rotation.copy(initialRotation);
+      block.castShadow = true; block.receiveShadow = true;
+      scene.add(block);
+      const blocks = [block];
       blocksRef.current = blocks;
 
       const table = new THREE.Mesh(
@@ -148,8 +143,8 @@ export const Poe: React.FC = () => {
       world.createCollider(RAPIER.ColliderDesc.cuboid(7.5, .18, 4.5).setFriction(.82).setRestitution(.16), tableBody);
       const vertices = new Float32Array(blockGeometry.getAttribute('position').array);
       const hull = RAPIER.ColliderDesc.convexHull(vertices) ?? RAPIER.ColliderDesc.capsule(.5, .9);
-      rigidBodiesRef.current = blocks.map((block) => {
-        const body = world.createRigidBody(RAPIER.RigidBodyDesc.dynamic().setTranslation(block.position.x, block.position.y, block.position.z).setLinearDamping(.28).setAngularDamping(.38));
+      rigidBodiesRef.current = blocks.map((mesh) => {
+        const body = world.createRigidBody(RAPIER.RigidBodyDesc.fixed().setTranslation(mesh.position.x, mesh.position.y, mesh.position.z));
         world.createCollider(hull.setFriction(.68).setRestitution(.18), body);
         return body;
       });
@@ -178,10 +173,12 @@ export const Poe: React.FC = () => {
       };
       const finishThrow = () => {
         if (!isThrowingRef.current) return;
-        const fronts = blocks.filter((block) => block.localToWorld(new THREE.Vector3(0, 0, 1)).y > block.position.y).length;
-        const next: Result = fronts === 2 ? 'sacred' : fronts === 0 ? 'negative' : 'laughing';
-        resultRef.current = next; setResult(next); setThrowing(false); settleStartRef.current = null;
+        rigidBodiesRef.current[0]?.setBodyType(RAPIER.RigidBodyType.Fixed, true);
+        const outcomes: Exclude<Result, null>[] = ['sacred', 'laughing', 'negative'];
+        setResult(outcomes[Math.floor(Math.random() * outcomes.length)]);
+        setThrowing(false); settleStartRef.current = null;
       };
+      finishThrowRef.current = finishThrow;
       animationFrameRef.current = requestAnimationFrame(animate);
       cleanup = () => {
         window.removeEventListener('resize', resize);
@@ -194,42 +191,38 @@ export const Poe: React.FC = () => {
     };
     initScene();
     return () => { cancelled = true; cleanup(); };
-  }, [initialRotations]);
+  }, [initialRotation]);
 
   const triggerThrow = () => {
     if (isThrowingRef.current || !rigidBodiesRef.current.length) return;
     if (throwTimeoutRef.current) window.clearTimeout(throwTimeoutRef.current);
-    resultRef.current = null; setResult(null); setThrowing(true); setThrowCount((count) => count + 1);
-    rigidBodiesRef.current.forEach((body, index) => {
-      const x = index === 0 ? -1.25 : 1.25;
-      body.setTranslation({ x, y: .15, z: 0 }, true);
-      body.setRotation(initialRotations[index], true);
-      body.setLinvel({ x: (index ? 1 : -1) * (.65 + Math.random() * .55), y: 6.5 + Math.random() * 1.8, z: (Math.random() - .5) * 1.5 }, true);
+    setResult(null); setThrowing(true);
+    rigidBodiesRef.current.forEach((body) => {
+      body.setBodyType(RAPIER.RigidBodyType.Dynamic, true);
+      body.setTranslation({ x: 0, y: .15, z: 0 }, true);
+      body.setRotation(initialRotation, true);
+      body.setLinvel({ x: (Math.random() - .5) * 1.1, y: 7.4 + Math.random() * 1.4, z: (Math.random() - .5) * 1.5 }, true);
       body.setAngvel({ x: (Math.random() - .5) * 10, y: (Math.random() - .5) * 8, z: (Math.random() - .5) * 9 }, true);
       body.wakeUp();
     });
-    throwTimeoutRef.current = window.setTimeout(() => { if (isThrowingRef.current) setThrowing(false); }, 5500);
+    throwTimeoutRef.current = window.setTimeout(() => finishThrowRef.current(), 5500);
   };
 
   return (
     <div className="min-h-screen bg-[#f4efe6] px-4 py-20 text-[#211811] sm:px-8">
       <style>{`.poe-stage canvas { display:block; width:100%!important; height:100%!important; }`}</style>
-      <main className="mx-auto grid min-h-[calc(100vh-10rem)] max-w-6xl items-center gap-8 lg:grid-cols-[.78fr_1.22fr] lg:gap-14">
+      <main className="mx-auto grid min-h-[calc(100vh-10rem)] max-w-6xl items-center gap-8 lg:grid-cols-[.72fr_1.28fr] lg:gap-14">
         <section className="order-2 lg:order-1">
-          <p className="mb-5 font-[Rubik] text-[10px] font-medium uppercase tracking-[.32em] text-[#7d3d25]">A small divination game · {String(throwCount).padStart(2, '0')} casts</p>
-          <h1 className="max-w-md font-[Cormorant_Upright] text-6xl leading-[.82] sm:text-7xl">Ask, then<br /><em className="font-light">let it fall.</em></h1>
-          <p className="mt-8 max-w-sm font-[Rubik] text-sm leading-7 text-[#5f5046]">Hold a question gently. Cast the two moon blocks and see what lands face-up.</p>
-          <div className="mt-9 rounded-[1.5rem] border border-[#5e3422]/15 bg-white/50 p-5 backdrop-blur-sm">
-            {result ? <><p className="font-[Rubik] text-[10px] font-semibold uppercase tracking-[.24em] text-[#9b2b22]">The answer</p><h2 className="mt-2 font-[Cormorant_Upright] text-3xl">{resultCopy[result].name}</h2><p className="mt-2 font-[Rubik] text-xs leading-5 text-[#65554a]">{resultCopy[result].detail}</p></> : <><p className="font-[Rubik] text-[10px] font-semibold uppercase tracking-[.24em] text-[#9b2b22]">Before you cast</p><p className="mt-2 font-[Cormorant_Upright] text-2xl leading-tight">Take one breath. Keep your question to yourself.</p></>}
+          <div className="max-w-sm">
+            {!result && <p className="font-[Cormorant_Upright] text-4xl leading-[.95] text-[#352016] sm:text-5xl">Take one breath.<br />Keep your question to yourself.</p>}
+            {result && <div className="rounded-[1.5rem] border border-[#5e3422]/15 bg-white/40 p-6 backdrop-blur-sm"><p className="font-[Rubik] text-[10px] uppercase tracking-[.28em] text-[#8e4b30]">{resultCopy[result].name}</p><p className="mt-2 font-[Cormorant_Upright] text-3xl text-[#2a1810]">{resultCopy[result].detail}</p><div className="mt-6 grid grid-cols-3 gap-2 border-t border-[#5e3422]/10 pt-4 font-[Rubik] text-[9px] leading-4 text-[#715f52]"><span><b className="block text-base font-normal text-[#9d3329]">☽ ☽</b>聖杯 · yes</span><span><b className="block text-base font-normal text-[#9d3329]">☽ —</b>笑杯 · wait</span><span><b className="block text-base font-normal text-[#39241c]">— —</b>陰杯 · no</span></div></div>}
           </div>
-          <button type="button" onClick={triggerThrow} disabled={isThrowing} className="mt-7 inline-flex items-center gap-3 rounded-full bg-[#27170f] px-6 py-3.5 font-[Rubik] text-[11px] font-medium uppercase tracking-[.2em] text-white shadow-[0_12px_25px_rgba(62,31,16,.18)] transition hover:-translate-y-0.5 hover:bg-[#9b2b22] disabled:cursor-wait disabled:opacity-60">
-            <span className="text-lg leading-none">{isThrowing ? '· · ·' : '✦'}</span>{isThrowing ? 'Listening' : result ? 'Cast again' : 'Cast the moon blocks'}
+          <button type="button" onClick={triggerThrow} disabled={isThrowing} aria-label="Cast the moon block" className="mt-8 inline-flex h-12 w-12 items-center justify-center rounded-full border border-[#523323]/35 bg-[#27170f] text-lg text-[#f8ead8] shadow-[0_12px_25px_rgba(62,31,16,.18)] transition hover:-translate-y-0.5 hover:bg-[#9b2b22] disabled:cursor-wait disabled:opacity-60">
+            {isThrowing ? '· · ·' : '✦'}
           </button>
         </section>
         <section className="order-1 lg:order-2">
           <div className="poe-stage relative h-[360px] overflow-hidden rounded-[2rem] border border-[#4e2919]/15 bg-[#e7ded0] shadow-[0_25px_60px_rgba(83,48,27,.18)] sm:h-[510px]" ref={canvasWrapperRef} onPointerDown={(event) => { draggingRef.current = event.clientX; }} onPointerMove={(event) => { if (draggingRef.current !== null && Math.abs(event.clientX - draggingRef.current) > SWIPE_THRESHOLD) { draggingRef.current = null; triggerThrow(); } }} onPointerUp={() => { draggingRef.current = null; }} onPointerLeave={() => { draggingRef.current = null; }}>
-            <div className="pointer-events-none absolute left-5 top-5 z-10 rounded-full border border-white/50 bg-[#f8f1e5]/80 px-3 py-1.5 font-[Rubik] text-[9px] uppercase tracking-[.22em] text-[#684837]">Swipe to cast</div>
-            <div className="pointer-events-none absolute bottom-5 right-5 z-10 font-[Rubik] text-[9px] uppercase tracking-[.18em] text-[#5c3a2a]/65">red · crescent / dark · flat</div>
           </div>
         </section>
       </main>
