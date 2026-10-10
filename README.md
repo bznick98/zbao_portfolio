@@ -14,7 +14,11 @@ View your app in AI Studio: https://ai.studio/apps/drive/1YEWbqrkbaiFiNbzVNlRiA5
 
 
 1. Install dependencies:
-   `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
+   `npm ci`
+2. Configure `VITE_UNSPLASH_ACCESS_KEY` in your local environment or `.env.local` to load portfolio photos. Optional fallback keys use the suffixes `_1` through `_5`.
 3. Run the app:
    `npm run dev`
+
+Tailwind styles are compiled locally by Vite; the app does not need the Tailwind browser CDN. Validate changes with `npm run build` and `npx tsc --noEmit`, then use `npm run preview` to check the production build.
+
+Vercel runs `api/generate-captions.ts` as a serverless function. AI captions require `OPENAI_API_KEY` in the Vercel project's server-side environment. The plain Vite development and preview servers serve the frontend only; they do not run this API handler. Photos can still load without generated captions.

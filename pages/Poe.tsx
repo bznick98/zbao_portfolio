@@ -3,6 +3,9 @@ import * as THREE from 'three';
 import * as RAPIER from '@dimforge/rapier3d-compat';
 
 const SWIPE_THRESHOLD = 120;
+// StrictMode and page remounts must share one WebAssembly instance.
+let rapierInitialization: Promise<void> | undefined;
+const initializeRapier = () => (rapierInitialization ??= RAPIER.init());
 
 export const Poe: React.FC = () => {
   const canvasWrapperRef = useRef<HTMLDivElement>(null);
@@ -37,7 +40,7 @@ export const Poe: React.FC = () => {
     let cleanup = () => {};
 
     const initScene = async () => {
-      await RAPIER.init();
+      await initializeRapier();
       if (isCancelled) return;
 
       const scene = new THREE.Scene();
@@ -225,6 +228,7 @@ export const Poe: React.FC = () => {
         if (throwTimeoutRef.current) window.clearTimeout(throwTimeoutRef.current);
         rigidBodiesRef.current = [];
         worldRef.current = null;
+        world.free();
         renderer.dispose();
         blockGeometry.dispose();
         material.dispose();

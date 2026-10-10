@@ -1,5 +1,6 @@
 import React, { useRef, useLayoutEffect, useEffect } from 'react';
-import { ContentBlock, GridPosition } from '../types';
+import { ContentBlock } from '../types';
+import { getGridClasses } from '../data/layout';
 import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 
@@ -11,39 +12,6 @@ interface BlockRendererProps {
   onImageSelect?: (block: ContentBlock, sourceElement: HTMLDivElement) => void;
   isSelectedForTransition?: boolean;
 }
-
-const getGridClasses = (mobile: GridPosition, desktop: GridPosition) => {
-  const m = mobile;
-  const d = desktop;
-  
-  // Base classes
-  let classes = 'relative w-full ';
-  
-  // Mobile
-  if (m.colSpan) classes += `${m.colSpan} `;
-  if (m.marginTop) classes += `${m.marginTop} `;
-  if (m.marginBottom) classes += `${m.marginBottom} `;
-  if (m.alignSelf) classes += `self-${m.alignSelf} `;
-  if (m.justifySelf) classes += `justify-self-${m.justifySelf} `;
-
-  // Desktop (md:)
-  if (d.colStart) classes += `md:${d.colStart} `;
-  if (d.colSpan) classes += `md:${d.colSpan} `;
-  if (d.rowStart) classes += `md:${d.rowStart} `;
-  if (d.marginTop) classes += `md:${d.marginTop} `;
-  if (d.marginBottom) classes += `md:${d.marginBottom} `;
-  if (d.alignSelf) classes += `md:self-${d.alignSelf} `;
-  if (d.justifySelf) classes += `md:justify-self-${d.justifySelf} `;
-  
-  // Z-Index handling
-  if (d.zIndex !== undefined) {
-      classes += `z-[${d.zIndex}] `;
-  } else {
-      classes += `z-10 `;
-  }
-
-  return classes;
-};
 
 export const BlockRenderer: React.FC<BlockRendererProps> = ({ block, className = '', onImageSelect, isSelectedForTransition = false }) => {
   const containerRef = useRef<HTMLDivElement>(null);
