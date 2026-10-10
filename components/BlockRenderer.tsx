@@ -25,44 +25,46 @@ export const BlockRenderer: React.FC<BlockRendererProps> = ({ block, className =
     
     if (!el) return;
 
-    // 1. Fixed Element Fade Out (Keep this for the Header Name)
-    if (block.isFixed) {
-      const fadeTarget = el.querySelector('[data-blend-fade]');
-      if (!fadeTarget) return;
-      gsap.to(fadeTarget, {
-        opacity: 0,
-        ease: 'power1.out',
-        scrollTrigger: {
-          trigger: document.body,
-          start: 'top top',
-          end: '70% bottom',
-          scrub: 1,
-        }
-      });
-    }
-
-    // 2. Parallax Effect (Keep subtle movement)
-    if (block.parallaxSpeed && !block.isFixed) {
-      gsap.to(el, {
-        y: -100 * block.parallaxSpeed,
-        ease: 'none',
-        scrollTrigger: {
-          trigger: el,
-          start: 'top bottom',
-          end: 'bottom top',
-          scrub: true
-        }
-      });
-    }
-
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    const context = gsap.context(() => {
+      // Fixed header fade and subtle parallax share the component's lifetime.
+      if (block.isFixed) {
+        const fadeTarget = el.querySelector('[data-blend-fade]');
+        if (!fadeTarget) return;
+        gsap.to(fadeTarget, {
+          opacity: 0,
+          ease: 'power1.out',
+          scrollTrigger: {
+            trigger: document.body,
+            start: 'top top',
+            end: '70% bottom',
+            scrub: 1,
+          }
+        });
+      }
+      if (block.parallaxSpeed && !block.isFixed) {
+        gsap.to(el, {
+          y: -100 * block.parallaxSpeed,
+          ease: 'none',
+          scrollTrigger: {
+            trigger: el,
+            start: 'top bottom',
+            end: 'bottom top',
+            scrub: true
+          }
+        });
+      }
+    }, el);
+    return () => context.revert();
   }, [block.parallaxSpeed, block.isFixed]);
 
   useLayoutEffect(() => {
     const el = captionRef.current;
 
     if (!el || !(block.caption || block.subCaption)) return;
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
 
-    gsap.fromTo(
+    const context = gsap.context(() => gsap.fromTo(
       el,
       { opacity: 0, y: 12 },
       {
@@ -75,15 +77,9 @@ export const BlockRenderer: React.FC<BlockRendererProps> = ({ block, className =
           start: 'top 85%'
         }
       }
-    );
+    ), el);
 
-    return () => {
-      ScrollTrigger.getAll().forEach(trigger => {
-        if (trigger.trigger === el) {
-          trigger.kill();
-        }
-      });
-    };
+    return () => context.revert();
   }, [block.caption, block.subCaption]);
 
   useEffect(() => {
@@ -172,7 +168,7 @@ export const BlockRenderer: React.FC<BlockRendererProps> = ({ block, className =
   if (block.type === 'text') {
     return (
       <div ref={containerRef} className={`${finalClasses} flex flex-col gap-4`}>
-        <h2 className="text-5xl md:text-7xl font-serif leading-tight text-[#111]">
+        <h2 className="text-2xl md:text-4xl font-cormorant leading-snug text-[#111]">
           {block.content}
         </h2>
         {block.caption && (
@@ -246,10 +242,10 @@ export const BlockRenderer: React.FC<BlockRendererProps> = ({ block, className =
           
           <div
             ref={captionRef}
-            className="mt-4 flex min-h-[3.5rem] flex-col gap-1 opacity-0"
+            className="mt-4 flex min-h-[3.5rem] flex-col gap-1"
           >
             {block.caption && (
-              <span className="font-serif text-lg md:text-xl italic text-[#111]">{block.caption}</span>
+              <span className="font-cormorant text-lg md:text-xl italic text-[#111]">{block.caption}</span>
             )}
             {block.subCaption && (
               <span className="font-sans text-xs uppercase tracking-widest opacity-50 text-[#111]">{block.subCaption}</span>
