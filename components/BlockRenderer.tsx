@@ -1,5 +1,6 @@
 import React, { useRef, useLayoutEffect, useEffect } from 'react';
-import { ContentBlock, GridPosition } from '../types';
+import { ContentBlock } from '../types';
+import { getGridClasses } from '../data/layout';
 import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 
@@ -11,39 +12,6 @@ interface BlockRendererProps {
   onImageSelect?: (block: ContentBlock, sourceElement: HTMLDivElement) => void;
   isSelectedForTransition?: boolean;
 }
-
-const getGridClasses = (mobile: GridPosition, desktop: GridPosition) => {
-  const m = mobile;
-  const d = desktop;
-  
-  // Base classes
-  let classes = 'relative w-full ';
-  
-  // Mobile
-  if (m.colSpan) classes += `${m.colSpan} `;
-  if (m.marginTop) classes += `${m.marginTop} `;
-  if (m.marginBottom) classes += `${m.marginBottom} `;
-  if (m.alignSelf) classes += `self-${m.alignSelf} `;
-  if (m.justifySelf) classes += `justify-self-${m.justifySelf} `;
-
-  // Desktop (md:)
-  if (d.colStart) classes += `md:${d.colStart} `;
-  if (d.colSpan) classes += `md:${d.colSpan} `;
-  if (d.rowStart) classes += `md:${d.rowStart} `;
-  if (d.marginTop) classes += `md:${d.marginTop} `;
-  if (d.marginBottom) classes += `md:${d.marginBottom} `;
-  if (d.alignSelf) classes += `md:self-${d.alignSelf} `;
-  if (d.justifySelf) classes += `md:justify-self-${d.justifySelf} `;
-  
-  // Z-Index handling
-  if (d.zIndex !== undefined) {
-      classes += `z-[${d.zIndex}] `;
-  } else {
-      classes += `z-10 `;
-  }
-
-  return classes;
-};
 
 export const BlockRenderer: React.FC<BlockRendererProps> = ({ block, className = '', onImageSelect, isSelectedForTransition = false }) => {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -57,44 +25,46 @@ export const BlockRenderer: React.FC<BlockRendererProps> = ({ block, className =
     
     if (!el) return;
 
-    // 1. Fixed Element Fade Out (Keep this for the Header Name)
-    if (block.isFixed) {
-      const fadeTarget = el.querySelector('[data-blend-fade]');
-      if (!fadeTarget) return;
-      gsap.to(fadeTarget, {
-        opacity: 0,
-        ease: 'power1.out',
-        scrollTrigger: {
-          trigger: document.body,
-          start: 'top top',
-          end: '70% bottom',
-          scrub: 1,
-        }
-      });
-    }
-
-    // 2. Parallax Effect (Keep subtle movement)
-    if (block.parallaxSpeed && !block.isFixed) {
-      gsap.to(el, {
-        y: -100 * block.parallaxSpeed,
-        ease: 'none',
-        scrollTrigger: {
-          trigger: el,
-          start: 'top bottom',
-          end: 'bottom top',
-          scrub: true
-        }
-      });
-    }
-
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    const context = gsap.context(() => {
+      // Fixed header fade and subtle parallax share the component's lifetime.
+      if (block.isFixed) {
+        const fadeTarget = el.querySelector('[data-blend-fade]');
+        if (!fadeTarget) return;
+        gsap.to(fadeTarget, {
+          opacity: 0,
+          ease: 'power1.out',
+          scrollTrigger: {
+            trigger: document.body,
+            start: 'top top',
+            end: '70% bottom',
+            scrub: 1,
+          }
+        });
+      }
+      if (block.parallaxSpeed && !block.isFixed) {
+        gsap.to(el, {
+          y: -100 * block.parallaxSpeed,
+          ease: 'none',
+          scrollTrigger: {
+            trigger: el,
+            start: 'top bottom',
+            end: 'bottom top',
+            scrub: true
+          }
+        });
+      }
+    }, el);
+    return () => context.revert();
   }, [block.parallaxSpeed, block.isFixed]);
 
   useLayoutEffect(() => {
     const el = captionRef.current;
 
     if (!el || !(block.caption || block.subCaption)) return;
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
 
-    gsap.fromTo(
+    const context = gsap.context(() => gsap.fromTo(
       el,
       { opacity: 0, y: 12 },
       {
@@ -107,15 +77,9 @@ export const BlockRenderer: React.FC<BlockRendererProps> = ({ block, className =
           start: 'top 85%'
         }
       }
-    );
+    ), el);
 
-    return () => {
-      ScrollTrigger.getAll().forEach(trigger => {
-        if (trigger.trigger === el) {
-          trigger.kill();
-        }
-      });
-    };
+    return () => context.revert();
   }, [block.caption, block.subCaption]);
 
   useEffect(() => {
@@ -204,7 +168,7 @@ export const BlockRenderer: React.FC<BlockRendererProps> = ({ block, className =
   if (block.type === 'text') {
     return (
       <div ref={containerRef} className={`${finalClasses} flex flex-col gap-4`}>
-        <h2 className="text-5xl md:text-7xl font-serif leading-tight text-[#111]">
+        <h2 className="text-2xl md:text-4xl font-cormorant leading-snug text-[#111]">
           {block.content}
         </h2>
         {block.caption && (
@@ -278,10 +242,10 @@ export const BlockRenderer: React.FC<BlockRendererProps> = ({ block, className =
           
           <div
             ref={captionRef}
-            className="mt-4 flex min-h-[3.5rem] flex-col gap-1 opacity-0"
+            className="mt-4 flex min-h-[3.5rem] flex-col gap-1"
           >
             {block.caption && (
-              <span className="font-serif text-lg md:text-xl italic text-[#111]">{block.caption}</span>
+              <span className="font-cormorant text-lg md:text-xl italic text-[#111]">{block.caption}</span>
             )}
             {block.subCaption && (
               <span className="font-sans text-xs uppercase tracking-widest opacity-50 text-[#111]">{block.subCaption}</span>

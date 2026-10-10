@@ -1,395 +1,280 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import * as THREE from 'three';
-import * as RAPIER from '@dimforge/rapier3d-compat';
+import { createPoeGeometry, initializePoePhysics, PoeSimulation } from '../lib/poe-physics';
+import type { PoeFace, PoeReading } from '../lib/poe-physics';
 
-const SWIPE_THRESHOLD = 120;
+type Phase = 'loading' | 'ready' | 'charging' | 'throwing' | 'settled' | 'error';
+const READINGS: Record<PoeReading, { title: string; chinese: string; detail: string }> = {
+  yes: { title: 'Yes', chinese: '聖筊', detail: 'One flat. One round.' },
+  no: { title: 'No', chinese: '陰筊', detail: 'Two round sides.' },
+  again: { title: 'Ask again', chinese: '笑筊', detail: 'Two flat sides.' },
+  edge: { title: 'Cast again', chinese: 'On an edge', detail: 'A block landed on its side.' },
+  unsettled: { title: 'Cast again', chinese: 'No reading', detail: 'The blocks have not settled.' },
+};
+
+const FaceMark = ({ face }: { face: PoeFace }) => (
+  <svg viewBox="0 0 36 28" className="h-7 w-9" role="img" aria-label={face + ' side'}>
+    {face === 'edge' ? <rect x="15" y="4" width="6" height="21" rx="3" fill="#9f2935" /> : face === 'flat'
+      ? <rect x="4" y="8" width="28" height="11" rx="3" fill="#eed2a4" stroke="#8b543c" strokeWidth="1.3" />
+      : <path d="M4 21 A14 17 0 0 1 32 21 Z" fill="#9f2935" stroke="#75232b" strokeWidth="1.3" />}
+  </svg>
+);
 
 export const Poe: React.FC = () => {
-  const canvasWrapperRef = useRef<HTMLDivElement>(null);
-  const rendererRef = useRef<THREE.WebGLRenderer | null>(null);
-  const sceneRef = useRef<THREE.Scene | null>(null);
-  const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
-  const blocksRef = useRef<THREE.Mesh[]>([]);
-  const worldRef = useRef<RAPIER.World | null>(null);
-  const rigidBodiesRef = useRef<RAPIER.RigidBody[]>([]);
-  const animationFrameRef = useRef<number | null>(null);
-  const lastFrameRef = useRef<number | null>(null);
-  const dragStartRef = useRef<number | null>(null);
-  const settleStartRef = useRef<number | null>(null);
-  const throwTimeoutRef = useRef<number | null>(null);
-  const [isThrowing, setIsThrowing] = useState(false);
+  const wrapperRef = useRef<HTMLDivElement>(null);
+  const simulationRef = useRef<PoeSimulation | null>(null);
+  const phaseRef = useRef<Phase>('loading');
+  const chargingRef = useRef<number | null>(null);
+  const gestureRef = useRef<{ x: number; y: number } | null>(null);
+  const [phase, setPhase] = useState<Phase>('loading');
+  const [charge, setCharge] = useState(0);
+  const [reading, setReading] = useState<PoeReading | null>(null);
+  const [faces, setFaces] = useState<PoeFace[]>([]);
+  const [history, setHistory] = useState<PoeReading[]>([]);
 
-  const initialRotations = useMemo(
-    () => [
-      { x: -0.4, y: -0.2, z: 0.1 },
-      { x: -0.35, y: 0.25, z: -0.15 },
-    ],
-    []
-  );
-  const groundY = -0.7;
-  const gravity = useMemo(() => ({ x: 0, y: -12, z: 0 }), []);
-  const cameraTargetRef = useRef(new THREE.Vector3());
+  const changePhase = (next: Phase) => { phaseRef.current = next; setPhase(next); };
 
   useEffect(() => {
-    const wrapper = canvasWrapperRef.current;
+    const wrapper = wrapperRef.current;
     if (!wrapper) return;
-    let isCancelled = false;
-    let cleanup = () => {};
+    let cancelled = false;
+    let frame = 0;
+    let observer: ResizeObserver | undefined;
+    let renderer: THREE.WebGLRenderer | undefined;
+    const resources: { dispose: () => void }[] = [];
 
-    const initScene = async () => {
-      await RAPIER.init();
-      if (isCancelled) return;
-
-      const scene = new THREE.Scene();
-      sceneRef.current = scene;
-
-      const camera = new THREE.PerspectiveCamera(42, 1, 0.1, 100);
-      camera.position.set(0, 5.2, 9.2);
-      camera.lookAt(0, 0, 0);
-      cameraRef.current = camera;
-
-      const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
-      renderer.setPixelRatio(window.devicePixelRatio);
-      rendererRef.current = renderer;
+    const setup = async () => {
+      await initializePoePhysics();
+      if (cancelled) return;
+      renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+      resources.push(renderer);
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+      renderer.shadowMap.enabled = true;
+      renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+      renderer.toneMapping = THREE.ACESFilmicToneMapping;
+      renderer.toneMappingExposure = 1.35;
       wrapper.appendChild(renderer.domElement);
 
-      const ambient = new THREE.AmbientLight('#ffffff', 0.9);
-      const directional = new THREE.DirectionalLight('#ffffff', 1);
-      directional.position.set(3, 6, 6);
-      scene.add(ambient, directional);
+      const scene = new THREE.Scene();
+      const camera = new THREE.PerspectiveCamera(38, 1, 0.1, 100);
+      scene.add(new THREE.HemisphereLight('#fff6e5', '#695343', 2.5));
+      const light = new THREE.DirectionalLight('#fff4de', 3.2);
+      light.position.set(-4, 12, 7);
+      light.castShadow = true;
+      light.shadow.mapSize.set(1024, 1024);
+      light.shadow.camera.left = light.shadow.camera.bottom = -8;
+      light.shadow.camera.right = light.shadow.camera.top = 8;
+      light.shadow.normalBias = 0.04;
+      resources.push(light.shadow);
+      scene.add(light);
 
-      const material = new THREE.MeshPhysicalMaterial({
-        color: '#b21f2d',
-        roughness: 0.3,
-        metalness: 0.05,
-        clearcoat: 0.8,
-        clearcoatRoughness: 0.2,
-        vertexColors: true,
+      const geometry = createPoeGeometry();
+      resources.push(geometry);
+      const material = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.38, metalness: 0.04 });
+      resources.push(material);
+      const meshes = [0, 1].map(() => {
+        const mesh = new THREE.Mesh(geometry, material);
+        mesh.castShadow = mesh.receiveShadow = true;
+        scene.add(mesh);
+        return mesh;
       });
+      const simulation = new PoeSimulation(new Float32Array(geometry.getAttribute('position').array));
+      simulationRef.current = simulation;
+      resources.push(simulation);
 
-      const outerRadius = 1.5;
-      const blockShape = new THREE.Shape();
-      blockShape.absarc(0, 0, outerRadius, Math.PI, 0, false);
-      blockShape.lineTo(outerRadius, -0.2);
-      blockShape.lineTo(-outerRadius, -0.2);
-      blockShape.closePath();
-
-      const blockGeometry = new THREE.ExtrudeGeometry(blockShape, {
-        depth: 0.7,
-        bevelEnabled: true,
-        bevelThickness: 0.08,
-        bevelSize: 0.06,
-        bevelSegments: 3,
-      });
-      blockGeometry.center();
-      const positionAttribute = blockGeometry.getAttribute('position');
-      const maxX = outerRadius;
-      const colors = [];
-      for (let i = 0; i < positionAttribute.count; i += 1) {
-        const x = positionAttribute.getX(i);
-        const y = positionAttribute.getY(i);
-        const bend = 0.42 * (1 - (x / maxX) ** 2);
-        const flatFactor = Math.max(0, (y + 0.2) * 0.9);
-        const z = positionAttribute.getZ(i);
-        const bulge = z > 0 ? bend : 0;
-        positionAttribute.setZ(i, z < 0 ? -0.03 : z + bulge);
-        positionAttribute.setY(i, y + bend * 0.1 + flatFactor * 0.06);
-        if (z < 0) {
-          colors.push(0.1, 0.1, 0.1);
-        } else {
-          colors.push(0.7, 0.12, 0.18);
+      const grain = document.createElement('canvas');
+      grain.width = grain.height = 256;
+      const context = grain.getContext('2d');
+      if (context) {
+        context.fillStyle = '#b6926e';
+        context.fillRect(0, 0, 256, 256);
+        for (let line = 0; line < 90; line++) {
+          context.strokeStyle = line % 2 ? 'rgba(90,52,26,.13)' : 'rgba(255,236,204,.18)';
+          context.beginPath();
+          context.moveTo(0, line * 3);
+          context.bezierCurveTo(80, line * 3 + 6, 160, line * 3 - 5, 256, line * 3);
+          context.stroke();
         }
       }
-      blockGeometry.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
-      blockGeometry.computeVertexNormals();
-
-      const leftBlock = new THREE.Mesh(blockGeometry, material);
-      leftBlock.position.set(-1.7, 0, 0);
-      leftBlock.rotation.set(
-        initialRotations[0].x,
-        initialRotations[0].y,
-        initialRotations[0].z
-      );
-
-      const rightBlock = new THREE.Mesh(blockGeometry, material);
-      rightBlock.position.set(1.7, 0, 0);
-      rightBlock.rotation.set(
-        initialRotations[1].x,
-        initialRotations[1].y,
-        initialRotations[1].z
-      );
-
-      blocksRef.current = [leftBlock, rightBlock];
-      scene.add(leftBlock, rightBlock);
-
-      const groundGeometry = new THREE.PlaneGeometry(20, 8);
-      const woodCanvas = document.createElement('canvas');
-      woodCanvas.width = 256;
-      woodCanvas.height = 256;
-      const woodContext = woodCanvas.getContext('2d');
-      if (woodContext) {
-        woodContext.fillStyle = '#d8c4a8';
-        woodContext.fillRect(0, 0, woodCanvas.width, woodCanvas.height);
-        woodContext.fillStyle = 'rgba(115, 82, 54, 0.35)';
-        for (let i = 0; i < 12; i += 1) {
-          const y = (i / 12) * woodCanvas.height;
-          woodContext.fillRect(0, y, woodCanvas.width, 8);
-        }
-        woodContext.strokeStyle = 'rgba(90, 64, 42, 0.25)';
-        for (let i = 0; i < 24; i += 1) {
-          woodContext.beginPath();
-          woodContext.moveTo(0, (i / 24) * woodCanvas.height);
-          woodContext.bezierCurveTo(
-            woodCanvas.width * 0.3,
-            (i / 24) * woodCanvas.height + 6,
-            woodCanvas.width * 0.7,
-            (i / 24) * woodCanvas.height - 6,
-            woodCanvas.width,
-            (i / 24) * woodCanvas.height
-          );
-          woodContext.stroke();
-        }
+      const texture = new THREE.CanvasTexture(grain);
+      texture.colorSpace = THREE.SRGBColorSpace;
+      resources.push(texture);
+      const wood = new THREE.MeshStandardMaterial({ map: texture, roughness: 0.75 });
+      const rim = new THREE.MeshStandardMaterial({ color: '#855b43', roughness: 0.65 });
+      resources.push(wood, rim);
+      const addBox = (width: number, height: number, depth: number, x: number, y: number, z: number, surface: THREE.Material) => {
+        const box = new THREE.BoxGeometry(width, height, depth);
+        resources.push(box);
+        const mesh = new THREE.Mesh(box, surface);
+        mesh.position.set(x, y, z);
+        mesh.receiveShadow = mesh.castShadow = true;
+        scene.add(mesh);
+      };
+      addBox(10.4, 0.28, 8, 0, -0.14, 0, wood);
+      for (const side of [-1, 1]) {
+        addBox(0.24, 0.9, 8.4, side * 5.2, 0.3, 0, rim);
+        addBox(10.4, 0.9, 0.24, 0, 0.3, side * 4.1, rim);
       }
-      const woodTexture = new THREE.CanvasTexture(woodCanvas);
-      woodTexture.wrapS = THREE.RepeatWrapping;
-      woodTexture.wrapT = THREE.RepeatWrapping;
-      woodTexture.repeat.set(2, 1);
-      const groundMaterial = new THREE.MeshStandardMaterial({
-        color: '#e0c9ad',
-        roughness: 0.85,
-        metalness: 0.05,
-        map: woodTexture,
-      });
-      const groundMesh = new THREE.Mesh(groundGeometry, groundMaterial);
-      groundMesh.rotation.x = -Math.PI / 2;
-      groundMesh.position.y = groundY;
-      scene.add(groundMesh);
-
-      const world = new RAPIER.World(new RAPIER.Vector3(gravity.x, gravity.y, gravity.z));
-      worldRef.current = world;
-
-      const groundBody = world.createRigidBody(
-        RAPIER.RigidBodyDesc.fixed().setTranslation(0, groundY, 0)
-      );
-      world.createCollider(
-        RAPIER.ColliderDesc.cuboid(10, 0.2, 6).setFriction(0.85).setRestitution(0.35),
-        groundBody
-      );
-
-      const vertices = new Float32Array(positionAttribute.array);
-      const hull = RAPIER.ColliderDesc.convexHull(vertices);
-      const rigidBodies = blocksRef.current.map((block) =>
-        world.createRigidBody(
-          RAPIER.RigidBodyDesc.dynamic()
-            .setTranslation(block.position.x, block.position.y, block.position.z)
-            .setCanSleep(true)
-        )
-      );
-      rigidBodies.forEach((body) => {
-        world.createCollider(
-          (hull ?? RAPIER.ColliderDesc.capsule(0.6, 0.9))
-            .setFriction(0.7)
-            .setRestitution(0.4),
-          body
-        );
-      });
-      rigidBodiesRef.current = rigidBodies;
 
       const resize = () => {
-        if (!wrapper || !rendererRef.current || !cameraRef.current) return;
-        const width = wrapper.clientWidth;
-        const height = wrapper.clientHeight;
-        rendererRef.current.setSize(width, height);
-        cameraRef.current.aspect = width / height;
-        cameraRef.current.updateProjectionMatrix();
+        if (!renderer || !wrapper.clientWidth || !wrapper.clientHeight) return;
+        renderer.setSize(wrapper.clientWidth, wrapper.clientHeight);
+        camera.aspect = wrapper.clientWidth / wrapper.clientHeight;
+        const distance = Math.max(1, 1.25 / camera.aspect);
+        camera.position.set(0, 10.5 * distance, 11.5 * distance);
+        camera.lookAt(0, 0.25, 0);
+        camera.updateProjectionMatrix();
       };
-
+      observer = new ResizeObserver(resize);
+      observer.observe(wrapper);
       resize();
-      window.addEventListener('resize', resize);
-
+      changePhase('ready');
+      let lastTime = performance.now();
+      let reported = false;
+      let displayedCharge = 0;
       const animate = (time: number) => {
-        if (!rendererRef.current || !sceneRef.current || !cameraRef.current) return;
-        const lastFrame = lastFrameRef.current ?? time;
-        const delta = Math.min(0.033, (time - lastFrame) / 1000);
-        lastFrameRef.current = time;
-        stepPhysics(delta);
-        updateCamera();
-        rendererRef.current.render(sceneRef.current, cameraRef.current);
-        animationFrameRef.current = requestAnimationFrame(animate);
-      };
-      animate(performance.now());
-
-      cleanup = () => {
-        window.removeEventListener('resize', resize);
-        if (animationFrameRef.current) cancelAnimationFrame(animationFrameRef.current);
-        if (throwTimeoutRef.current) window.clearTimeout(throwTimeoutRef.current);
-        rigidBodiesRef.current = [];
-        worldRef.current = null;
-        renderer.dispose();
-        blockGeometry.dispose();
-        material.dispose();
-        woodTexture.dispose();
-        groundGeometry.dispose();
-        groundMaterial.dispose();
-        if (renderer.domElement.parentElement) {
-          wrapper.removeChild(renderer.domElement);
+        if (cancelled || !renderer) return;
+        simulation.step((time - lastTime) / 1000);
+        lastTime = time;
+        meshes.forEach((mesh, index) => {
+          const body = simulation.bodies[index];
+          const position = body.translation(), rotation = body.rotation();
+          mesh.position.set(position.x, position.y, position.z);
+          mesh.quaternion.set(rotation.x, rotation.y, rotation.z, rotation.w);
+        });
+        if (chargingRef.current !== null) {
+          const amount = Math.min(1, (time - chargingRef.current) / 1200);
+          if (amount - displayedCharge > 0.02 || amount === 1) { displayedCharge = amount; setCharge(amount); }
+        } else displayedCharge = 0;
+        if (simulation.state === 'throwing') reported = false;
+        if (simulation.state === 'settled' && simulation.reading && !reported) {
+          reported = true;
+          setReading(simulation.reading);
+          setFaces([...simulation.faces]);
+          setHistory(previous => [simulation.reading!, ...previous].slice(0, 3));
+          changePhase('settled');
         }
+        renderer.render(scene, camera);
+        frame = requestAnimationFrame(animate);
       };
+      frame = requestAnimationFrame(animate);
     };
 
-    initScene();
+    setup().catch(() => { if (!cancelled) changePhase('error'); });
     return () => {
-      isCancelled = true;
-      cleanup();
+      cancelled = true;
+      cancelAnimationFrame(frame);
+      observer?.disconnect();
+      chargingRef.current = null;
+      simulationRef.current = null;
+      resources.reverse().forEach(resource => resource.dispose());
+      renderer?.forceContextLoss();
+      renderer?.domElement.remove();
     };
-  }, [gravity, initialRotations]);
+  }, []);
 
-  const stepPhysics = (delta: number) => {
-    const world = worldRef.current;
-    if (!world) return;
-    world.timestep = delta;
-    world.step();
-
-    blocksRef.current.forEach((block, index) => {
-      const body = rigidBodiesRef.current[index];
-      if (!body) return;
-      const position = body.translation();
-      const rotation = body.rotation();
-      block.position.set(position.x, position.y, position.z);
-      block.quaternion.set(rotation.x, rotation.y, rotation.z, rotation.w);
-    });
-
-    const allSleeping = rigidBodiesRef.current.every((body) => body.isSleeping());
-    const settledBySpeed = rigidBodiesRef.current.every((body) => {
-      const linvel = body.linvel();
-      const angvel = body.angvel();
-      const linearSpeed = Math.hypot(linvel.x, linvel.y, linvel.z);
-      const angularSpeed = Math.hypot(angvel.x, angvel.y, angvel.z);
-      return linearSpeed < 0.15 && angularSpeed < 0.15;
-    });
-    if (isThrowing && (allSleeping || settledBySpeed)) {
-      const now = performance.now();
-      if (!settleStartRef.current) {
-        settleStartRef.current = now;
-      } else if (now - settleStartRef.current > 400) {
-        settleStartRef.current = null;
-        setIsThrowing(false);
-      }
-    } else if (!allSleeping && !settledBySpeed) {
-      settleStartRef.current = null;
-    }
+  const cast = (power = 0.4, direction = 0) => {
+    if (!simulationRef.current?.cast(power, direction)) return;
+    chargingRef.current = null;
+    setCharge(0);
+    setReading(null);
+    setFaces([]);
+    changePhase('throwing');
+  };
+  const beginCharge = () => {
+    if (!['ready', 'settled'].includes(phaseRef.current)) return;
+    chargingRef.current = performance.now();
+    setCharge(0);
+    changePhase('charging');
+  };
+  const releaseCharge = () => {
+    if (chargingRef.current === null) return;
+    cast(Math.max(0.25, Math.min(1, (performance.now() - chargingRef.current) / 1200)));
+  };
+  const cancelCharge = () => {
+    if (chargingRef.current === null) return;
+    chargingRef.current = null;
+    setCharge(0);
+    changePhase(reading ? 'settled' : 'ready');
   };
 
-  const updateCamera = () => {
-    const camera = cameraRef.current;
-    if (!camera) return;
-    const positions = blocksRef.current.map((block) => block.position);
-    if (positions.length === 0) return;
-    const center = positions
-      .reduce((acc, pos) => acc.add(pos), new THREE.Vector3())
-      .multiplyScalar(1 / positions.length);
-    const maxDistance = positions.reduce(
-      (distance, pos) => Math.max(distance, pos.distanceTo(center)),
-      0
-    );
-    const target = cameraTargetRef.current;
-    target.lerp(center, 0.08);
-    const height = 5.2 + maxDistance * 0.6;
-    const depth = 9.2 + maxDistance * 0.8;
-    camera.position.lerp(new THREE.Vector3(target.x, height, depth), 0.08);
-    camera.lookAt(target.x, target.y, 0);
-  };
-
-  const triggerThrow = () => {
-    if (isThrowing || blocksRef.current.length === 0) return;
-    setIsThrowing(true);
-    settleStartRef.current = null;
-    if (throwTimeoutRef.current) window.clearTimeout(throwTimeoutRef.current);
-
-    blocksRef.current.forEach((block, index) => {
-      block.position.set(index === 0 ? -1.7 : 1.7, 0.2, 0);
-      block.rotation.set(
-        initialRotations[index].x,
-        initialRotations[index].y,
-        initialRotations[index].z
-      );
-    });
-
-    rigidBodiesRef.current.forEach((body, index) => {
-      body.setTranslation(
-        { x: index === 0 ? -1.7 : 1.7, y: 0.2, z: 0 },
-        true
-      );
-      body.setLinvel(
-        {
-          x: (index === 0 ? -1 : 1) * (1.2 + Math.random() * 0.6),
-          y: 7.5 + Math.random() * 2,
-          z: (Math.random() - 0.5) * 1.6,
-        },
-        true
-      );
-      body.setAngvel(
-        {
-          x: (Math.random() - 0.5) * 8,
-          y: (Math.random() - 0.5) * 8,
-          z: (Math.random() - 0.5) * 8,
-        },
-        true
-      );
-      body.wakeUp();
-    });
-    throwTimeoutRef.current = window.setTimeout(() => {
-      setIsThrowing(false);
-      settleStartRef.current = null;
-    }, 5000);
-  };
-
-  const handlePointerDown = (event: React.PointerEvent<HTMLDivElement>) => {
-    dragStartRef.current = event.clientX;
-  };
-
-  const handlePointerMove = (event: React.PointerEvent<HTMLDivElement>) => {
-    if (dragStartRef.current === null || isThrowing) return;
-    const delta = Math.abs(event.clientX - dragStartRef.current);
-    if (delta > SWIPE_THRESHOLD) {
-      dragStartRef.current = null;
-      triggerThrow();
-    }
-  };
-
-  const handlePointerUp = () => {
-    dragStartRef.current = null;
-  };
-
+  const result = reading ? READINGS[reading] : null;
+  const busy = phase === 'throwing' || phase === 'loading' || phase === 'error';
   return (
-    <div className="h-screen w-full overflow-hidden bg-[#faf9f6]">
-      <div className="mx-auto flex h-full max-w-[1200px] flex-col items-center justify-center gap-10 px-6 md:px-12">
-        <div
-          ref={canvasWrapperRef}
-          onPointerDown={handlePointerDown}
-          onPointerMove={handlePointerMove}
-          onPointerUp={handlePointerUp}
-          onPointerLeave={handlePointerUp}
-          className="h-[420px] md:h-[520px] w-full cursor-grab active:cursor-grabbing"
-        />
+    <div className="min-h-[100svh] bg-[#faf9f6] px-5 pb-10 pt-24 font-rubik md:px-12 md:pt-28">
+      <div className="mx-auto max-w-6xl">
+        <header className="mb-6">
+          <p className="mb-3 text-[10px] uppercase tracking-[0.35em] opacity-50">Poe / 擲筊</p>
+          <h1 className="font-cormorant text-5xl leading-tight md:text-6xl">Let the question land.</h1>
+          <p className="mt-3 text-sm opacity-65">Ask a yes/no question. Hold to charge, release to cast — or swipe the tray.</p>
+        </header>
 
-        <div className="flex items-center gap-3">
-          <button
-            type="button"
-            onClick={triggerThrow}
-            disabled={isThrowing}
-            className="rounded-full border border-black bg-black px-8 py-3 text-sm uppercase tracking-[0.4em] text-white transition hover:bg-transparent hover:text-black disabled:cursor-not-allowed disabled:opacity-40"
-          >
-            {isThrowing ? '掷…' : '掷 (throw)'}
-          </button>
-          <div className="group relative flex items-center">
-            <span className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-black/40 text-[11px] font-semibold text-black/70">
-              i
-            </span>
-            <div className="pointer-events-none absolute bottom-full left-1/2 z-10 mb-3 w-[360px] -translate-x-1/2 rounded-2xl border border-black/10 bg-white px-4 py-3 text-[11px] uppercase tracking-[0.2em] text-black/70 opacity-0 shadow-lg transition group-hover:opacity-100 font-[Rubik]">
-              Front = red croissant side. Back = black flat side. Two fronts = 聖杯 (yes). Two backs = 陰杯 (no). Mixed = 笑杯 (not sure).
+        <div className="grid items-center gap-5 lg:grid-cols-[minmax(0,1fr)_240px] lg:gap-10">
+          <div
+            ref={wrapperRef}
+            className="relative aspect-[1.2] min-h-[280px] w-full touch-none cursor-grab active:cursor-grabbing sm:aspect-[1.5]"
+            aria-label="Poe casting tray"
+            onPointerDown={event => {
+              if (busy || phaseRef.current === 'charging') return;
+              gestureRef.current = { x: event.clientX, y: event.clientY };
+              event.currentTarget.setPointerCapture(event.pointerId);
+            }}
+            onPointerUp={event => {
+              const start = gestureRef.current;
+              gestureRef.current = null;
+              if (!start) return;
+              const dx = event.clientX - start.x, dy = event.clientY - start.y;
+              cast(Math.max(0.3, Math.min(1, Math.hypot(dx, dy) / 160)), dx / 150);
+            }}
+            onPointerCancel={() => { gestureRef.current = null; }}
+          />
+          <div className="flex flex-col items-center text-center">
+            <div className="min-h-[140px]" role="status" aria-live="polite" aria-atomic="true">
+              <p className="mb-2 text-sm opacity-50">{result?.chinese || (phase === 'throwing' ? '擲筊' : 'A quiet question')}</p>
+              <h2 className="font-cormorant text-5xl">
+                {result?.title || (phase === 'throwing' ? 'In motion…' : phase === 'loading' ? 'Getting ready…' : phase === 'error' ? 'Tray unavailable' : 'Your turn')}
+              </h2>
+              <p className="mt-3 text-sm opacity-60">
+                {result?.detail || (phase === 'throwing' ? 'Let both blocks come to rest.' : phase === 'error' ? 'This game needs a browser with WebGL.' : 'Take a breath. Choose your question.')}
+              </p>
+              {faces.length === 2 && <div className="mt-4 flex justify-center gap-3">{faces.map((face, index) => <span key={index}><FaceMark face={face} /></span>)}</div>}
+            </div>
+            <button
+              type="button"
+              disabled={busy}
+              className="mt-5 touch-none select-none rounded-full border border-black/60 bg-white/90 px-8 py-4 text-xs uppercase tracking-[0.22em] text-black transition hover:bg-black hover:text-white disabled:cursor-wait disabled:opacity-40"
+              onPointerDown={event => { event.currentTarget.setPointerCapture(event.pointerId); beginCharge(); }}
+              onPointerUp={releaseCharge}
+              onPointerCancel={cancelCharge}
+              onBlur={cancelCharge}
+              onContextMenu={event => event.preventDefault()}
+              onKeyDown={event => { if ((event.key === ' ' || event.key === 'Enter') && !event.repeat) { event.preventDefault(); beginCharge(); } }}
+              onKeyUp={event => { if (event.key === ' ' || event.key === 'Enter') { event.preventDefault(); releaseCharge(); } }}
+              onClick={() => { if (['ready', 'settled'].includes(phaseRef.current)) cast(); }}
+            >
+              {phase === 'throwing' ? 'Casting…' : phase === 'charging' ? 'Release to cast' : 'Cast the blocks'}
+            </button>
+            <div className={'mt-3 h-1 w-36 overflow-hidden rounded-full bg-black/10 transition-opacity ' + (phase === 'charging' ? 'opacity-100' : 'opacity-0')} role="progressbar" aria-label="Cast strength" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(charge * 100)}>
+              <div className="h-full rounded-full bg-[#9f2935]" style={{ width: (25 + charge * 75) + '%' }} />
+            </div>
+            <div className="mt-3 flex min-h-5 gap-3 text-[10px] uppercase tracking-wider opacity-45" aria-label="Recent readings">
+              {history.map((item, index) => <span key={index}>{READINGS[item].title}</span>)}
             </div>
           </div>
+        </div>
+
+        <div className="mt-8 grid grid-cols-3 gap-3 border-t border-black/10 pt-6">
+          {([
+            { faces: ['flat', 'round'], reading: 'yes', label: 'One flat, one round' },
+            { faces: ['round', 'round'], reading: 'no', label: 'Two round' },
+            { faces: ['flat', 'flat'], reading: 'again', label: 'Two flat' },
+          ] as { faces: PoeFace[]; reading: PoeReading; label: string }[]).map(item => (
+            <div key={item.reading} className="text-center">
+              <div className="mb-2 flex justify-center gap-1">{item.faces.map((face, index) => <span key={index}><FaceMark face={face} /></span>)}</div>
+              <p className="font-cormorant text-2xl">{READINGS[item.reading].title}</p>
+              <p className="mt-1 text-[10px] opacity-50">{item.label}</p>
+            </div>
+          ))}
         </div>
       </div>
     </div>

@@ -21,14 +21,6 @@ export const BLOCKS: ContentBlock[] = [
 
   // --- LAYER 1: SCROLLING CONTENT ---
   
-  // Spacer to push content down initially so name is visible
-  {
-    id: 'spacer-top',
-    type: 'spacer',
-    mobile: { colSpan: 'col-span-2', marginBottom: 'h-[24vh]' },
-    desktop: { colSpan: 'col-span-12', marginBottom: 'h-[36vh]' },
-  },
-
   // --- Denser Layout: Added more image blocks interspersed ---
 
   // Image A (New - Left Top) -> Increased size
@@ -37,8 +29,8 @@ export const BLOCKS: ContentBlock[] = [
     type: 'image',
     aspectRatio: 'aspect-[3/4]',
     useNaturalAspectRatio: true,
-    mobile: { colSpan: 'col-span-1', marginTop: 'mt-2', marginBottom: 'mb-8' },
-    desktop: { colStart: 'col-start-2', colSpan: 'col-span-5', marginTop: '-mt-6', zIndex: 20 },
+    mobile: { colSpan: 'col-span-1', marginBottom: 'mb-8' },
+    desktop: { colStart: 'col-start-2', colSpan: 'col-span-5', zIndex: 20 },
     parallaxSpeed: 0.15
   },
 
@@ -57,8 +49,7 @@ export const BLOCKS: ContentBlock[] = [
   {
     id: 'text-realm',
     type: 'text',
-    content: 'In The Realm Of Ideas.',
-    caption: 'Each Mind Is A World',
+    content: '',
     mobile: { colSpan: 'col-span-1', marginTop: 'mt-4', marginBottom: 'mb-8' },
     desktop: { colStart: 'col-start-2', colSpan: 'col-span-5', marginTop: 'mt-56', zIndex: 10 },
     parallaxSpeed: 0.05
@@ -112,8 +103,7 @@ export const BLOCKS: ContentBlock[] = [
   {
     id: 'text-olha',
     type: 'text',
-    content: 'Olha.',
-    caption: 'Look closely',
+    content: '',
     mobile: { colSpan: 'col-span-1', marginTop: 'mt-6', marginBottom: 'mb-10', justifySelf: 'center' },
     desktop: { colStart: 'col-start-5', colSpan: 'col-span-4', justifySelf: 'center', marginTop: 'mt-48', zIndex: 10 },
     parallaxSpeed: 0.05
@@ -156,7 +146,7 @@ export const BLOCKS: ContentBlock[] = [
   {
     id: 'text-just-in-time',
     type: 'text',
-    content: 'Just In Time.',
+    content: '',
     mobile: { colSpan: 'col-span-1', marginTop: '-mt-2', marginBottom: 'mb-12', justifySelf: 'end' },
     desktop: { colStart: 'col-start-2', colSpan: 'col-span-4', marginTop: 'mt-32', zIndex: 10 },
     parallaxSpeed: 0.05

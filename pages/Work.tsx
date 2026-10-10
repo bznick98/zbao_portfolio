@@ -2,6 +2,7 @@ import React, { useLayoutEffect, useMemo, useState, useEffect, useRef } from 're
 import { BLOCKS } from '../data/content';
 import { BlockRenderer } from '../components/BlockRenderer';
 import { ContentBlock } from '../types';
+import { cleanEditorialText, fallbackTitles, formatPhotoCaption, withWisdom } from '../data/editorial';
 import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 gsap.registerPlugin(ScrollTrigger);
@@ -28,7 +29,7 @@ type ImageOverlayState = ContentBlock & {
 };
 
 export const Work: React.FC = () => {
-  const [blocks, setBlocks] = useState<ContentBlock[]>(BLOCKS);
+  const [blocks, setBlocks] = useState<ContentBlock[]>(() => withWisdom(BLOCKS));
   const [activeImage, setActiveImage] = useState<ImageOverlayState | null>(null);
   const [overlayPhase, setOverlayPhase] = useState<'opening' | 'open' | 'closing' | null>(null);
   const [isCaptionVisible, setIsCaptionVisible] = useState(false);
@@ -85,20 +86,25 @@ export const Work: React.FC = () => {
         const selectedPhotos = Array.isArray(data) ? data : [data];
         
         if (selectedPhotos.length > 0) {
-          const applyPhotoUpdates = (captions: string[] = []) => {
+          const descriptions = selectedPhotos.map((photo: any) =>
+            cleanEditorialText(photo.description || photo.alt_description, 500));
+          const defaultTitles = fallbackTitles(descriptions);
+          const applyPhotoUpdates = (captions: string[] = [], reflections: string[] = []) => {
             setBlocks(prevBlocks => {
               let imgIndex = 0;
+              let reflectionIndex = 0;
               return prevBlocks.map(block => {
+                if (block.type === 'text') {
+                  const reflection = cleanEditorialText(reflections[reflectionIndex++], 160);
+                  return reflection ? { ...block, content: `“${reflection}”`, caption: 'A reflection' } : block;
+                }
                 if (block.type === 'image' && imgIndex < selectedPhotos.length) {
                   const photo = selectedPhotos[imgIndex];
-                  const finalCaption = captions[imgIndex] || '';
-
-                  // Extract Year
-                  const year = photo.created_at ? new Date(photo.created_at).getFullYear() : new Date().getFullYear();
+                  const finalCaption = cleanEditorialText(captions[imgIndex]) || defaultTitles[imgIndex];
 
                   imgIndex++;
 
-                  const captionValue = finalCaption ? `${finalCaption} (${year})` : undefined;
+                  const captionValue = formatPhotoCaption(finalCaption, photo.created_at);
 
                   return {
                     ...block,
@@ -112,7 +118,7 @@ export const Work: React.FC = () => {
             });
           };
 
-          // --- STEP 2: Update UI immediately with images (no titles yet) ---
+          // Show useful captions immediately, including when the AI service is unavailable.
           applyPhotoUpdates();
 
           // --- STEP 3: Generate Poetic Captions using OpenAI via serverless API ---
@@ -121,8 +127,6 @@ export const Work: React.FC = () => {
             const generateCaptions = async () => {
               try {
                 // Prepare context for the model
-                const descriptions = selectedPhotos.map((p: any) => p.description || p.alt_description || 'Poetic image description');
-
                 // Call serverless API (keeps key off the client)
                 const response = await fetch('/api/generate-captions', {
                   method: 'POST',
@@ -141,10 +145,10 @@ export const Work: React.FC = () => {
                 const data = await response.json();
                 if (Array.isArray(data?.titles)) {
                   const generatedCaptions = data.titles;
-                  applyPhotoUpdates(generatedCaptions);
+                  applyPhotoUpdates(generatedCaptions, Array.isArray(data.reflections) ? data.reflections : []);
                 }
               } catch (e) {
-                console.error("OpenAI generation failed:", e);
+                // Keep the description captions and attributed quotes already on screen.
               }
             };
 
@@ -322,7 +326,7 @@ export const Work: React.FC = () => {
     <div className="w-full">
       <div className="max-w-[1800px] mx-auto relative">
         {/* SCROLLING CONTENT */}
-        <div className="relative z-10 px-4 md:px-12 pb-24 pt-16 md:pt-32">
+        <div className="relative z-10 px-4 md:px-12 pb-24">
           <div className="grid grid-cols-2 md:grid-cols-12 gap-x-4 md:gap-x-8 gap-y-0 auto-rows-min">
             {scrollBlocks.map((block) => (
               <BlockRenderer
