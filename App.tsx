@@ -8,9 +8,18 @@ import { Profile } from './pages/Profile';
 import { Contact } from './pages/Contact';
 import { Eye } from './components/Eye';
 import { Poe } from './pages/Poe';
+import { Coffee } from './pages/Coffee';
+
+const pageFromHash = () => ({ '#coffee': 'Coffee', '#profile': 'Profile', '#contact': 'Contact', '#poe': 'Poe' }[window.location.hash] || 'Work');
 
 const App: React.FC = () => {
-  const [currentPage, setCurrentPage] = useState('Work');
+  const [currentPage, setCurrentPage] = useState(pageFromHash);
+  useEffect(() => {
+    const change = () => { setCurrentPage(pageFromHash()); window.scrollTo(0, 0); };
+    window.addEventListener('hashchange', change);
+    return () => window.removeEventListener('hashchange', change);
+  }, []);
+  const navigate = (page: string) => { window.location.hash = page.toLowerCase(); setCurrentPage(page); };
   const [isEyeEnabled, setIsEyeEnabled] = useState(false);
   const [isDarkMode, setIsDarkMode] = useState(true);
   const [isThemeTransitioning, setIsThemeTransitioning] = useState(false);
@@ -38,6 +47,8 @@ const App: React.FC = () => {
     setIsDarkMode(prev => !prev);
     window.setTimeout(() => setIsThemeTransitioning(false), 620);
   };
+
+  if (currentPage === 'Coffee') return <Coffee />;
 
   return (
     <div className="relative min-h-screen w-full overflow-x-hidden selection:bg-black selection:text-white">
@@ -82,7 +93,7 @@ const App: React.FC = () => {
       `}</style>
 
       <div className="app-theme min-h-screen" data-theme={isDarkMode ? 'dark' : 'light'}>
-        <Menu onNavigate={setCurrentPage} isDarkMode={isDarkMode} />
+        <Menu onNavigate={navigate} isDarkMode={isDarkMode} />
 
         <div className="fixed top-4 right-4 z-50 flex items-center gap-2">
           <button

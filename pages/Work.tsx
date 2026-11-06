@@ -237,7 +237,7 @@ export const Work: React.FC = () => {
       0
     );
 
-    return () => timeline.kill();
+    return () => { timeline.kill(); };
   }, [activeImage, overlayPhase]);
 
   const getImageRatio = (src: string, fallbackRatio: number) =>

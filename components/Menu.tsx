@@ -62,7 +62,7 @@ export const Menu: React.FC<MenuProps> = ({ onNavigate, isDarkMode }) => {
         </button>
 
         <div className="flex flex-col items-center gap-8 md:gap-12 text-center">
-          {['Work', 'Profile', 'Contact', 'Poe'].map((item) => (
+          {['Work', 'Profile', 'Coffee', 'Contact', 'Poe'].map((item) => (
             <button
               key={item}
               onClick={() => handleNavClick(item)}
