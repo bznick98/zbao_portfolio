@@ -36,6 +36,7 @@ export const Contact: React.FC = () => {
                  <p className="text-xl md:text-2xl leading-relaxed max-w-md text-[#111]">
                      Let's create something meaningful together.
                  </p>
+                 <a href="#coffee" className="text-xl underline underline-offset-8">Or just come say hello over coffee ↗</a>
                  <a href="mailto:zongnan.bao@gmail.com" className="text-xl md:text-3xl font-bold underline underline-offset-8 hover:text-black/60 transition-colors break-words text-[#111]">
                      zongnan.bao<br/>@gmail.com
                  </a>
