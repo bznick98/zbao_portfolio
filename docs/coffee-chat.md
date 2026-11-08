@@ -1,6 +1,6 @@
 # Coffee & conversation
 
-Visit `/#coffee` or choose **Coffee** in the menu. The page offers a curated café map, region filters, a virtual option, Pacific-time slots, and a short booking form. The map is an original illustration with approximate locations; the selected café links to Google Maps for navigation. Café addresses and hours were checked against official location pages on November 4, 2026:
+Visit `/#coffee` or choose **Coffee** in the menu. The page uses the portfolio's shared menu, theme controls, spray-paint heading, Rubik body text, and monochrome palette. One compact form asks for a place, time, name, and email. Choose a café from the dropdown or map, or choose **Online · Google Meet** in the same dropdown. The map is an original illustration with approximate locations; the selected café links to Google Maps for navigation. Café addresses and hours were checked against official location pages on November 4, 2026:
 
 - [Saint Frank](https://www.saintfrankcoffee.com/pages/our-locations): Russian Hill and Menlo Park.
 - [Timeless Coffee](https://timelesscoffee.com/pages/locations): Piedmont Avenue, Oakland.
@@ -25,8 +25,8 @@ With booking disabled or missing credentials, sample slots are explicitly marked
 
 A stable event ID derived from the slot causes concurrent insertions for that same slot to conflict at Google. Google free/busy plus event insertion is not an atomic transaction with unrelated calendar writers; an event created outside this site during that interval can still race. Deleted event IDs may remain reserved by Google, so a canceled slot can continue returning a conflict. A request timeout after insertion has an uncertain outcome: check Calendar before retrying; the UI never claims success without a successful insert response. Production-grade public abuse protection belongs in the hosting firewall as described above.
 
-The guest's name, email, and optional note are stored in the calendar event, not in browser storage. Guests can reply to the invitation or email the host to change plans. There is no separate cancellation database or self-service cancellation endpoint. Booking a chat does not reserve seating at a café.
+The guest's name and email are stored in the calendar event, not in browser storage. Guests can reply to the invitation or email the host to change plans. There is no separate cancellation database or self-service cancellation endpoint. Booking a chat does not reserve seating at a café.
 
 ## Verification
 
-`npx tsc --noEmit`, `npm run build`, and `node --experimental-strip-types --test tests/coffee-calendar.test.mjs` (Node 22+) cover the feature. The tests transpile only the small server modules using the repository's TypeScript dependency and use mocked Google responses; they do not create real events. Browser review should cover desktop/mobile, selecting map pins and café filters, virtual mode, time selection, form validation, preview messaging, keyboard access, and error states.
+`npx tsc --noEmit`, `npm run build`, and `node --test tests/coffee-calendar.test.mjs` (Node 22+) cover the feature. The tests transpile only the small server modules using the repository's TypeScript dependency and use mocked Google responses; they do not create real events. Browser review should cover desktop/mobile, both themes, map pins and the place dropdown, virtual mode, date/time selection, form validation, preview messaging, keyboard access, and error states.

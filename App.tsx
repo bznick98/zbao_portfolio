@@ -38,6 +38,7 @@ const App: React.FC = () => {
       case 'Profile': return <Profile />;
       case 'Contact': return <Contact />;
       case 'Poe': return <Poe />;
+      case 'Coffee': return <Coffee />;
       default: return <Work />;
     }
   };
@@ -47,8 +48,6 @@ const App: React.FC = () => {
     setIsDarkMode(prev => !prev);
     window.setTimeout(() => setIsThemeTransitioning(false), 620);
   };
-
-  if (currentPage === 'Coffee') return <Coffee />;
 
   return (
     <div className="relative min-h-screen w-full overflow-x-hidden selection:bg-black selection:text-white">

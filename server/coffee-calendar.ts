@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import { cafes, COFFEE_TIME_ZONE, type Slot } from '../data/coffee';
+import { cafes, COFFEE_TIME_ZONE, type Slot } from '../data/coffee.js';
 
 export class BookingError extends Error {
   constructor(public status: number, message: string) { super(message); }

@@ -1,13 +1,30 @@
-import { test, afterEach } from 'node:test';
+import { test, after, afterEach } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFile } from 'node:fs/promises';
+import { readFile, mkdtemp, mkdir, writeFile, rm, rmdir } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { pathToFileURL } from 'node:url';
 import ts from 'typescript';
 
-const compile = source => `data:text/javascript;base64,${Buffer.from(ts.transpileModule(source, { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.ESNext } }).outputText).toString('base64')}`;
-const dataURL = compile(await readFile(new URL('../data/coffee.ts', import.meta.url), 'utf8'));
-const serverURL = compile((await readFile(new URL('../server/coffee-calendar.ts', import.meta.url), 'utf8')).replace("'../data/coffee'", JSON.stringify(dataURL)));
-const { candidateSlots, withoutConflicts, configured, validateBooking, getAvailability, reserve } = await import(serverURL);
-const { default: handler } = await import(compile((await readFile(new URL('../api/coffee.ts', import.meta.url), 'utf8')).replace("'../server/coffee-calendar'", JSON.stringify(serverURL))));
+// Load real compiled ESM files so tests catch imports that fail in Vercel's Node runtime.
+const sources = ['data/coffee', 'server/coffee-calendar', 'api/coffee'];
+const buildDir = await mkdtemp(join(tmpdir(), 'coffee-calendar-test-'));
+after(async () => {
+  for (const source of sources) await rm(join(buildDir, `${source}.js`), { force: true });
+  await rm(join(buildDir, 'package.json'), { force: true });
+  for (const directory of ['data', 'server', 'api']) await rmdir(join(buildDir, directory));
+  await rmdir(buildDir);
+});
+await writeFile(join(buildDir, 'package.json'), JSON.stringify({ type: 'module' }));
+for (const source of sources) {
+  await mkdir(join(buildDir, source.split('/')[0]), { recursive: true });
+  const compiled = ts.transpileModule(await readFile(new URL(`../${source}.ts`, import.meta.url), 'utf8'), {
+    compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.ESNext },
+  }).outputText;
+  await writeFile(join(buildDir, `${source}.js`), compiled);
+}
+const { candidateSlots, withoutConflicts, configured, validateBooking, getAvailability, reserve } = await import(pathToFileURL(join(buildDir, 'server/coffee-calendar.js')).href);
+const { default: handler } = await import(pathToFileURL(join(buildDir, 'api/coffee.js')).href);
 const originalFetch = globalThis.fetch;
 const originalEnv = { ...process.env };
 afterEach(() => { globalThis.fetch = originalFetch; for (const key of Object.keys(process.env)) if (/^(GOOGLE_|COFFEE_)/.test(key)) delete process.env[key]; Object.assign(process.env, originalEnv); });

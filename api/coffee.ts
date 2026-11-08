@@ -1,4 +1,4 @@
-import { BookingError, getAvailability, reserve } from '../server/coffee-calendar';
+import { BookingError, getAvailability, reserve } from '../server/coffee-calendar.js';
 
 export default async function handler(req: { method?: string; body?: unknown }, res: { status: (code: number) => any; setHeader: (name: string, value: string) => void; json: (data: unknown) => void }) {
   res.setHeader('Cache-Control', 'no-store');
