@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { lazy, Suspense, useEffect, useMemo, useState } from 'react';
 import { Moon, Sun } from 'lucide-react';
 import { Menu } from './components/Menu';
 import { BlockRenderer } from './components/BlockRenderer';
@@ -9,8 +9,9 @@ import { Contact } from './pages/Contact';
 import { Eye } from './components/Eye';
 import { Poe } from './pages/Poe';
 import { Coffee } from './pages/Coffee';
+const House = lazy(() => import('./pages/House').then(module => ({ default: module.House })));
 
-const pageFromHash = () => ({ '#coffee': 'Coffee', '#profile': 'Profile', '#contact': 'Contact', '#poe': 'Poe' }[window.location.hash] || 'Work');
+const pageFromHash = () => ({ '#house': 'House', '#coffee': 'Coffee', '#profile': 'Profile', '#contact': 'Contact', '#poe': 'Poe' }[window.location.hash] || 'Work');
 
 const App: React.FC = () => {
   const [currentPage, setCurrentPage] = useState(pageFromHash);
@@ -39,6 +40,7 @@ const App: React.FC = () => {
       case 'Contact': return <Contact />;
       case 'Poe': return <Poe />;
       case 'Coffee': return <Coffee />;
+      case 'House': return <Suspense fallback={<p className="px-6 pt-32" role="status">Opening House…</p>}><House isDarkMode={isDarkMode} /></Suspense>;
       default: return <Work />;
     }
   };

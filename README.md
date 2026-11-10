@@ -18,3 +18,9 @@ View your app in AI Studio: https://ai.studio/apps/drive/1YEWbqrkbaiFiNbzVNlRiA5
 2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
 3. Run the app:
    `npm run dev`
+
+## House
+
+The **House** menu opens a password-gated 3D walkthrough at `/#house`, matching the site's light and dark themes. Its verified remodeling workflow release is encrypted before publication and loaded only after entering the shared password. See [House setup, model updates, and access limitations](docs/house.md).
+
+Use Node.js 22.12+ and `npm ci`. Run `npm run check` for TypeScript, regression tests, and a production build. The existing Vercel deployment serves the page and encrypted model without new runtime configuration.
