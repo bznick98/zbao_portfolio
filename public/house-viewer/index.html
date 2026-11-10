@@ -1,8 +1,35 @@
-<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><link rel="icon" href="data:,"><title>House / 自由漫游</title><link rel="stylesheet" href="./style.css"><script type="importmap">{"imports":{"three":"./vendor/three/three.module.js","three/addons/":"./vendor/three/addons/"}}</script><meta name="robots" content="noindex,nofollow"><link rel="stylesheet" href="./theme.css"></head><body>
-<main id="stage" aria-label="可自由走动的三维住宅"></main>
-<header class="nav"><select id="rooms" disabled aria-label="选择房间"></select><button id="menu-toggle" aria-label="更多设置" aria-expanded="false" aria-controls="settings">···</button><section id="settings" hidden aria-label="更多设置"><button id="reset" disabled>回到客厅</button><button id="lock" disabled>鼠标看向</button><button id="fullscreen">全屏浏览</button><label>画质<select id="quality"><option value="auto">自动</option><option value="low">流畅</option><option value="high">清晰</option></select></label><label>小地图<input id="map-toggle" type="checkbox" checked></label><p id="help">WASD 移动 · 拖动看向</p><p class="note">实时光照预览 · 窗外为天空占位</p></section></header>
-<aside class="map"><div><span id="room-name">客厅</span></div><canvas id="minimap" width="500" height="440" aria-label="当前位置与朝向"></canvas></aside>
-<div id="joystick" aria-label="触控移动摇杆"><div id="stick"></div></div>
-<div id="loading" role="status"><div class="load-card"><span class="eyebrow">A PLACE IN PROGRESS</span><h1>走进这个家</h1><p id="load-text">正在加载模型…</p><progress id="progress" max="100"></progress><p class="note">无需安装 · 房间可自由切换</p></div></div>
-<div id="toast" role="status" aria-live="polite"></div>
-<script type="module" src="./bridge.js"></script></body></html>
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="robots" content="noindex,nofollow">
+  <link rel="icon" href="data:,">
+  <title>House</title>
+  <link rel="stylesheet" href="./style.css">
+  <link rel="stylesheet" href="./theme.css">
+  <script type="importmap">{"imports":{"three":"./vendor/three/three.module.js","three/addons/":"./vendor/three/addons/"}}</script>
+</head>
+<body>
+  <main id="stage" aria-label="可自由走动的三维住宅"></main>
+  <header class="nav">
+    <button id="menu-toggle" aria-label="更多设置" aria-expanded="false" aria-controls="settings">···</button>
+    <section id="settings" hidden aria-label="更多设置">
+      <label>房间<select id="rooms" disabled aria-label="选择房间"></select></label>
+      <button id="reset" disabled>回到客厅</button>
+      <button id="lock" disabled>鼠标看向</button>
+      <button id="fullscreen">全屏浏览</button>
+      <label>画质<select id="quality"><option value="auto">自动</option><option value="low">流畅</option><option value="high">清晰</option></select></label>
+      <label>小地图<input id="map-toggle" type="checkbox"></label>
+      <button id="lock-page">锁定</button>
+      <a href="/#work" target="_top">返回网站</a>
+      <p id="help">WASD / 方向键移动 · 拖动看向</p>
+    </section>
+  </header>
+  <aside class="map" hidden><div><span id="room-name"></span></div><canvas id="minimap" width="500" height="440" aria-label="当前位置与朝向"></canvas></aside>
+  <div id="joystick" aria-label="触控移动摇杆"><div id="stick"></div></div>
+  <div id="loading" role="status"><div class="load-card"><p id="load-text">加载中…</p><progress id="progress" max="100"></progress></div></div>
+  <div id="toast" role="status" aria-live="polite"></div>
+  <script type="module" src="./bridge.js"></script>
+</body>
+</html>

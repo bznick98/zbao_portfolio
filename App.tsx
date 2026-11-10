@@ -40,7 +40,7 @@ const App: React.FC = () => {
       case 'Contact': return <Contact />;
       case 'Poe': return <Poe />;
       case 'Coffee': return <Coffee />;
-      case 'House': return <Suspense fallback={<p className="px-6 pt-32" role="status">Opening House…</p>}><House isDarkMode={isDarkMode} /></Suspense>;
+      case 'House': return <Suspense fallback={null}><House isDarkMode={isDarkMode} /></Suspense>;
       default: return <Work />;
     }
   };
@@ -94,9 +94,9 @@ const App: React.FC = () => {
       `}</style>
 
       <div className="app-theme min-h-screen" data-theme={isDarkMode ? 'dark' : 'light'}>
-        <Menu onNavigate={navigate} isDarkMode={isDarkMode} />
+        {currentPage !== 'House' && <Menu onNavigate={navigate} isDarkMode={isDarkMode} />}
 
-        <div className="fixed top-4 right-4 z-50 flex items-center gap-2">
+        {currentPage !== 'House' && <div className="fixed top-4 right-4 z-50 flex items-center gap-2">
           <button
             type="button"
             onClick={handleThemeToggle}
@@ -115,9 +115,9 @@ const App: React.FC = () => {
           >
             Eye: {isEyeEnabled ? 'on' : 'off'}
           </button>
-        </div>
+        </div>}
 
-        {isEyeEnabled && (
+        {isEyeEnabled && currentPage !== 'House' && (
           <div className="pointer-events-none fixed top-6 left-1/2 z-50 -translate-x-1/2">
             <Eye className="h-28 w-28 md:h-36 md:w-36" />
           </div>
@@ -138,7 +138,7 @@ const App: React.FC = () => {
         </main>
       </div>
 
-      {isThemeTransitioning && <div className="theme-transition-flash" aria-hidden="true" />}
+      {isThemeTransitioning && currentPage !== 'House' && <div className="theme-transition-flash" aria-hidden="true" />}
     </div>
   );
 };

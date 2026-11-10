@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { ArrowDownRight, ArrowUpRight, LockKeyhole } from 'lucide-react';
+import { ArrowLeft, ArrowRight, LoaderCircle } from 'lucide-react';
 import { HousePasswordError, unlockHouse, type HouseAssets } from '../lib/house-release';
 import './house.css';
 
@@ -19,7 +19,9 @@ export function House({ isDarkMode }: { isDarkMode: boolean }) {
   useEffect(() => {
     const title = document.title;
     document.title = 'House — Zongnan Bao';
-    return () => { document.title = title; request.current?.abort(); currentAssets.current?.dispose(); };
+    const overflow = document.documentElement.style.overflow;
+    document.documentElement.style.overflow = 'hidden';
+    return () => { document.title = title; document.documentElement.style.overflow = overflow; request.current?.abort(); currentAssets.current?.dispose(); };
   }, []);
 
   useEffect(() => {
@@ -29,6 +31,7 @@ export function House({ isDarkMode }: { isDarkMode: boolean }) {
   useEffect(() => {
     const receive = (event: MessageEvent) => {
       if (event.origin !== window.location.origin || event.source !== frame.current?.contentWindow) return;
+      if (event.data?.type === 'house:lock') { lock(); return; }
       if (event.data?.type === 'house:ready') {
         setStatus('');
         frame.current?.focus();
@@ -74,48 +77,31 @@ export function House({ isDarkMode }: { isDarkMode: boolean }) {
   }
 
   return (
-    <article className={`house-page${assets ? ' house-open' : ''}`}>
-      <div className="house-content">
-        <header className="house-intro">
-          <div className="house-kicker"><span>A place in progress</span><span>Hangzhou, CN</span></div>
-          <h1>House<span aria-hidden="true">.</span></h1>
-          <div className="house-intro-line">
-            <p>走进这个家。<span>A space to make our own.</span></p>
-            <span className="house-edition">01 / A living study</span>
-          </div>
-        </header>
-
-        {!assets ? (
-          <div className="house-entry">
-            <section className="house-invitation" aria-label="About this space">
-              <ArrowDownRight size={48} strokeWidth={1} aria-hidden="true" />
-              <h2>Come on in.</h2>
-              <p>A quiet look around a home taking shape.<br />Enter the password to explore, room by room.</p>
-              <span className="house-small">私人空间 · 凭密码进入</span>
-            </section>
-            <form className="house-form" onSubmit={enter} aria-busy={busy}>
-              <label htmlFor="house-password">Password / 访问密码</label>
+    <section className="house-page" aria-label="House">
+      {!assets ? (
+        <>
+          <a className="house-back" href="#work" aria-label="Back to work"><ArrowLeft size={20} aria-hidden="true" /></a>
+          <form className="house-form" onSubmit={enter} aria-busy={busy}>
+            <label htmlFor="house-password" className="house-sr-only">Password / 访问密码</label>
+            <div className="house-password-row">
               <input id="house-password" ref={input} type="password" inputMode="numeric" autoComplete="current-password"
                 value={password} onChange={e => setPassword(e.target.value)} required maxLength={128} disabled={busy}
-                aria-invalid={passwordError || undefined} aria-describedby={error ? 'house-error' : 'house-privacy'} placeholder="Your invitation in four digits" />
-              <button type="submit" className="house-enter" disabled={busy || !password}>
-                <span>{busy ? 'Opening…' : 'Enter the house'}</span><ArrowUpRight size={20} aria-hidden="true" />
+                aria-invalid={passwordError || undefined} aria-describedby={error ? 'house-error' : undefined} placeholder="Password" />
+              <button type="submit" className="house-enter" disabled={busy || !password} aria-label="Enter the house">
+                {busy ? <LoaderCircle className="house-spinner" size={20} aria-hidden="true" /> : <ArrowRight size={20} aria-hidden="true" />}
               </button>
-              <p id="house-privacy" className="house-small"><LockKeyhole size={12} aria-hidden="true" /> Just for this visit. The page locks when you leave.</p>
-              <p className="house-status" role="status">{status}</p>
-            </form>
-          </div>
-        ) : (
-          <section className="house-experience" aria-label="Interactive house walkthrough">
-            <div className="house-viewer-bar"><span>自由漫游 / Walk through</span><button type="button" onClick={lock}><LockKeyhole size={14} aria-hidden="true" /> Lock / 锁定</button></div>
-            <iframe ref={frame} src="/house-viewer/index.html" title="House — interactive 3D walkthrough"
-              allow="fullscreen" allowFullScreen onLoad={() => frame.current?.contentWindow?.postMessage({ type: 'house:open', scene: assets.scene, model: assets.model, theme }, window.location.origin)} />
-            <div className="house-viewer-caption"><span>拖动看向 · 方向键 / WASD 移动 · 手机使用摇杆</span><span role="status">{status || 'Make yourself at home.'}</span></div>
-          </section>
-        )}
-        {error && <p id="house-error" className="house-error" role="alert">{error}</p>}
-        <footer className="house-footer"><a href="#work">Back to work <ArrowUpRight size={14} aria-hidden="true" /></a><span>设计推敲中的家 · 实时光照 · 窗外为天空示意</span></footer>
-      </div>
-    </article>
+            </div>
+            <p className="house-sr-only" role="status">{status}</p>
+            {error && <p id="house-error" className="house-error" role="alert">{error}</p>}
+          </form>
+        </>
+      ) : (
+        <>
+          <iframe ref={frame} className="house-frame" src="/house-viewer/index.html" title="House — interactive 3D walkthrough"
+            allow="fullscreen" allowFullScreen onLoad={() => frame.current?.contentWindow?.postMessage({ type: 'house:open', scene: assets.scene, model: assets.model, theme }, window.location.origin)} />
+          {error && <div className="house-viewer-error"><p role="alert">{error}</p><button type="button" onClick={lock}>Try again</button></div>}
+        </>
+      )}
+    </section>
   );
 }

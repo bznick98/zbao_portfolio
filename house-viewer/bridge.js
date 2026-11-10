@@ -21,6 +21,14 @@ window.addEventListener('message', async event => {
   if (fonts) document.head.appendChild(fonts.cloneNode());
   try { await import('./main.js'); } catch { fail(); }
 });
+document.getElementById('lock-page').onclick = () => parent.postMessage({ type: 'house:lock' }, location.origin);
+document.addEventListener('keydown', event => {
+  if (event.key === 'Escape' && !document.getElementById('settings').hidden) {
+    document.getElementById('settings').hidden = true;
+    document.getElementById('menu-toggle').setAttribute('aria-expanded', 'false');
+    document.getElementById('menu-toggle').focus();
+  }
+});
 theme('dark');
 if (parent === window) {
   document.getElementById('load-text').textContent = '请先在 House 页面输入访问密码。';

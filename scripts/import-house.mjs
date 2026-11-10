@@ -54,10 +54,7 @@ export async function importHouse(build, password, destination = path.join(root,
     await covered(source, name);
     await cp(source, path.join(temporary, name), { recursive: true });
   }
-  let html = await readFile(path.join(build, 'web/index.html'), 'utf8');
-  html = html.replace('</head>', '<meta name="robots" content="noindex,nofollow"><link rel="stylesheet" href="./theme.css"></head>')
-    .replace('src="./main.js"', 'src="./bridge.js"').replace('EXPLORE YOUR SPACE', 'A PLACE IN PROGRESS');
-  await writeFile(path.join(temporary, 'index.html'), html);
+  await cp(path.join(root, 'house-viewer/index.html'), path.join(temporary, 'index.html'));
   await cp(path.join(build, 'web/style.css'), path.join(temporary, 'style.css'));
   let main = await readFile(path.join(build, 'web/main.js'), 'utf8');
   const replacements = [

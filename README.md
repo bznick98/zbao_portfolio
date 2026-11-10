@@ -21,6 +21,6 @@ View your app in AI Studio: https://ai.studio/apps/drive/1YEWbqrkbaiFiNbzVNlRiA5
 
 ## House
 
-The **House** menu opens a password-gated 3D walkthrough at `/#house`, matching the site's light and dark themes. Its verified remodeling workflow release is encrypted before publication and loaded only after entering the shared password. See [House setup, model updates, and access limitations](docs/house.md).
+The **House** menu opens a fullscreen, password-gated Three.js walkthrough at `/#house`. The login is a single password field; viewer controls are tucked into one button, with the site's selected light or dark theme. Its verified remodeling workflow release is encrypted before publication and loaded only after entering the shared password. See [House setup, model updates, and access limitations](docs/house.md).
 
 Use Node.js 22.12+ and `npm ci`. Run `npm run check` for TypeScript, regression tests, and a production build. The existing Vercel deployment serves the page and encrypted model without new runtime configuration.
