@@ -24,3 +24,5 @@ View your app in AI Studio: https://ai.studio/apps/drive/1YEWbqrkbaiFiNbzVNlRiA5
 The **House** menu opens a fullscreen, password-gated Three.js walkthrough at `/#house`. The login is a single password field. The minimap is on by default; one folded menu contains view zoom, the optional model-dimension overlay, and other controls. Mouse-wheel zoom changes the view without walking. Controls follow the site's selected light or dark theme. Its verified remodeling workflow release is encrypted before publication and loaded only after entering the shared password. See [House setup, model updates, and access limitations](docs/house.md).
 
 Use Node.js 22.12+ and `npm ci`. Run `npm run check` for TypeScript, regression tests, and a production build. The existing Vercel deployment serves the page and encrypted model without new runtime configuration.
+
+House also includes **室内漫游 / 建筑模型** modes: inspect the empty architectural shell, then return to the exact saved walking position and heading. See [interaction behavior and model import checks](docs/house.md#interactive-artifacts-modes).

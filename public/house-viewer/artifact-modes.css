@@ -1,0 +1,15 @@
+:root { --artifact-panel:var(--panel,#1d2b24e8); --artifact-ink:var(--ink,#e9ede8); --artifact-line:var(--line,#ffffff35); }
+.nav { left:auto; right:max(16px,env(safe-area-inset-right)); }
+#settings { left:auto; right:0; max-height:calc(100dvh - 90px); overflow:auto; }
+.artifact-modes { position:fixed; top:max(16px,env(safe-area-inset-top)); left:50%; transform:translateX(-50%); display:flex; padding:3px; background:var(--artifact-panel); border:1px solid var(--artifact-line); z-index:4; max-width:calc(100vw - 120px); }
+.artifact-modes button { color:var(--artifact-ink); border-radius:0; min-height:38px; padding:8px 14px; white-space:nowrap; font-size:12px; }
+.artifact-modes button[aria-pressed=true] { background:var(--artifact-ink); color:var(--artifact-panel); box-shadow:inset 0 -2px #b5a17b; }
+#artifact-shortcut { position:fixed; top:70px; left:50%; transform:translateX(-50%); min-height:38px; padding:7px 16px; background:var(--artifact-panel); color:var(--artifact-ink); border:1px solid var(--artifact-line); border-radius:0; z-index:3; font-size:12px; }
+#model-tools { position:fixed; left:max(16px,env(safe-area-inset-left)); bottom:max(16px,env(safe-area-inset-bottom)); display:flex; flex-wrap:wrap; align-items:center; gap:12px; padding:8px 12px; max-width:calc(100vw - 32px); background:var(--artifact-panel); color:var(--artifact-ink); border:1px solid var(--artifact-line); z-index:3; }
+#model-tools button { color:var(--artifact-ink); border:1px solid var(--artifact-line); border-radius:0; }
+#model-tools small { font-size:10px; opacity:.7; }
+.position-legend { font-size:12px; display:flex; align-items:center; gap:6px; }
+.position-legend i { width:9px; height:9px; background:#f2b64b; border:1px solid #382c1c; border-radius:50%; }
+[data-artifact-mode=walk] [data-model-only], [data-artifact-mode=model] [data-walk-only] { display:none!important; }
+@media(max-width:420px) { .artifact-modes { left:16px; transform:none; max-width:calc(100vw - 96px); }.artifact-modes button { padding:8px 11px; } #model-tools { gap:9px; } }
+@media(max-height:480px) { #artifact-shortcut { top:67px; } #model-tools { bottom:12px; padding:4px 8px; } }

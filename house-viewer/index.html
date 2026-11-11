@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="zh-CN">
+<html lang="zh-CN" data-artifact-mode="walk">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
@@ -7,31 +7,35 @@
   <link rel="icon" href="data:,">
   <title>House</title>
   <link rel="stylesheet" href="./style.css">
+  <link rel="stylesheet" href="./artifact-modes.css">
   <link rel="stylesheet" href="./theme.css">
   <script type="importmap">{"imports":{"three":"./vendor/three/three.module.js","three/addons/":"./vendor/three/addons/"}}</script>
 </head>
 <body>
   <main id="stage" aria-label="可自由走动的三维住宅"></main>
+<div class="artifact-modes" role="group" aria-label="浏览模式"><button id="mode-walk" aria-pressed="true" disabled>室内漫游</button><button id="mode-model" aria-pressed="false" disabled>建筑模型</button></div>
+<button id="artifact-shortcut" disabled>查看建筑模型</button>
+<div id="model-tools" data-model-only><button id="model-reset" disabled>恢复斜俯瞰</button><span class="position-legend"><i aria-hidden="true"></i>当前位置</span><small>图纸方向 · 非地理北</small></div>
   <header class="nav">
     <button id="menu-toggle" aria-label="更多设置" aria-expanded="false" aria-controls="settings">···</button>
     <section id="settings" hidden aria-label="更多设置">
-      <label>房间<select id="rooms" disabled aria-label="选择房间"></select></label>
-      <button id="reset" disabled>回到客厅</button>
-      <button id="lock" disabled>鼠标看向</button>
+      <label data-walk-only>房间<select id="rooms" disabled aria-label="选择房间"></select></label>
+      <button data-walk-only id="reset" disabled>回到客厅</button>
+      <button data-walk-only id="lock" disabled>鼠标看向</button>
       <button id="fullscreen">全屏浏览</button>
       <label>画质<select id="quality"><option value="auto">自动</option><option value="low">流畅</option><option value="high">清晰</option></select></label>
-      <label>小地图<input id="map-toggle" type="checkbox" checked></label>
-      <label class="zoom-control">视角 <output id="zoom-value" for="view-zoom">1.00×</output><input id="view-zoom" type="range" min="0.65" max="3" step="0.01" value="1" disabled aria-label="视角缩放"></label>
-      <button id="zoom-reset" disabled>重置视角</button>
-      <label>尺寸 overlay<input id="dimensions-toggle" type="checkbox" disabled></label>
-      <p id="dimensions-note" hidden>标注固定在墙面上，显示实体墙段长度与墙高（米）。尺寸来自模型，非现场实测。</p>
+      <label data-walk-only>小地图<input id="map-toggle" type="checkbox" checked></label>
+      <label data-walk-only class="zoom-control">视角 <output id="zoom-value" for="view-zoom">1.00×</output><input id="view-zoom" type="range" min="0.65" max="3" step="0.01" value="1" disabled aria-label="视角缩放"></label>
+      <button data-walk-only id="zoom-reset" disabled>重置视角</button>
+      <label data-walk-only>尺寸 overlay<input id="dimensions-toggle" type="checkbox" disabled></label>
+      <p data-walk-only id="dimensions-note" hidden>标注固定在墙面上，显示实体墙段长度与墙高（米）。尺寸来自模型，非现场实测。</p>
       <button id="lock-page">锁定</button>
       <a href="/#work" target="_top">返回网站</a>
-      <p id="help">WASD / 方向键移动 · 拖动看向</p>
+      <p data-walk-only id="help">WASD / 方向键移动 · 拖动看向</p>
     </section>
   </header>
-  <aside class="map"><div><span id="room-name"></span></div><canvas id="minimap" width="500" height="440" aria-label="当前位置与朝向"></canvas></aside>
-  <div id="joystick" aria-label="触控移动摇杆"><div id="stick"></div></div>
+  <aside class="map" data-walk-only><div><span id="room-name"></span></div><canvas id="minimap" width="500" height="440" aria-label="当前位置与朝向"></canvas></aside>
+  <div data-walk-only id="joystick" aria-label="触控移动摇杆"><div id="stick"></div></div>
   <div id="loading" role="status"><div class="load-card"><p id="load-text">加载中…</p><progress id="progress" max="100"></progress></div></div>
   <div id="toast" role="status" aria-live="polite"></div>
   <script type="module" src="./bridge.js"></script>

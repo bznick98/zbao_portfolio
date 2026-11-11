@@ -3,6 +3,7 @@ import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import os from 'node:os';
 import assert from 'node:assert/strict';
+import { checkArtifactModes } from './check-artifact-modes.mjs';
 
 const require = createRequire(import.meta.url);
 let playwright;
@@ -66,6 +67,9 @@ try {
   await fullscreen(page, frame);
   await minimal(frame);
   await page.screenshot({ path: path.join(artifacts, 'desktop-fullscreen-dark.png') });
+  await checkArtifactModes({page,frame,artifacts});
+  assert.equal(downloads.filter(url => url.endsWith('/' + release.files.model.file)).length, 1);
+  await frame.evaluate(() => __walkthrough.go('living_wide'));
   const zoomPosition = await frame.evaluate(() => __walkthrough.getState().position);
   await page.mouse.move(700, 400); await page.mouse.wheel(0, -500);
   await frame.waitForFunction(() => __walkthrough.controls.getState().zoom > 1);
@@ -116,6 +120,18 @@ try {
   await page.mouse.wheel(0, -100);
   assert.deepEqual(await frame.evaluate(() => __walkthrough.controls.getState().measurements), measurements);
   await page.screenshot({ path: path.join(artifacts, 'desktop-dimensions.png') });
+  const preserved = await frame.evaluate(() => ({ walk: __walkthrough.getState(), zoom: __walkthrough.controls.getState().zoom, quality: document.getElementById('quality').value }));
+  await frame.click('#mode-model');
+  assert.equal(await frame.evaluate(() => __walkthrough.controls.getState().dimensionsVisible), false);
+  await page.mouse.move(720, 450); await page.mouse.wheel(0, -150);
+  await page.keyboard.down('KeyW'); await page.waitForTimeout(180); await page.keyboard.up('KeyW');
+  const actualWalk = await frame.evaluate(() => __walkthrough.getState());
+  for (const key of ['position', 'yaw', 'pitch', 'room']) assert.deepEqual(actualWalk[key], preserved.walk[key]);
+  assert.equal(await frame.evaluate(() => __walkthrough.controls.getState().zoom), preserved.zoom);
+  await frame.click('#mode-walk');
+  assert.equal(await frame.evaluate(() => __walkthrough.controls.getState().dimensionsVisible), true);
+  assert.equal(await frame.evaluate(() => __walkthrough.controls.getState().zoom), preserved.zoom);
+  assert.equal(await frame.locator('#quality').inputValue(), preserved.quality);
   await frame.click('#menu-toggle'); await frame.uncheck('#dimensions-toggle');
   assert.equal(await frame.evaluate(() => __walkthrough.controls.getState().dimensions), false);
   assert.equal(await frame.locator('#dimensions-overlay').count(), 0);
@@ -127,7 +143,7 @@ try {
   await login(page); await page.reload();
   await page.getByLabel('Password / 访问密码').waitFor();
   assert.equal(await page.locator('iframe').count(), 0);
-  checks.push('Password rejection, no early model download, fullscreen canvas, default minimap, wheel zoom without movement, zoom slider/reset/resize, fixed wall dimensions stable across navigation and zoom, differentiated finishes, 11 viewpoints, keyboard movement, quality, Escape, locking and reload');
+  checks.push('Password rejection, no early model download, fullscreen canvas, two-mode pose round trips, empty shell, orbit and fixed marker, default minimap, wheel zoom without movement, zoom slider/reset/resize, fixed wall dimensions stable across navigation and zoom, differentiated finishes, 11 viewpoints, keyboard movement, quality, Escape, locking and reload');
 
   // Theme controls stay on the portfolio; House inherits the selected theme.
   await page.evaluate(() => { location.hash = 'profile'; });
@@ -159,6 +175,8 @@ try {
   await mobile.screenshot({ path: path.join(artifacts, 'mobile-locked-dark.png') });
   frame = await login(mobile);
   await fullscreen(mobile, frame); await minimal(frame);
+  await checkArtifactModes({page:mobile,frame,artifacts,mobile:true});
+  await frame.evaluate(() => __walkthrough.go('living_wide'));
   const cdp = await mobile.context().newCDPSession(mobile);
   const lookBefore = await frame.evaluate(() => __walkthrough.getState().yaw);
   await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: 160, y: 400 }] });
@@ -185,7 +203,7 @@ try {
   await frame.click('#menu-toggle');
   await frame.click('#lock-page');
   await mobile.getByLabel('Password / 访问密码').waitFor();
-  checks.push('Mobile fullscreen portrait/landscape, touch look, joystick, reduced motion, collapsed controls, wall dimensions, default minimap and locking');
+  checks.push('Mobile two-mode rotate/pinch/pan and repeated switches, fullscreen portrait/landscape, touch look, joystick, reduced motion, collapsed controls, wall dimensions, default minimap and locking');
   await mobile.close();
   const direct = await browser.newPage();
   await direct.goto(`${origin}/house-viewer/index.html`);
