@@ -2,7 +2,8 @@
 let started = false;
 function theme(value) { document.documentElement.dataset.theme = value === 'light' ? 'light' : 'dark'; }
 function fail() {
-  document.getElementById('load-text').textContent = '无法打开三维视图，请返回页面重试。';
+  const message = document.getElementById('load-text');
+  if (message) message.textContent = '无法打开三维视图，请返回页面重试。';
   parent.postMessage({ type: 'house:error' }, location.origin);
 }
 window.addEventListener('error', fail);

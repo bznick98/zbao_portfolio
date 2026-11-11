@@ -1,5 +1,5 @@
 import { createRequire } from 'node:module';
-import { mkdir, writeFile } from 'node:fs/promises';
+import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import os from 'node:os';
 import assert from 'node:assert/strict';
@@ -16,6 +16,7 @@ const origin = process.argv[2] || 'http://127.0.0.1:3038';
 const artifacts = path.resolve('artifacts/house');
 await mkdir(artifacts, { recursive: true });
 const browser = await playwright.chromium.launch(process.platform === 'win32' ? { channel: 'msedge', headless: true } : { headless: true });
+const release = JSON.parse(await readFile(new URL('../public/house-viewer/release.json', import.meta.url), 'utf8'));
 const errors = [];
 const checks = [];
 
@@ -37,10 +38,11 @@ async function fullscreen(page, frame) {
   assert.equal(await page.getByRole('button', { name: 'Open menu' }).count(), 0);
   assert.equal(await page.getByRole('button', { name: /Eye:/ }).count(), 0);
 }
-async function minimal(frame) {
+async function minimal(frame, mapVisible = true) {
   assert.equal(await frame.locator('#settings').isVisible(), false);
-  assert.equal(await frame.locator('.map').isVisible(), false);
-  assert.equal((await frame.locator('body').innerText()).trim(), '···');
+  assert.equal(await frame.locator('.map').isVisible(), mapVisible);
+  assert.equal(await frame.locator('h1, h2').count(), 0);
+  assert.equal(await frame.locator('#dimensions-overlay').isVisible(), false);
 }
 try {
   const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
@@ -59,9 +61,23 @@ try {
   assert.equal(await page.locator('iframe').count(), 0);
   assert.ok(downloads.every(url => !url.endsWith('model.bin')));
   let frame = await login(page);
+  assert.ok(downloads.some(url => url.endsWith('/' + release.files.model.file)));
   await fullscreen(page, frame);
   await minimal(frame);
   await page.screenshot({ path: path.join(artifacts, 'desktop-fullscreen-dark.png') });
+  const zoomPosition = await frame.evaluate(() => __walkthrough.getState().position);
+  await page.mouse.move(700, 400); await page.mouse.wheel(0, -500);
+  await frame.waitForFunction(() => __walkthrough.controls.getState().zoom > 1);
+  assert.deepEqual(await frame.evaluate(() => __walkthrough.getState().position), zoomPosition);
+  await frame.click('#menu-toggle'); await frame.click('#zoom-reset');
+  assert.equal(await frame.evaluate(() => __walkthrough.controls.getState().zoom), 1);
+  await frame.locator('#view-zoom').focus(); await page.keyboard.press('End');
+  await frame.waitForFunction(() => __walkthrough.controls.getState().zoom === 3);
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await frame.waitForFunction(() => __walkthrough.getState().aspect === 1.6);
+  assert.equal(await frame.evaluate(() => __walkthrough.controls.getState().zoom), 3);
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await frame.click('#zoom-reset'); await frame.click('#menu-toggle');
   const before = await frame.evaluate(() => __walkthrough.getState().position);
   await frame.locator('#stage canvas').click({ position: { x: 400, y: 280 } });
   await page.keyboard.down('ArrowRight'); await page.waitForTimeout(450); await page.keyboard.up('ArrowRight');
@@ -79,8 +95,19 @@ try {
   await frame.selectOption('#rooms', 'living_wide');
   await frame.selectOption('#quality', 'low');
   assert.equal(await frame.evaluate(() => __walkthrough.getState().ambientOcclusion), false);
+  await frame.uncheck('#map-toggle'); assert.equal(await frame.locator('.map').isVisible(), false);
   await frame.check('#map-toggle'); assert.equal(await frame.locator('.map').isVisible(), true);
-  await frame.uncheck('#map-toggle');
+  await frame.check('#dimensions-toggle');
+  await frame.waitForFunction(() => __walkthrough.controls.getState().measurements.length >= 2 && [...document.querySelectorAll('.dimension')].filter(el => el.style.display !== 'none').length >= 2);
+  const measurements = await frame.evaluate(() => __walkthrough.controls.getState().measurements);
+  for (const item of measurements) {
+    assert.ok(item.metres > .2 && item.metres < 40);
+    assert.ok(Math.abs(Math.hypot(...item.a.map((n, i) => n - item.b[i])) - item.metres) < .00001);
+  }
+  await page.keyboard.press('Escape');
+  await page.screenshot({ path: path.join(artifacts, 'desktop-dimensions.png') });
+  await frame.click('#menu-toggle'); await frame.uncheck('#dimensions-toggle');
+  assert.equal(await frame.locator('#dimensions-overlay').isVisible(), false);
   await page.keyboard.press('Escape');
   await minimal(frame);
   await frame.click('#menu-toggle'); await frame.click('#lock-page');
@@ -89,7 +116,7 @@ try {
   await login(page); await page.reload();
   await page.getByLabel('Password / 访问密码').waitFor();
   assert.equal(await page.locator('iframe').count(), 0);
-  checks.push('Password rejection, no early model download, fullscreen canvas, one visible menu button, 11 viewpoints, keyboard movement, hidden minimap, quality, Escape, locking and reload');
+  checks.push('Password rejection, no early model download, fullscreen canvas, default minimap, wheel zoom without movement, zoom slider/reset/resize, geometric dimension overlay, 11 viewpoints, keyboard movement, quality, Escape, locking and reload');
 
   // Theme controls stay on the portfolio; House inherits the selected theme.
   await page.evaluate(() => { location.hash = 'profile'; });
@@ -134,6 +161,11 @@ try {
   await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
   const moveAfter = await frame.evaluate(() => __walkthrough.getState().position);
   assert.ok(Math.hypot(...moveAfter.map((n, i) => n - moveBefore[i])) > .01);
+  await frame.click('#menu-toggle'); await frame.check('#dimensions-toggle');
+  await frame.waitForFunction(() => __walkthrough.controls.getState().measurements.length >= 2);
+  await frame.click('#menu-toggle');
+  await mobile.screenshot({ path: path.join(artifacts, 'mobile-dimensions.png') });
+  await frame.click('#menu-toggle'); await frame.uncheck('#dimensions-toggle'); await frame.click('#menu-toggle');
   await mobile.screenshot({ path: path.join(artifacts, 'mobile-fullscreen-dark.png') });
   await mobile.setViewportSize({ width: 844, height: 390 });
   await frame.waitForFunction(() => __walkthrough.getState().aspect > 2);
@@ -141,7 +173,7 @@ try {
   await frame.click('#menu-toggle');
   await frame.click('#lock-page');
   await mobile.getByLabel('Password / 访问密码').waitFor();
-  checks.push('Mobile fullscreen portrait/landscape, touch look, joystick, reduced motion, collapsed controls and locking');
+  checks.push('Mobile fullscreen portrait/landscape, touch look, joystick, reduced motion, collapsed controls, dimensions, default minimap and locking');
   await mobile.close();
   const direct = await browser.newPage();
   await direct.goto(`${origin}/house-viewer/index.html`);
@@ -149,7 +181,7 @@ try {
   assert.equal(await direct.evaluate(() => Boolean(window.__walkthrough)), false);
   await direct.close();
   assert.deepEqual(errors, []);
-  await writeFile(path.join(artifacts, 'browser-check.json'), JSON.stringify({ passed: true, checks, errors }, null, 2));
+  await writeFile(path.join(artifacts, 'browser-check.json'), JSON.stringify({ passed: true, buildId: release.buildId, checks, errors }, null, 2));
   console.log(JSON.stringify({ passed: true, checks, artifacts }));
 } catch (error) {
   for (const context of browser.contexts()) for (const page of context.pages()) {

@@ -47,7 +47,7 @@ export async function unlockHouse(password: string, signal: AbortSignal, status:
     if (error instanceof DOMException && error.name === 'OperationError') throw new HousePasswordError('That password didn’t open the door. Try again.');
     throw error;
   }
-  status('Opening the house · downloading 27 MB…');
+  status(`Opening the house · downloading ${(manifest.files.model.bytes / 1e6).toFixed(1)} MB…`);
   let model: ArrayBuffer;
   try { model = await read('model'); }
   catch (error) {

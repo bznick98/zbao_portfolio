@@ -57,7 +57,11 @@ export async function importHouse(build, password, destination = path.join(root,
   await cp(path.join(root, 'house-viewer/index.html'), path.join(temporary, 'index.html'));
   await cp(path.join(build, 'web/style.css'), path.join(temporary, 'style.css'));
   let main = await readFile(path.join(build, 'web/main.js'), 'utf8');
+  main = "import {installHouseControls} from './controls.js';\nlet houseControls;\n" + main;
   const replacements = [
+    ["ready=true;go('living_wide');", "houseControls=installHouseControls({camera,renderer,root});ready=true;go('living_wide');"],
+    ['composer.render();}', 'composer.render();houseControls?.update(now);}'],
+    ['window.__walkthrough={ready:true,', 'window.__walkthrough={controls:houseControls,ready:true,'],
     ["fetch('./assets/scene.json')", 'fetch(window.__HOUSE_ASSETS.scene)'],
     ["loadAsync('./assets/apartment.glb',", 'loadAsync(window.__HOUSE_ASSETS.model,'],
     ["$('loading').remove();", "$('loading').remove();parent.postMessage({type:'house:ready'},location.origin);"],
@@ -70,7 +74,7 @@ export async function importHouse(build, password, destination = path.join(root,
     main = main.replaceAll(from, to);
   }
   await writeFile(path.join(temporary, 'main.js'), main);
-  for (const name of ['bridge.js', 'theme.css']) await cp(path.join(root, 'house-viewer', name), path.join(temporary, name));
+  for (const name of ['bridge.js', 'theme.css', 'controls.js', 'measurements.js']) await cp(path.join(root, 'house-viewer', name), path.join(temporary, name));
   await writeFile(path.join(temporary, 'release.json'), JSON.stringify({ schema: 1, buildId: manifest.buildId, iterations: ITERATIONS, salt: [...salt], files }, null, 2) + '\n');
   await rm(destination, { recursive: true, force: true });
   await rename(temporary, destination);
