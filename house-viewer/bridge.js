@@ -1,9 +1,11 @@
+import {initLanguage,setText} from './i18n.js';
+initLanguage();
 // The viewer never receives a password or key, only short-lived in-memory URLs.
 let started = false;
 function theme(value) { document.documentElement.dataset.theme = value === 'light' ? 'light' : 'dark'; }
 function fail() {
   const message = document.getElementById('load-text');
-  if (message) message.textContent = '无法打开三维视图，请返回页面重试。';
+  setText(message, 'viewerError');
   parent.postMessage({ type: 'house:error' }, location.origin);
 }
 window.addEventListener('error', fail);
@@ -32,8 +34,8 @@ document.addEventListener('keydown', event => {
 });
 theme('dark');
 if (parent === window) {
-  document.getElementById('load-text').textContent = '请先在 House 页面输入访问密码。';
+  setText(document.getElementById('load-text'), 'loginFirst');
   const link = document.createElement('a');
-  link.href = '/#house'; link.textContent = 'Open House →';
+  link.href = '/#house'; setText(link, 'openHouse');
   document.querySelector('.load-card').appendChild(link);
 }

@@ -99,8 +99,6 @@ export function createArtifactModes({ root, scene, walkCamera, renderer, getWalk
       const button = document.getElementById(`mode-${value}`);
       button.disabled = false; button.setAttribute('aria-pressed', String(mode === value));
     }
-    const shortcut = document.getElementById('artifact-shortcut');
-    shortcut.disabled = false; shortcut.textContent = mode === 'walk' ? '查看建筑模型' : '返回漫游';
     document.getElementById('model-reset').disabled = false;
     for (const callback of subscribers) callback(mode);
   }
@@ -126,11 +124,11 @@ export function createArtifactModes({ root, scene, walkCamera, renderer, getWalk
   }
   document.getElementById('mode-walk').onclick = () => setMode('walk');
   document.getElementById('mode-model').onclick = () => setMode('model');
-  document.getElementById('artifact-shortcut').onclick = () => setMode(mode === 'walk' ? 'model' : 'walk');
   document.getElementById('model-reset').onclick = resetOverview;
   syncUI();
   return {
     get mode() { return mode; },
+    get activeRoot() { return mode === 'walk' ? root : shell; },
     get camera() { return mode === 'walk' ? walkCamera : camera; },
     setMode, resetOverview,
     subscribe(callback) { subscribers.add(callback); callback(mode); return () => subscribers.delete(callback); },

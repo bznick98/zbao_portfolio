@@ -1,10 +1,10 @@
 <!doctype html>
-<html lang="zh-CN" data-artifact-mode="walk">
+<html lang="en" data-artifact-mode="walk">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-  <meta name="robots" content="noindex,nofollow">
   <link rel="icon" href="data:,">
+  <meta name="robots" content="noindex,nofollow">
   <title>House</title>
   <link rel="stylesheet" href="./style.css">
   <link rel="stylesheet" href="./artifact-modes.css">
@@ -12,31 +12,33 @@
   <script type="importmap">{"imports":{"three":"./vendor/three/three.module.js","three/addons/":"./vendor/three/addons/"}}</script>
 </head>
 <body>
-  <main id="stage" aria-label="可自由走动的三维住宅"></main>
-<div class="artifact-modes" role="group" aria-label="浏览模式"><button id="mode-walk" aria-pressed="true" disabled>室内漫游</button><button id="mode-model" aria-pressed="false" disabled>建筑模型</button></div>
-<button id="artifact-shortcut" disabled>查看建筑模型</button>
-<div id="model-tools" data-model-only><button id="model-reset" disabled>恢复斜俯瞰</button><span class="position-legend"><i aria-hidden="true"></i>当前位置</span><small>图纸方向 · 非地理北</small></div>
+  <main id="stage" data-i18n-aria="stage" aria-label="Interactive house walkthrough"></main>
+  <div class="common-tools" role="toolbar" data-i18n-aria="tools" aria-label="Common tools"><button id="language-toggle" type="button" data-language="en" aria-label="Switch to Chinese" aria-pressed="false"><span lang="en">EN</span><span aria-hidden="true"> / </span><span lang="zh-CN">CN</span></button>
+    <button id="dimensions-toggle" type="button" class="tool-button" data-i18n-aria="dimensions" data-i18n-title="dimensions" aria-label="Dimensions" title="Dimensions" aria-pressed="false" disabled><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6v12M20 6v12M4 12h16M4 12l3-3m-3 3 3 3m13-3-3-3m3 3-3 3"/></svg></button>
+    <button id="measure-toggle" type="button" class="tool-button" data-i18n-aria="measure" data-i18n-title="measure" aria-label="Measure distance" title="Measure distance" aria-pressed="false" disabled><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 16 16 3l5 5L8 21zM13 6l2 2m-5 1 3 3m-6 0 2 2m-5 1 3 3"/></svg></button>
+  </div>
+  <div class="artifact-modes" role="group" data-i18n-aria="modes" aria-label="View mode"><button id="mode-walk" data-i18n="walk" aria-pressed="true" disabled>Walkthrough</button><button id="mode-model" data-i18n="model" aria-pressed="false" disabled>Model</button></div>
+  <div id="model-tools" data-model-only><button id="model-reset" data-i18n="overview" disabled>Reset overview</button><span class="position-legend"><i aria-hidden="true"></i><span data-i18n="position">You are here</span></span><small data-i18n="orientation">Plan orientation · not north</small></div>
+  <div id="tool-readout"><p id="dimensions-note" hidden data-i18n="wallDimensionsNote">Model wall dimensions · mm</p><section id="measure-panel" hidden aria-live="polite"><output id="measure-value"></output><span id="measure-hint" data-i18n="measureFirst">Select the first point on a surface.</span><button id="measure-clear" data-i18n="measureClear">Clear</button></section></div>
   <header class="nav">
-    <button id="menu-toggle" aria-label="更多设置" aria-expanded="false" aria-controls="settings">···</button>
-    <section id="settings" hidden aria-label="更多设置">
-      <label data-walk-only>房间<select id="rooms" disabled aria-label="选择房间"></select></label>
-      <button data-walk-only id="reset" disabled>回到客厅</button>
-      <button data-walk-only id="lock" disabled>鼠标看向</button>
-      <button id="fullscreen">全屏浏览</button>
-      <label>画质<select id="quality"><option value="auto">自动</option><option value="low">流畅</option><option value="high">清晰</option></select></label>
-      <label data-walk-only>小地图<input id="map-toggle" type="checkbox" checked></label>
-      <label data-walk-only class="zoom-control">视角 <output id="zoom-value" for="view-zoom">1.00×</output><input id="view-zoom" type="range" min="0.65" max="3" step="0.01" value="1" disabled aria-label="视角缩放"></label>
-      <button data-walk-only id="zoom-reset" disabled>重置视角</button>
-      <label data-walk-only>尺寸 overlay<input id="dimensions-toggle" type="checkbox" disabled></label>
-      <p data-walk-only id="dimensions-note" hidden>标注固定在墙面上，显示实体墙段长度与墙高（米）。尺寸来自模型，非现场实测。</p>
-      <button id="lock-page">锁定</button>
-      <a href="/#work" target="_top">返回网站</a>
-      <p data-walk-only id="help">WASD / 方向键移动 · 拖动看向</p>
+    <button id="menu-toggle" data-i18n-aria="settings" aria-label="Settings" aria-expanded="false" aria-controls="settings">···</button>
+    <section id="settings" hidden data-i18n-aria="settings" aria-label="Settings">
+      <label data-walk-only><span data-i18n="room">Room</span><select id="rooms" disabled data-i18n-aria="chooseRoom" aria-label="Choose a room"></select></label>
+      <button data-walk-only id="reset" data-i18n="reset" disabled>Back to living room</button>
+      <button data-walk-only id="lock" data-i18n="lock" disabled>Mouse look</button>
+      <button id="fullscreen" data-i18n="fullscreen">Fullscreen</button>
+      <label><span data-i18n="quality">Quality</span><select id="quality"><option value="auto" data-i18n="auto">Auto</option><option value="low" data-i18n="low">Smooth</option><option value="high" data-i18n="high">High</option></select></label>
+      <label data-walk-only><span data-i18n="minimap">Minimap</span><input id="map-toggle" type="checkbox" checked></label>
+      <label data-walk-only class="zoom-control"><span data-i18n="zoom">View zoom</span><output id="zoom-value" for="view-zoom">1.00×</output><input id="view-zoom" type="range" min="0.65" max="3" step="0.01" value="1" disabled data-i18n-aria="zoomLabel" aria-label="View zoom"></label>
+      <button data-walk-only id="zoom-reset" data-i18n="zoomReset" disabled>Reset zoom</button>
+      <button id="lock-page" data-i18n="lockPage">Lock</button>
+      <a href="/#work" target="_top" data-i18n="returnSite">Back to website</a>
+      <p data-walk-only id="help" data-i18n="helpDesktop">WASD / arrows to move · Drag to look</p>
     </section>
   </header>
-  <aside class="map" data-walk-only><div><span id="room-name"></span></div><canvas id="minimap" width="500" height="440" aria-label="当前位置与朝向"></canvas></aside>
-  <div data-walk-only id="joystick" aria-label="触控移动摇杆"><div id="stick"></div></div>
-  <div id="loading" role="status"><div class="load-card"><p id="load-text">加载中…</p><progress id="progress" max="100"></progress></div></div>
+  <aside class="map" data-walk-only><div><span id="room-name"></span></div><canvas id="minimap" width="500" height="440" data-i18n-aria="mapLabel" aria-label="Current position and heading"></canvas></aside>
+  <div data-walk-only id="joystick" data-i18n-aria="joystick" aria-label="Move joystick"><div id="stick"></div></div>
+  <div id="loading" role="status"><div class="load-card"><p id="load-text" data-i18n="loading">Loading model…</p><progress id="progress" max="100"></progress></div></div>
   <div id="toast" role="status" aria-live="polite"></div>
   <script type="module" src="./bridge.js"></script>
 </body>

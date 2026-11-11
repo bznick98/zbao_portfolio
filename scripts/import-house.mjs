@@ -19,13 +19,14 @@ export async function importHouse(build, password, destination = path.join(root,
   }
   const browser = await readJson(path.join(build, 'checks/web-browser.json'));
   if (!browser.interactiveArtifacts?.desktop?.exactPoseRoundTrip || !browser.interactiveArtifacts?.mobile?.touch || !browser.interactiveArtifacts?.singleModelDownload) throw new Error('Interactive Artifacts desktop/mobile gates are required.');
+  if (!browser.interactiveArtifacts?.desktop?.measurementTools?.twoPoint3dDistance || !browser.interactiveArtifacts?.mobile?.measurementTools?.touch) throw new Error('Desktop/mobile measurement tool checks are required.');
   const validation = await readJson(path.join(build, 'checks/gltf-validator.json'));
   if (validation.issues.numErrors || validation.issues.numWarnings) throw new Error('Resolve GLB validation findings before importing.');
   for (const [name, expected] of Object.entries(manifest.files)) {
     if (name.includes('..') || name.includes('\\') || path.isAbsolute(name)) throw new Error('Invalid release path.');
     if (hash(await readFile(path.join(build, 'web', name))) !== expected) throw new Error(`Release checksum mismatch: ${name}`);
   }
-  for (const required of ['index.html', 'style.css', 'main.js', 'assets/scene.json', 'assets/apartment.glb', 'artifact-modes.js', 'artifact-modes.css']) {
+  for (const required of ['index.html', 'style.css', 'main.js', 'assets/scene.json', 'assets/apartment.glb', 'artifact-modes.js', 'artifact-modes.css', 'i18n.js', 'measurement-geometry.js', 'dimension-overlays.js', 'measurement-tools.js']) {
     if (!manifest.files[required]) throw new Error(`Missing release file: ${required}`);
   }
   const salt = randomBytes(16);
@@ -58,12 +59,12 @@ export async function importHouse(build, password, destination = path.join(root,
   }
   await cp(path.join(root, 'house-viewer/index.html'), path.join(temporary, 'index.html'));
   await cp(path.join(build, 'web/style.css'), path.join(temporary, 'style.css'));
-  for (const name of ['artifact-modes.js', 'artifact-modes.css']) await cp(path.join(build, 'web', name), path.join(temporary, name));
+  for (const name of ['artifact-modes.js', 'artifact-modes.css', 'i18n.js', 'measurement-geometry.js', 'dimension-overlays.js', 'measurement-tools.js']) await cp(path.join(build, 'web', name), path.join(temporary, name));
   let main = await readFile(path.join(build, 'web/main.js'), 'utf8');
   main = "import {installHouseControls} from './controls.js';\nimport {applyHouseFinishes} from './finishes.js';\nlet houseControls,houseFinishes;\n" + main;
   const replacements = [
-    ['onSceneReady(root);', 'onSceneReady(root);houseFinishes=applyHouseFinishes({root,scene,renderer});houseControls=installHouseControls({camera,renderer,root,scene,modes:artifactModes});'],
-    ['window.__walkthrough={modes:artifactModes,ready:true,', 'window.__walkthrough={controls:houseControls,finishes:houseFinishes.counts,modes:artifactModes,ready:true,'],
+    ['onSceneReady(root);', 'onSceneReady(root);houseFinishes=applyHouseFinishes({root,scene,renderer});houseControls=installHouseControls({camera,renderer,root,scene,modes:artifactModes,tools:measurementTools});'],
+    ['window.__walkthrough={tools:measurementTools,modes:artifactModes,ready:true,', 'window.__walkthrough={controls:houseControls,finishes:houseFinishes.counts,tools:measurementTools,modes:artifactModes,ready:true,'],
     ["fetch('./assets/scene.json')", 'fetch(window.__HOUSE_ASSETS.scene)'],
     ["loadAsync('./assets/apartment.glb',", 'loadAsync(window.__HOUSE_ASSETS.model,'],
     ["$('loading').remove();", "$('loading').remove();parent.postMessage({type:'house:ready'},location.origin);"],
@@ -76,7 +77,7 @@ export async function importHouse(build, password, destination = path.join(root,
     main = main.replaceAll(from, to);
   }
   await writeFile(path.join(temporary, 'main.js'), main);
-  for (const name of ['bridge.js', 'theme.css', 'controls.js', 'measurements.js', 'wall-annotations.js', 'finishes.js']) await cp(path.join(root, 'house-viewer', name), path.join(temporary, name));
+  for (const name of ['bridge.js', 'theme.css', 'controls.js', 'measurements.js', 'finishes.js']) await cp(path.join(root, 'house-viewer', name), path.join(temporary, name));
   await writeFile(path.join(temporary, 'release.json'), JSON.stringify({ schema: 1, buildId: manifest.buildId, iterations: ITERATIONS, salt: [...salt], files }, null, 2) + '\n');
   await rm(destination, { recursive: true, force: true });
   await rename(temporary, destination);
