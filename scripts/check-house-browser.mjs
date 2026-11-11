@@ -42,7 +42,8 @@ async function minimal(frame, mapVisible = true) {
   assert.equal(await frame.locator('#settings').isVisible(), false);
   assert.equal(await frame.locator('.map').isVisible(), mapVisible);
   assert.equal(await frame.locator('h1, h2').count(), 0);
-  assert.equal(await frame.locator('#dimensions-overlay').isVisible(), false);
+  assert.equal(await frame.evaluate(() => __walkthrough.controls.getState().dimensions), false);
+  assert.equal(await frame.locator('#dimensions-overlay').count(), 0);
 }
 try {
   const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
@@ -98,16 +99,26 @@ try {
   await frame.uncheck('#map-toggle'); assert.equal(await frame.locator('.map').isVisible(), false);
   await frame.check('#map-toggle'); assert.equal(await frame.locator('.map').isVisible(), true);
   await frame.check('#dimensions-toggle');
-  await frame.waitForFunction(() => __walkthrough.controls.getState().measurements.length >= 2 && [...document.querySelectorAll('.dimension')].filter(el => el.style.display !== 'none').length >= 2);
+  await frame.waitForFunction(() => __walkthrough.controls.getState().measurements.length > 20);
   const measurements = await frame.evaluate(() => __walkthrough.controls.getState().measurements);
   for (const item of measurements) {
-    assert.ok(item.metres > .2 && item.metres < 40);
-    assert.ok(Math.abs(Math.hypot(...item.a.map((n, i) => n - item.b[i])) - item.metres) < .00001);
+    assert.ok(item.width >= 1.1 && item.height >= 1.8);
+    assert.ok(Math.abs(Math.hypot(...item.normal) - 1) < .00001);
   }
+  assert.equal(await frame.evaluate(() => __walkthrough.controls.getState().annotationMeshes), 2);
+  const finishes = await frame.evaluate(() => __walkthrough.finishes);
+  for (const finish of ['plaster', 'ceiling', 'oak', 'bronze', 'stone', 'ceramic']) assert.ok(finishes[finish] > 0);
+  await frame.selectOption('#rooms', 'living_corridor');
+  await frame.selectOption('#quality', 'high');
+  assert.deepEqual(await frame.evaluate(() => __walkthrough.controls.getState().measurements), measurements);
   await page.keyboard.press('Escape');
+  await page.mouse.move(720, 450); await page.mouse.down(); await page.mouse.move(770, 450); await page.mouse.up();
+  await page.mouse.wheel(0, -100);
+  assert.deepEqual(await frame.evaluate(() => __walkthrough.controls.getState().measurements), measurements);
   await page.screenshot({ path: path.join(artifacts, 'desktop-dimensions.png') });
   await frame.click('#menu-toggle'); await frame.uncheck('#dimensions-toggle');
-  assert.equal(await frame.locator('#dimensions-overlay').isVisible(), false);
+  assert.equal(await frame.evaluate(() => __walkthrough.controls.getState().dimensions), false);
+  assert.equal(await frame.locator('#dimensions-overlay').count(), 0);
   await page.keyboard.press('Escape');
   await minimal(frame);
   await frame.click('#menu-toggle'); await frame.click('#lock-page');
@@ -116,7 +127,7 @@ try {
   await login(page); await page.reload();
   await page.getByLabel('Password / 访问密码').waitFor();
   assert.equal(await page.locator('iframe').count(), 0);
-  checks.push('Password rejection, no early model download, fullscreen canvas, default minimap, wheel zoom without movement, zoom slider/reset/resize, geometric dimension overlay, 11 viewpoints, keyboard movement, quality, Escape, locking and reload');
+  checks.push('Password rejection, no early model download, fullscreen canvas, default minimap, wheel zoom without movement, zoom slider/reset/resize, fixed wall dimensions stable across navigation and zoom, differentiated finishes, 11 viewpoints, keyboard movement, quality, Escape, locking and reload');
 
   // Theme controls stay on the portfolio; House inherits the selected theme.
   await page.evaluate(() => { location.hash = 'profile'; });
@@ -162,7 +173,8 @@ try {
   const moveAfter = await frame.evaluate(() => __walkthrough.getState().position);
   assert.ok(Math.hypot(...moveAfter.map((n, i) => n - moveBefore[i])) > .01);
   await frame.click('#menu-toggle'); await frame.check('#dimensions-toggle');
-  await frame.waitForFunction(() => __walkthrough.controls.getState().measurements.length >= 2);
+  await frame.waitForFunction(() => __walkthrough.controls.getState().measurements.length > 20);
+  await frame.selectOption('#rooms', 'master_wide');
   await frame.click('#menu-toggle');
   await mobile.screenshot({ path: path.join(artifacts, 'mobile-dimensions.png') });
   await frame.click('#menu-toggle'); await frame.uncheck('#dimensions-toggle'); await frame.click('#menu-toggle');
@@ -173,7 +185,7 @@ try {
   await frame.click('#menu-toggle');
   await frame.click('#lock-page');
   await mobile.getByLabel('Password / 访问密码').waitFor();
-  checks.push('Mobile fullscreen portrait/landscape, touch look, joystick, reduced motion, collapsed controls, dimensions, default minimap and locking');
+  checks.push('Mobile fullscreen portrait/landscape, touch look, joystick, reduced motion, collapsed controls, wall dimensions, default minimap and locking');
   await mobile.close();
   const direct = await browser.newPage();
   await direct.goto(`${origin}/house-viewer/index.html`);

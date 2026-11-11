@@ -12,7 +12,6 @@
 </head>
 <body>
   <main id="stage" aria-label="可自由走动的三维住宅"></main>
-  <svg id="dimensions-overlay" hidden role="img" aria-label="模型尺寸标注，非现场测量"></svg>
   <header class="nav">
     <button id="menu-toggle" aria-label="更多设置" aria-expanded="false" aria-controls="settings">···</button>
     <section id="settings" hidden aria-label="更多设置">
@@ -25,7 +24,7 @@
       <label class="zoom-control">视角 <output id="zoom-value" for="view-zoom">1.00×</output><input id="view-zoom" type="range" min="0.65" max="3" step="0.01" value="1" disabled aria-label="视角缩放"></label>
       <button id="zoom-reset" disabled>重置视角</button>
       <label>尺寸 overlay<input id="dimensions-toggle" type="checkbox" disabled></label>
-      <p id="dimensions-note" hidden>模型尺寸，非现场测量。墙间净跨取视点前方、距地面 1.2 m 的截面；净高取对应位置。</p>
+      <p id="dimensions-note" hidden>标注固定在墙面上，显示实体墙段长度与墙高（米）。尺寸来自模型，非现场实测。</p>
       <button id="lock-page">锁定</button>
       <a href="/#work" target="_top">返回网站</a>
       <p id="help">WASD / 方向键移动 · 拖动看向</p>
