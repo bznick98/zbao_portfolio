@@ -43,6 +43,7 @@ export const Menu: React.FC<MenuProps> = ({ onNavigate, isDarkMode }) => {
       >
         <button
           onClick={() => setIsOpen(true)}
+          aria-label="Open menu"
           className="pointer-events-auto group flex items-center gap-2 text-sm uppercase tracking-widest font-medium hover:opacity-70 transition-opacity"
         >
           <span className="hidden md:inline">Menu</span>
@@ -52,21 +53,24 @@ export const Menu: React.FC<MenuProps> = ({ onNavigate, isDarkMode }) => {
 
       <div
         className="menu-overlay fixed inset-0 z-[60] transform -translate-y-full flex flex-col justify-center items-center"
-        style={isDarkMode ? { backgroundColor: '#f3f4ef', color: '#111111' } : { backgroundColor: '#111111', color: '#faf9f6' }}
+        inert={!isOpen}
+        aria-hidden={!isOpen}
+        style={{ visibility: isOpen ? 'visible' : 'hidden', ...(isDarkMode ? { backgroundColor: '#f3f4ef', color: '#111111' } : { backgroundColor: '#111111', color: '#faf9f6' }) }}
       >
         <button
           onClick={() => setIsOpen(false)}
+          aria-label="Close menu"
           className="absolute top-6 left-6 md:top-8 md:left-12 p-2 hover:opacity-70 transition-opacity"
         >
           <X className="w-8 h-8" />
         </button>
 
-        <div className="flex flex-col items-center gap-8 md:gap-12 text-center">
-          {['Work', 'Profile', 'Coffee', 'Contact', 'Poe'].map((item) => (
+        <div className="flex flex-col items-center gap-5 md:gap-7 text-center">
+          {['Work', 'Profile', 'Coffee', 'Contact', 'Poe', 'House'].map((item) => (
             <button
               key={item}
               onClick={() => handleNavClick(item)}
-              className="menu-item text-5xl md:text-8xl font-serif hover:text-yellow-500 transition-all duration-300"
+              className="menu-item text-4xl md:text-7xl font-serif hover:text-yellow-500 transition-all duration-300"
             >
               {item}
             </button>

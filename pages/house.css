@@ -1,0 +1,39 @@
+.house-page {
+  --house-bg: #faf9f6;
+  --house-ink: #111;
+  --house-muted: #65655f;
+  --house-line: #c9c8c3;
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100dvh;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  color: var(--house-ink);
+  background: var(--house-bg);
+  font-family: 'Rubik', Arial, sans-serif;
+}
+.app-theme[data-theme='dark'] .house-page {
+  --house-bg: #101112;
+  --house-ink: #f3f4ef;
+  --house-muted: #a6a8a2;
+  --house-line: #444744;
+}
+.house-back { position: absolute; top: max(16px, env(safe-area-inset-top)); left: max(16px, env(safe-area-inset-left)); display: grid; place-items: center; width: 44px; height: 44px; color: var(--house-muted); }
+.house-form { width: min(280px, calc(100vw - 64px)); }
+.house-password-row { display: flex; align-items: center; border-bottom: 1px solid var(--house-line); }
+.house-form input { min-width: 0; width: 100%; padding: 16px 0; background: transparent; color: var(--house-ink); border: 0; border-radius: 0; font: 16px/1.5 'Rubik', Arial, sans-serif; }
+.house-form input::placeholder { color: var(--house-muted); }
+.house-enter { display: grid; flex: 0 0 44px; place-items: center; height: 44px; border: 0; background: transparent; color: var(--house-ink); cursor: pointer; }
+.house-enter:disabled { color: var(--house-muted); cursor: default; }
+.house-page :is(input, button, a):focus-visible { outline: 2px solid var(--house-ink); outline-offset: 4px; }
+.house-frame { position: absolute; inset: 0; display: block; width: 100%; height: 100%; border: 0; background: var(--house-bg); }
+.house-frame:focus { outline: none; }
+.house-error { font-size: 12px; line-height: 1.7; margin: 16px 0 0; }
+.house-viewer-error { position: absolute; z-index: 1; max-width: min(400px, calc(100vw - 48px)); padding: 24px; background: var(--house-bg); border: 1px solid var(--house-line); font-size: 14px; line-height: 1.7; }
+.house-viewer-error button { color: inherit; background: transparent; border: 0; padding: 8px 0; font: inherit; text-decoration: underline; cursor: pointer; }
+.house-sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+.house-spinner { animation: house-spin 1s linear infinite; }
+@keyframes house-spin { to { transform: rotate(360deg); } }
+@media(prefers-reduced-motion:reduce) { .house-spinner { animation: none; } }
