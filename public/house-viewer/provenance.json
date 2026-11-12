@@ -1,0 +1,27 @@
+{
+  "schema": 1,
+  "sourceDelivery": "interactive-4b97f225d986",
+  "sourceManifestSha256": "e4b339d28b3e52f0552b9dc9981d82da4fbad11f6303dd3712928ea39b055121",
+  "runtime": {
+    "main.js": "ce1a8ee134067d3462eb798790b69b2b26cdd1abd425a7708f84a320544755fc",
+    "artifact-modes.js": "b2f338a0c7680b5a7cac3d943ae18d2339ab3671500eb88bbc4c7dee018b3907",
+    "artifact-modes.css": "48a4d55e4c9eaec6b146cf2aab3f1b1bf7f56641e58f0afb2d9718f453ba5817",
+    "i18n.js": "66d004b08549f785bd83bbea810bff42ba376e709b96320b4c55d94c5b59cbd8",
+    "measurement-geometry.js": "d8fddfaefbd4fd7a7f965368cfb03775f56c923f16bbaa2908bd5e444d70c988",
+    "dimension-overlays.js": "c8347f47dd483604ab3b45096161f5d53228771a8edba28abe787411b01f6cf6",
+    "measurement-tools.js": "3142d94cf49e3d38071d7099d8d720292715bf1de1b79efffd53c67e552a8c16",
+    "dimension-occlusion.js": "b2cb0dae7e9a42f3bd4de1453251761fa7e03f78982031a8d5ebe7c7f63c1178",
+    "wall-surfaces.js": "ef33893d79a135d079893ddd91042dab4783bd4bd88487df2630e6ff4699d390",
+    "wall-labels.js": "a73d675bd5687680987da21ebe2b9062b3ce98f3fe04863f348e681a5280650d",
+    "dimensions.css": "a81a9308ebfc90549a5506dc20230b4d167cdc343127e5a7411441d62937e6d7",
+    "plan-map.js": "0ee8f7bf5942280069895ed7df5fe7e85c1b23ff0e8b8c77e09540c86a9ebaad",
+    "revision-loader.js": "5e4562bc5ce61c6f550c0fe0337b6de5c6995726239bf418fb93aa440d9b38a4",
+    "revision-state.js": "3066408dcc049f1aade47ca4820c002a1cab3271e56e649e6e7a1f2d8f4da26f",
+    "revisions.css": "e2f3bafc9ec4afa58e047c6aeaa9deff7cb2fb9c106b20903ef2e27501567386"
+  },
+  "selectedBuildIds": [
+    "6052187022cab235",
+    "5fd77e1de27fd37c"
+  ],
+  "sourceMaterialsPreserved": true
+}

@@ -12,6 +12,7 @@ export function House({ isDarkMode }: { isDarkMode: boolean }) {
   const [assets, setAssets] = useState<HouseAssets | null>(null);
   const currentAssets = useRef<HouseAssets | null>(null);
   const request = useRef<AbortController | null>(null);
+  const resourceRequests = useRef(new Map<number,AbortController>());
   const frame = useRef<HTMLIFrameElement>(null);
   const input = useRef<HTMLInputElement>(null);
   const theme = isDarkMode ? 'dark' : 'light';
@@ -31,6 +32,18 @@ export function House({ isDarkMode }: { isDarkMode: boolean }) {
   useEffect(() => {
     const receive = (event: MessageEvent) => {
       if (event.origin !== window.location.origin || event.source !== frame.current?.contentWindow) return;
+      if (event.data?.type === 'house:cancel-asset') {resourceRequests.current.get(event.data.id)?.abort();return;}
+      if (event.data?.type === 'house:asset') {
+        const owner=currentAssets.current, id=event.data.id, assetId=event.data.assetId;
+        if (!owner?.readAsset || !Number.isSafeInteger(id) || id<1 || typeof assetId!=='string' || resourceRequests.current.has(id) || resourceRequests.current.size>=16) return;
+        const controller=new AbortController();resourceRequests.current.set(id,controller);
+        owner.readAsset(assetId,controller.signal).then(bytes=>{
+          if (owner===currentAssets.current&&!controller.signal.aborted) frame.current?.contentWindow?.postMessage({type:'house:asset-result',id,bytes},window.location.origin,[bytes]);
+        }).catch(err=>{
+          if (owner===currentAssets.current&&!controller.signal.aborted) frame.current?.contentWindow?.postMessage({type:'house:asset-result',id,error:err instanceof Error?err.message:'Unable to load house resource.'},window.location.origin);
+        }).finally(()=>{if(resourceRequests.current.get(id)===controller)resourceRequests.current.delete(id);});
+        return;
+      }
       if (event.data?.type === 'house:lock') { lock(); return; }
       if (event.data?.type === 'house:ready') {
         setStatus('');
@@ -71,6 +84,7 @@ export function House({ isDarkMode }: { isDarkMode: boolean }) {
 
   function lock() {
     request.current?.abort();
+    for(const controller of resourceRequests.current.values())controller.abort();resourceRequests.current.clear();
     setAssets(null); setPassword(''); setError(''); setStatus(''); setBusy(false); setPasswordError(false);
     currentAssets.current?.dispose(); currentAssets.current = null;
     window.setTimeout(() => input.current?.focus(), 0);
@@ -98,7 +112,7 @@ export function House({ isDarkMode }: { isDarkMode: boolean }) {
       ) : (
         <>
           <iframe ref={frame} className="house-frame" src="/house-viewer/index.html" title="House — interactive 3D walkthrough"
-            allow="fullscreen" allowFullScreen onLoad={() => frame.current?.contentWindow?.postMessage({ type: 'house:open', scene: assets.scene, model: assets.model, theme }, window.location.origin)} />
+            allow="fullscreen" allowFullScreen onLoad={() => frame.current?.contentWindow?.postMessage({ type: 'house:open', scene: assets.scene, model: assets.model, catalog: assets.catalog, theme }, window.location.origin)} />
           {error && <div className="house-viewer-error"><p role="alert">{error}</p><button type="button" onClick={lock}>Try again</button></div>}
         </>
       )}

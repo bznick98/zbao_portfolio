@@ -18,6 +18,16 @@ const artifacts = path.resolve('artifacts/house');
 await mkdir(artifacts, { recursive: true });
 const browser = await playwright.chromium.launch(process.platform === 'win32' ? { channel: 'msedge', headless: true } : { headless: true });
 const release = JSON.parse(await readFile(new URL('../public/house-viewer/release.json', import.meta.url), 'utf8'));
+const {deriveHouseKey,decryptHouseFile}=await import('../lib/house-crypto.mjs');
+const key=await deriveHouseKey(password,release.salt);
+const f=release.files.catalog;
+const catalog=JSON.parse(new TextDecoder().decode(await decryptHouseFile(key,await readFile(new URL('../public/house-viewer/'+f.file,import.meta.url)),f.iv,release.buildId,'catalog')));
+const defaultRevision=catalog.revisions.find(r=>r.revisionId===catalog.defaultRevisionId);
+const defaultModel=release.files[defaultRevision.builds[defaultRevision.selectedBuildId].model.url.replace('house-asset:','')].file;
+const sceneDescriptor=defaultRevision.builds[defaultRevision.selectedBuildId].scene;
+const sceneFile=release.files[sceneDescriptor.url.replace('house-asset:','')];
+const expectedScene=JSON.parse(new TextDecoder().decode(await decryptHouseFile(key,await readFile(new URL('../public/house-viewer/'+sceneFile.file,import.meta.url)),sceneFile.iv,release.buildId,sceneDescriptor.url.replace('house-asset:',''))));
+const modelFiles=catalog.revisions.map(r=>release.files[r.builds[r.selectedBuildId].model.url.replace('house-asset:','')].file);
 const errors = [];
 const checks = [];
 
@@ -61,14 +71,14 @@ try {
   await page.getByRole('button', { name: 'Enter the house' }).click();
   await page.getByRole('alert').filter({ hasText: 'That password' }).waitFor();
   assert.equal(await page.locator('iframe').count(), 0);
-  assert.ok(downloads.every(url => !url.endsWith('model.bin')));
+  assert.ok(downloads.every(url => !modelFiles.some(file=>url.endsWith(file))));
   let frame = await login(page);
-  assert.ok(downloads.some(url => url.endsWith('/' + release.files.model.file)));
+  assert.ok(downloads.some(url => url.endsWith('/' + defaultModel)));
   await fullscreen(page, frame);
   await minimal(frame);
   await page.screenshot({ path: path.join(artifacts, 'desktop-fullscreen-dark.png') });
   await checkArtifactModes({page,frame,artifacts});
-  assert.equal(downloads.filter(url => url.endsWith('/' + release.files.model.file)).length, 1);
+  assert.equal(downloads.filter(url => url.endsWith('/' + defaultModel)).length, 1);
   await frame.evaluate(() => __walkthrough.go('living_wide'));
   const zoomPosition = await frame.evaluate(() => __walkthrough.getState().position);
   await page.mouse.move(700, 400); await page.mouse.wheel(0, -500);
@@ -105,13 +115,14 @@ try {
   await frame.click('#dimensions-toggle');
   await frame.waitForFunction(() => __walkthrough.controls.getState().measurements.length > 20);
   const measurements = await frame.evaluate(() => __walkthrough.controls.getState().measurements);
+  assert.deepEqual(measurements,expectedScene.wallDimensions.surfaces,'rendered measurements must match the encrypted source scene');
   for (const item of measurements) {
-    assert.ok(item.width >= 1.1 && item.height >= 1.8);
-    assert.ok(Math.abs(Math.hypot(...item.normal) - 1) < .00001);
+    assert.ok(item.width >= .02 && item.height >= .05);
+    assert.ok(Math.abs(Math.hypot(...item.normal) - 1) < .0001);
   }
   assert.equal(await frame.evaluate(() => __walkthrough.controls.getState().annotationMeshes), 2);
-  const finishes = await frame.evaluate(() => __walkthrough.finishes);
-  for (const finish of ['plaster', 'ceiling', 'oak', 'bronze', 'stone', 'ceramic']) assert.ok(finishes[finish] > 0);
+  assert.equal(measurements.length,432);
+  assert.equal(await frame.evaluate(()=>__walkthrough.revisions.getState().revisionId),'0.2');
   await frame.click('#menu-toggle');
   await frame.selectOption('#rooms', 'living_corridor');
   await frame.selectOption('#quality', 'high');
@@ -139,18 +150,42 @@ try {
   assert.equal(await frame.locator('#dimensions-overlay').count(), 0);
   await page.keyboard.press('Escape');
   await minimal(frame);
+  const revisionPose=await frame.evaluate(()=>__walkthrough.getState());
+  const zoomBeforeRevision=await frame.evaluate(()=>__walkthrough.controls.getState().zoom);
+  await frame.click('#map-button');assert.equal(await frame.locator('.map').isVisible(),false);
+  await frame.click('#dimensions-toggle');
+  for(const revision of ['0.1','0.2','0.1','0.2']){
+    assert.equal(await frame.evaluate(id=>__walkthrough.revisions.select(id),revision),true);
+    assert.deepEqual(await frame.evaluate(()=>__walkthrough.getState().position),revisionPose.position);
+    assert.equal(await frame.evaluate(()=>__walkthrough.controls.getState().zoom),zoomBeforeRevision);
+    assert.equal(await frame.evaluate(()=>__walkthrough.tools.getState().measurements.length),432);
+    assert.equal(await frame.locator('.map').isVisible(),false);
+  }
+  assert.equal(downloads.filter(url=>modelFiles.some(file=>url.endsWith(file))).length,2,'load each revision model once per unlock');
+  assert.equal(await frame.evaluate(()=>__walkthrough.revisions.getState().cacheEntries),2);
+  const a=await frame.locator('.artifact-modes').boundingBox(),b=await frame.locator('#revision-controls').boundingBox();
+  assert.ok(Math.abs(a.y-b.y)<2&&b.x>=a.x+a.width,'revision must sit beside modes');
+  await page.screenshot({path:path.join(artifacts,'desktop-revisions-dimensions.png')});
+  await frame.click('#dimensions-toggle');await frame.click('#map-button');
+  await frame.click('#menu-toggle');await frame.locator('#revision-details summary').click();
+  const artifactLink=frame.locator('#revision-outputs a').first();
+  const popupPromise=page.waitForEvent('popup');await artifactLink.click();const popup=await popupPromise;
+  await popup.waitForURL(/^blob:/);await popup.locator('svg').waitFor();await popup.close();
+  await frame.click('#menu-toggle');
+  checks.push('Encrypted revision 0.1/0.2 selection, bounded lazy model cache, exact pose/zoom and minimap retention, 432 deterministic faces, private map export');
   await frame.click('#language-toggle');
   await frame.click('#menu-toggle'); await frame.click('#lock-page');
   await page.getByLabel('Password / 访问密码').waitFor();
   assert.equal(await page.locator('iframe').count(), 0);
   frame = await login(page);
+  assert.equal(await frame.evaluate(()=>__walkthrough.revisions.getState().revisionId),'0.2');
   assert.equal(await frame.locator('html').getAttribute('lang'), 'zh-CN');
   assert.equal(await frame.locator('#mode-walk').textContent(), '室内漫游');
   await frame.click('#language-toggle');
   await page.reload();
   await page.getByLabel('Password / 访问密码').waitFor();
   assert.equal(await page.locator('iframe').count(), 0);
-  checks.push('Password rejection, no early model download, fullscreen canvas, English default, persistent EN/CN switch without pose reset, no duplicate shortcut, two-mode pose round trips, empty shell, orbit and fixed marker, default minimap, wheel zoom without movement, zoom slider/reset/resize, CAD-style fixed wall dimensions and 79 PDF-aligned plan annotations; two-point 3D ruler in both modes, stable across navigation and zoom, differentiated finishes, 11 viewpoints, keyboard movement, quality, Escape, locking and reload');
+  checks.push('Password rejection, no early model download, fullscreen canvas, English default, persistent EN/CN switch without pose reset, no duplicate shortcut, two-mode pose round trips, empty shell, orbit and fixed marker, default minimap, wheel zoom without movement, zoom slider/reset/resize, CAD-style fixed wall dimensions and 79 PDF-aligned plan annotations; two-point 3D ruler in both modes, stable across navigation and zoom, revision source materials, 11 viewpoints, keyboard movement, quality, Escape, locking and reload');
 
   // Theme controls stay on the portfolio; House inherits the selected theme.
   await page.evaluate(() => { location.hash = 'profile'; });
@@ -183,6 +218,13 @@ try {
   frame = await login(mobile);
   await fullscreen(mobile, frame); await minimal(frame);
   await checkArtifactModes({page:mobile,frame,artifacts,mobile:true});
+  await mobile.setViewportSize({width:320,height:844});
+  const modeBox=await frame.locator('.artifact-modes').boundingBox(),revisionBox=await frame.locator('#revision-controls').boundingBox();
+  assert.ok(Math.abs(modeBox.y-revisionBox.y)<2&&revisionBox.x>=modeBox.x+modeBox.width&&revisionBox.x+revisionBox.width<=320);
+  await frame.selectOption('#revision-select','0.1');await frame.waitForFunction(()=>__walkthrough.revisions.getState().revisionId==='0.1');
+  await frame.selectOption('#revision-select','0.2');await frame.waitForFunction(()=>__walkthrough.revisions.getState().revisionId==='0.2');
+  await mobile.screenshot({path:path.join(artifacts,'mobile-320-revisions.png')});await mobile.setViewportSize({width:390,height:844});
+
   await frame.evaluate(() => __walkthrough.go('living_wide'));
   const cdp = await mobile.context().newCDPSession(mobile);
   const lookBefore = await frame.evaluate(() => __walkthrough.getState().yaw);

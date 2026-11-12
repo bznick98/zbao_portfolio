@@ -1,5 +1,6 @@
 import * as THREE from 'three';
-import { collectWallSurfaces } from './measurement-geometry.js';
+import { buildWallSurfaceManifest } from './wall-surfaces.js';
+import { createWallLabels } from './wall-labels.js';
 
 const vector = a => new THREE.Vector3(...a);
 // Static CAD-style linework: no camera tracking or measurement in the render loop.
@@ -45,23 +46,26 @@ class Draft {
     labelsGeometry.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2));
     const labels = new THREE.Mesh(labelsGeometry, new THREE.MeshBasicMaterial({ map: texture, transparent: true, alphaTest: .1, depthTest: this.depthTest, depthWrite: false, toneMapped: false, side: THREE.FrontSide }));
     labels.renderOrder = 201; group.add(labels); group.visible = false;
-    return { group, segmentCount: this.lines.length / 6, labelCount: this.labels.length,
+    return { group, setLinePositions(values) { geometry.attributes.position.array.set(values);geometry.attributes.position.needsUpdate=true;geometry.setDrawRange(0,values.length/3); }, segmentCount: this.lines.length / 6, labelCount: this.labels.length,
       dispose() { geometry.dispose(); material.dispose(); labelsGeometry.dispose(); labels.material.dispose(); texture.dispose(); } };
   }
 }
 
-export function createDimensionOverlays(root, plan) {
-  const surfaces = collectWallSurfaces(root), wallDraft = new Draft(true), planDraft = new Draft(false);
+export function createDimensionOverlays(root, plan, manifest) {
+  const measured=manifest||buildWallSurfaceManifest(root),surfaces=measured.surfaces,wallLabels=createWallLabels(surfaces);
+  const wallDraft = new Draft(true), planDraft = new Draft(false),ranges=new Map();
   for (const face of surfaces) {
+    const start=wallDraft.lines.length;
     const right = vector(face.right), up = new THREE.Vector3(0,1,0), origin = vector(face.origin).addScaledVector(vector(face.normal), .006);
     const point = (x,y) => origin.clone().addScaledVector(right,x).addScaledVector(up,y);
-    const y = Math.min(1.15, face.height * .4), x = .18;
+    const y = face.height*.5, x = Math.min(.18,face.width*.25);
     wallDraft.line(point(0,y), point(face.width,y));
     for (const end of [0,face.width]) { wallDraft.line(point(end,.08), point(end,y+.12)); wallDraft.tick(point(end,y),right,up); }
-    wallDraft.label(String(Math.round(face.width*1000)),point(face.width/2,y+.14),right,up);
+
     wallDraft.line(point(x,0),point(x,face.height));
     for (const end of [0,face.height]) { wallDraft.line(point(.05,end),point(x+.12,end)); wallDraft.tick(point(x,end),right,up); }
-    wallDraft.label(`H ${Math.round(face.height*1000)}`,point(x+.14,face.height*.65),up,right.clone().negate(),.16);
+    ranges.set(face.id,[start,wallDraft.lines.length]);
+
   }
   for (const dimension of plan?.dimensions || []) {
     const a = vector(dimension.a), b = vector(dimension.b);
@@ -81,6 +85,13 @@ export function createDimensionOverlays(root, plan) {
     planDraft.label(String(dimension.valueMm),center,right,up,height);
   }
   const walls = wallDraft.build('Model wall dimensions (mm)'), drawing = planDraft.build('PDF plan dimensions (mm)');
-  return { walls, drawing, surfaces, plan,
-    dispose() { walls.dispose(); drawing.dispose(); } };
+  let visibleKey='',lastLabelState;
+  return { walls, drawing, surfaces, plan, manifest:measured, wallLabels,
+    update(camera,activeRoot,now) {
+      wallLabels.update(camera,activeRoot,walls.group.visible,now);
+      const labelState=wallLabels.getState();if(labelState===lastLabelState)return;lastLabelState=labelState;
+      const ids=labelState.visible.map(f=>f.id),key=ids.join('|');
+      if(key!==visibleKey){visibleKey=key;walls.setLinePositions(ids.flatMap(id=>{const [a,b]=ranges.get(id);return wallDraft.lines.slice(a,b);}));}
+    },
+    dispose() { walls.dispose(); drawing.dispose(); wallLabels.dispose(); } };
 }

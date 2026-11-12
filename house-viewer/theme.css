@@ -3,14 +3,14 @@
 .nav { left:auto; right:max(16px, env(safe-area-inset-right)); top:max(16px, env(safe-area-inset-top)); padding:0; border:0; border-radius:0; background:transparent; backdrop-filter:none; }
 #menu-toggle { width:44px; height:44px; border-radius:50%; background:var(--panel); color:var(--ink); border:1px solid var(--line); line-height:1; font-size:22px; }
 button, select { color:var(--ink); border-radius:0; font-size:12px; min-height:40px; }
-select { min-width:0; max-width:160px; }
+select { min-width:0; max-width:300px; }
 select option { color:var(--ink); background:var(--panel); }
 button:hover, select:hover, #settings a:hover { background:#8883; }
 #settings { top:52px; left:auto; right:0; width:250px; max-width:calc(100vw - 32px); max-height:calc(100dvh - 100px); overflow:auto; background:var(--panel); border:1px solid var(--line); border-radius:0; box-shadow:none; backdrop-filter:blur(12px); color:var(--ink); }
 #settings a { display:flex; align-items:center; min-height:40px; padding:7px 11px; color:var(--ink); text-decoration:none; font-size:12px; }
 #settings p { color:var(--muted); }
 #settings input { accent-color:var(--ink); }
-.map { right:max(16px, env(safe-area-inset-right)); bottom:max(16px, env(safe-area-inset-bottom)); width:160px; background:var(--panel); border:1px solid var(--line); border-radius:0; }
+.map { right:max(16px, env(safe-area-inset-right)); bottom:max(16px, env(safe-area-inset-bottom)); width:300px; background:var(--panel); border:1px solid var(--line); border-radius:0; }
 .map>div { color:var(--ink); }
 #loading { background:var(--panel); color:var(--ink); }
 .load-card { width:min(240px, 70vw); padding:0; border:0; box-shadow:none; border-radius:0; background:transparent; }
@@ -21,11 +21,13 @@ progress { accent-color:var(--ink); height:3px; }
 #stick { background:#f3f4ef88; border:1px solid #f3f4ef99; }
 #toast { border-radius:0; background:var(--panel); color:var(--ink); }
 :focus-visible { outline:2px solid var(--ink); outline-offset:3px; }
-@media(max-width:700px) { .map { width:125px; } }
+@media(max-width:700px) { .map { width:182px; } }
 @media(prefers-reduced-motion:reduce) { * { transition:none!important; animation:none!important; } }
 
 #settings .zoom-control { flex-wrap:wrap; gap:4px; }
 #settings .zoom-control output { font-size:11px; color:var(--muted); }
 #settings input[type=range] { width:100%; height:28px; margin:0; }
 .map { z-index:2; }
-.nav { z-index:3; }
+.nav { z-index:8; }
+
+#revision-select option { background:var(--panel); color:var(--ink); }

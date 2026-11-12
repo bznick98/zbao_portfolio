@@ -87,8 +87,48 @@ test('published asset tree contains encrypted data and no raw house model', asyn
   const { readdir } = await import('node:fs/promises');
   const base = new URL('../public/house-viewer/', import.meta.url);
   const entries = await readdir(base, { recursive: true });
-  assert.ok(entries.some(name => name.endsWith('model.bin')));
-  assert.ok(!entries.some(name => /\.(glb|blend|png|jpg|pdf)$/.test(name) || name.endsWith('scene.json')));
+  assert.ok(entries.some(name => /asset-[a-f0-9]{64}\.bin$/.test(name)));
+  assert.ok(!entries.some(name => /\.(glb|blend|png|jpg|pdf)$/.test(name) || name.endsWith('scene.json') || name.endsWith('revisions.json') || name.endsWith('wall-dimensions.json')));
   const release = JSON.parse(await readFile(new URL('release.json', base), 'utf8'));
   for (const file of Object.values(release.files)) assert.equal((await readFile(new URL(file.file, base))).byteLength, file.bytes);
+});
+
+const assetA='asset-'+'a'.repeat(64),assetB='asset-'+'b'.repeat(64);
+const privateCatalog={schema:1,defaultRevisionId:'0.2',revisions:[{revisionId:'0.1'},{revisionId:'0.2'}]};
+const schema2={schema:2,buildId,iterations:ITERATIONS,salt:[...salt],files:{}},sealed2={};
+for(const [name,text] of [['catalog',JSON.stringify(privateCatalog)],[assetA,'revision one model'],[assetB,'revision two model']]){
+ const iv=randomBytes(12);sealed2[name]=await crypto.subtle.encrypt({name:'AES-GCM',iv,additionalData:new TextEncoder().encode(`${buildId}/${name}`)},key,new TextEncoder().encode(text));
+ schema2.files[name]={file:`${buildId}/${name}.bin`,iv:[...iv],bytes:sealed2[name].byteLength};
+}
+function network2(t,options={}){
+ const original=globalThis.fetch,requests=[];
+ globalThis.fetch=async(url,init)=>{
+  requests.push(url);init?.signal?.throwIfAborted();
+  if(url.endsWith('release.json'))return Response.json(schema2);
+  const name=url.split('/').at(-1).replace('.bin','');
+  if(options.wait&&name===assetA)return new Promise((resolve,reject)=>{init.signal.addEventListener('abort',()=>reject(new DOMException('Cancelled','AbortError')),{once:true});});
+  return new Response(sealed2[name]);
+ };
+ t.after(()=>{globalThis.fetch=original;});return requests;
+}
+test('revision unlock reads only the catalog, then decrypts only requested resources',async t=>{
+ const requests=network2(t),assets=await unlockHouse(password,new AbortController().signal,()=>{});
+ assert.deepEqual(assets.catalog,privateCatalog);assert.equal(requests.length,2);
+ const bytes=await assets.readAsset(assetB,new AbortController().signal);assert.equal(new TextDecoder().decode(bytes),'revision two model');
+ assert.ok(!requests.some(url=>url.includes(assetA)));
+ await assert.rejects(assets.readAsset('asset-'+'c'.repeat(64),new AbortController().signal),/Unknown/);assert.equal(requests.length,3);
+ assets.dispose();await assert.rejects(assets.readAsset(assetA,new AbortController().signal),{name:'AbortError'});
+});
+test('wrong revision password never requests private scene or model resources',async t=>{
+ const requests=network2(t);await assert.rejects(unlockHouse('wrong',new AbortController().signal,()=>{}),HousePasswordError);
+ assert.equal(requests.length,2);assert.ok(requests.at(-1).endsWith('catalog.bin'));
+});
+test('locking cancels in-flight revision downloads and prevents further decryption',async t=>{
+ network2(t,{wait:true});const assets=await unlockHouse(password,new AbortController().signal,()=>{});
+ const pending=assets.readAsset(assetA,new AbortController().signal);assets.dispose();await assert.rejects(pending,{name:'AbortError'});
+});
+test('changing selection can cancel one revision without locking the session',async t=>{
+ network2(t,{wait:true});const assets=await unlockHouse(password,new AbortController().signal,()=>{}),controller=new AbortController();
+ const pending=assets.readAsset(assetA,controller.signal);controller.abort();await assert.rejects(pending,{name:'AbortError'});
+ assert.equal(new TextDecoder().decode(await assets.readAsset(assetB,new AbortController().signal)),'revision two model');assets.dispose();
 });

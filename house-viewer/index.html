@@ -4,24 +4,30 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
   <link rel="icon" href="data:,">
-  <meta name="robots" content="noindex,nofollow">
   <title>House</title>
+  <meta name="robots" content="noindex,nofollow">
   <link rel="stylesheet" href="./style.css">
   <link rel="stylesheet" href="./artifact-modes.css">
+  <link rel="stylesheet" href="./revisions.css">
+  <link rel="stylesheet" href="./dimensions.css">
   <link rel="stylesheet" href="./theme.css">
-  <script type="importmap">{"imports":{"three":"./vendor/three/three.module.js","three/addons/":"./vendor/three/addons/"}}</script>
+  <script type="importmap">{"imports":{"three":"./vendor/three/three.module.js","three-mesh-bvh":"./vendor/three-mesh-bvh/index.module.js","three/addons/":"./vendor/three/addons/"}}</script>
 </head>
 <body>
   <main id="stage" data-i18n-aria="stage" aria-label="Interactive house walkthrough"></main>
   <div class="common-tools" role="toolbar" data-i18n-aria="tools" aria-label="Common tools"><button id="language-toggle" type="button" data-language="en" aria-label="Switch to Chinese" aria-pressed="false"><span lang="en">EN</span><span aria-hidden="true"> / </span><span lang="zh-CN">CN</span></button>
     <button id="dimensions-toggle" type="button" class="tool-button" data-i18n-aria="dimensions" data-i18n-title="dimensions" aria-label="Dimensions" title="Dimensions" aria-pressed="false" disabled><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6v12M20 6v12M4 12h16M4 12l3-3m-3 3 3 3m13-3-3-3m3 3-3 3"/></svg></button>
     <button id="measure-toggle" type="button" class="tool-button" data-i18n-aria="measure" data-i18n-title="measure" aria-label="Measure distance" title="Measure distance" aria-pressed="false" disabled><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 16 16 3l5 5L8 21zM13 6l2 2m-5 1 3 3m-6 0 2 2m-5 1 3 3"/></svg></button>
+    <button id="map-button" type="button" class="tool-button" data-walk-only data-i18n-aria="toggleMinimap" data-i18n-title="toggleMinimap" aria-label="Toggle minimap" title="Toggle minimap" aria-pressed="true" aria-controls="map-panel"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m3 5 6-2 6 2 6-2v16l-6 2-6-2-6 2zM9 3v16M15 5v16"/></svg></button>
   </div>
+  <div class="view-controls">
   <div class="artifact-modes" role="group" data-i18n-aria="modes" aria-label="View mode"><button id="mode-walk" data-i18n="walk" aria-pressed="true" disabled>Walkthrough</button><button id="mode-model" data-i18n="model" aria-pressed="false" disabled>Model</button></div>
+  <div id="revision-controls" hidden><label for="revision-select" data-i18n="revision">Revision</label><select id="revision-select" data-i18n-aria="revision" aria-label="Revision"></select></div>
+  </div><p id="revision-status" role="status" hidden></p>
   <div id="model-tools" data-model-only><button id="model-reset" data-i18n="overview" disabled>Reset overview</button><span class="position-legend"><i aria-hidden="true"></i><span data-i18n="position">You are here</span></span><small data-i18n="orientation">Plan orientation · not north</small></div>
   <div id="tool-readout"><p id="dimensions-note" hidden data-i18n="wallDimensionsNote">Model wall dimensions · mm</p><section id="measure-panel" hidden aria-live="polite"><output id="measure-value"></output><span id="measure-hint" data-i18n="measureFirst">Select the first point on a surface.</span><button id="measure-clear" data-i18n="measureClear">Clear</button></section></div>
   <header class="nav">
-    <button id="menu-toggle" data-i18n-aria="settings" aria-label="Settings" aria-expanded="false" aria-controls="settings">···</button>
+    <button id="menu-toggle" data-i18n-aria="settings" aria-label="Settings" aria-expanded="false" aria-controls="settings"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="5" cy="12" r="1.4"/><circle cx="12" cy="12" r="1.4"/><circle cx="19" cy="12" r="1.4"/></svg></button>
     <section id="settings" hidden data-i18n-aria="settings" aria-label="Settings">
       <label data-walk-only><span data-i18n="room">Room</span><select id="rooms" disabled data-i18n-aria="chooseRoom" aria-label="Choose a room"></select></label>
       <button data-walk-only id="reset" data-i18n="reset" disabled>Back to living room</button>
@@ -29,14 +35,16 @@
       <button id="fullscreen" data-i18n="fullscreen">Fullscreen</button>
       <label><span data-i18n="quality">Quality</span><select id="quality"><option value="auto" data-i18n="auto">Auto</option><option value="low" data-i18n="low">Smooth</option><option value="high" data-i18n="high">High</option></select></label>
       <label data-walk-only><span data-i18n="minimap">Minimap</span><input id="map-toggle" type="checkbox" checked></label>
+      <p data-walk-only id="help" data-i18n="helpDesktop">WASD / arrows to move · Drag to look</p>
       <label data-walk-only class="zoom-control"><span data-i18n="zoom">View zoom</span><output id="zoom-value" for="view-zoom">1.00×</output><input id="view-zoom" type="range" min="0.65" max="3" step="0.01" value="1" disabled data-i18n-aria="zoomLabel" aria-label="View zoom"></label>
       <button data-walk-only id="zoom-reset" data-i18n="zoomReset" disabled>Reset zoom</button>
       <button id="lock-page" data-i18n="lockPage">Lock</button>
       <a href="/#work" target="_top" data-i18n="returnSite">Back to website</a>
-      <p data-walk-only id="help" data-i18n="helpDesktop">WASD / arrows to move · Drag to look</p>
+      <details id="revision-details"><summary data-i18n="revisionDetails">Revision details</summary><strong id="revision-title"></strong><p id="revision-summary"></p><p id="revision-parent" class="note"></p><p id="revision-validation" class="note"></p><label><span data-i18n="build">Build</span><select id="revision-build" aria-label="Build"></select></label><div id="revision-outputs"></div></details>
+      <p class="note" data-i18n="realtime">Realtime lighting · Placeholder sky</p>
     </section>
   </header>
-  <aside class="map" data-walk-only><div><span id="room-name"></span></div><canvas id="minimap" width="500" height="440" data-i18n-aria="mapLabel" aria-label="Current position and heading"></canvas></aside>
+  <aside id="map-panel" class="map" data-walk-only><div><span id="room-name"></span></div><canvas id="minimap" width="1000" height="860" data-i18n-aria="mapLabel" aria-label="Current position and heading"></canvas></aside>
   <div data-walk-only id="joystick" data-i18n-aria="joystick" aria-label="Move joystick"><div id="stick"></div></div>
   <div id="loading" role="status"><div class="load-card"><p id="load-text" data-i18n="loading">Loading model…</p><progress id="progress" max="100"></progress></div></div>
   <div id="toast" role="status" aria-live="polite"></div>

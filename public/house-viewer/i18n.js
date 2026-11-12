@@ -1,4 +1,16 @@
 const messages = {
+  dimensionFace:['{width} × {height}','{width} × {height}'],
+  dimensionWidth:['W {mm}','宽 {mm}'],dimensionHeight:['H {mm}','高 {mm}'],
+  revisionParent:['Parent: {parent}','父版本：{parent}'],revisionRulerCleared:['Revision changed. Previous measurement cleared.','版本已切换，旧量尺已清除。'],revisionFallback:['Requested revision/build is unavailable. Showing an available version.','链接中的版本或构建不可用，已显示可用版本。'],
+  revision:['Revision','设计版本'], build:['Build','构建'], revisionDetails:['Revision details','版本详情'],
+  revisionLoading:['Loading revision…','正在切换版本…'],revisionError:['Could not load revision. Your current view is unchanged.','版本加载失败，当前场景已保留。'],
+  revisionInitialError:['No revision could be loaded. Reload to retry.','未能加载版本，请刷新重试。'],
+  revisionRelocated:['Layout changed. Moved to a safe viewpoint.','布局已变化，已移至安全视角。'],
+  revisionModelOnly:['No verified walking position. Model view is available.','没有可用的安全行走位置，已打开建筑模型。'],
+  revisionUnreviewed:['Dimensions still require review.','尺寸仍需复核。'],
+  artifactFailed:['Build failed','构建失败'],artifactBuilding:['Building…','构建中…'],
+  artifactReady:['Open ↗','打开 ↗'],artifactPending:['Not generated','未生成'],
+  artifact_quick:['Quick previews','快速预览'],artifact_fine:['Fine previews','精细预览'],artifact_map:['Plan map','平面图'],artifact_route:['Tour route','导览动线'],artifact_interactive:['Interactive view','交互网页'],artifact_video:['Room tour video','导览视频'],
   stage: ['Interactive house walkthrough', '可自由走动的三维住宅'],
   modes: ['View mode', '浏览模式'], walk: ['Walkthrough', '室内漫游'], model: ['Model', '建筑模型'],
   overview: ['Reset overview', '恢复斜俯瞰'], position: ['You are here', '当前位置'],
@@ -7,11 +19,11 @@ const messages = {
   reset: ['Back to living room', '回到客厅'], lock: ['Mouse look', '鼠标看向'], unlock: ['Esc to release mouse', 'Esc 退出看向'],
   fullscreen: ['Fullscreen', '全屏浏览'], quality: ['Quality', '画质'],
   auto: ['Auto', '自动'], low: ['Smooth', '流畅'], high: ['High', '清晰'],
-  minimap: ['Minimap', '小地图'], mapLabel: ['Current position and heading', '当前位置与朝向'],
+  minimap: ['Minimap', '小地图'], toggleMinimap: ['Toggle minimap', '显示或隐藏小地图'], mapLabel: ['Current position and heading', '当前位置与朝向'],
   zoom: ['View zoom', '视角'], zoomLabel: ['View zoom', '视角缩放'], zoomReset: ['Reset zoom', '重置视角'],
   dimensions: ['Dimensions', '尺寸标注'],
   tools: ['Common tools', '常用工具'], measure: ['Measure distance', '量尺'],
-  wallDimensionsNote: ['Model wall dimensions · mm', '模型墙面尺寸 · 毫米'],
+  wallDimensionsNote: ['Wall face W × H · mm · Model dimensions', '墙面宽 × 高 · 毫米 · 模型尺寸'],
   planDimensionsNote: ['Plan dimensions · mm', '平面图尺寸 · 毫米'],
   measureFirst: ['Select the first point on a surface.', '点击模型表面，选择第一个点。'],
   measureSecond: ['Select the second point. Drag to adjust the view.', '选择第二个点。可拖动画面调整视角。'],
@@ -57,9 +69,10 @@ export function setText(element, key, params = {}) {
   element.dataset.i18nParams = JSON.stringify(params);
   element.textContent = t(key, params);
 }
+export function roomText(name) { return language === 'en' ? roomNames[name] ?? name : name; }
 export function setRoomText(element, name) {
   element.dataset.i18nRoom = name;
-  element.textContent = language === 'en' ? roomNames[name] ?? name : name;
+  element.textContent = roomText(name);
 }
 function refresh() {
   document.documentElement.lang = language === 'en' ? 'en' : 'zh-CN';
