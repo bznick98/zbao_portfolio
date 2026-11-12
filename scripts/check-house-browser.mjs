@@ -128,13 +128,13 @@ try {
     for(let i=0;i<60;i++){
       camera.quaternion.copy(start);camera.rotateY(Math.sin(i*.2)*.4);camera.zoom=.65+(i%12)*.12;camera.updateProjectionMatrix();camera.updateMatrixWorld(true);tools.update(performance.now());
       const current=tools.getState().wallLabels;
-      if(current.submittedDimensions!==864||current.items!==initial.items||JSON.stringify(current.geometryVersions)!==JSON.stringify(initial.geometryVersions))throw Error('Camera motion changes annotation geometry or membership');
+      if(current.submittedDimensions!==initial.submittedDimensions||current.items!==initial.items||JSON.stringify(current.geometryVersions)!==JSON.stringify(initial.geometryVersions))throw Error('Camera motion changes annotation geometry or membership');
     }
     for(const spec of initial.items)if(Math.abs(spec.textWidth/spec.textHeight-spec.textAspect)>.00001)throw Error('Text aspect changed');
-    camera.quaternion.copy(start);camera.zoom=zoom;camera.updateProjectionMatrix();camera.updateMatrixWorld(true);tools.update(performance.now());return {poses:60,submitted:initial.submittedDimensions};
+    camera.quaternion.copy(start);camera.zoom=zoom;camera.updateProjectionMatrix();camera.updateMatrixWorld(true);tools.update(performance.now());return {poses:60,submitted:initial.submittedDimensions,generated:initial.generatedDimensions,removed:initial.filtering.removed.length,unresolved:initial.filtering.unresolved.length};
   });
-  assert.equal(stableDimensions.submitted,864);
-  checks.push('All 864 dimensions retain their geometry through 60 camera/zoom poses; glyph quads preserve measured text aspect ratios');
+  assert.equal(stableDimensions.generated,864);assert.ok(stableDimensions.submitted>0&&stableDimensions.submitted<864);assert.equal(stableDimensions.submitted+stableDimensions.removed,864);assert.equal(stableDimensions.unresolved,0);
+  checks.push(`${stableDimensions.submitted} retained dimensions (${stableDimensions.removed} local duplicates filtered) keep fixed geometry through 60 camera/zoom poses; all 864 raw measurements remain accounted for and glyph aspect is preserved`);
   assert.equal(await frame.evaluate(()=>__walkthrough.revisions.getState().revisionId),'0.2');
   await frame.click('#menu-toggle');
   await frame.selectOption('#rooms', 'living_corridor');

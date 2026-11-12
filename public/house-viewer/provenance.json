@@ -1,15 +1,16 @@
 {
   "schema": 1,
-  "sourceDelivery": "interactive-9340bb9d4e2d",
-  "sourceManifestSha256": "cb5ae3210f00188d5d4ba29fe2add423f9a48ef3822ebcc129aef082cba0ca5d",
+  "sourceDelivery": "interactive-522299d21583",
+  "sourceManifestSha256": "80831bede00e820a14e84106c0a942db9fcc05c9668643f6684f770706a87dcc",
   "runtime": {
     "main.js": "a8f1489e4ed4df7e564bbad5adf5dfae346bc05a02dfac71630ee2d92841acea",
     "artifact-modes.js": "b2f338a0c7680b5a7cac3d943ae18d2339ab3671500eb88bbc4c7dee018b3907",
     "artifact-modes.css": "48a4d55e4c9eaec6b146cf2aab3f1b1bf7f56641e58f0afb2d9718f453ba5817",
     "i18n.js": "92fe04440a04df7cef37dd9b45d0fac52d5c6dcbacded96d6523c570214e951f",
     "measurement-geometry.js": "d8fddfaefbd4fd7a7f965368cfb03775f56c923f16bbaa2908bd5e444d70c988",
-    "dimension-overlays.js": "248395746c1d4f9973fe1c0b85aa3ba82bbe996435234d16e5c78a38385d9ee1",
-    "dimension-layout.js": "ebb85865a75d456b44e4f52d9024d1c4fc2d1e01b422843afd56d7fd19e91be1",
+    "dimension-overlays.js": "67689ac8f1c801fe9390c1004751ca24da31ce6b7b27a0d57d3d33cfac2edb7c",
+    "dimension-layout.js": "f2c113543a80519e5ce644efddfecf2d42ab4700e988fc503d4d1b2ecbe90325",
+    "dimension-filter.js": "454bfcbc068b52be63e5a19e1ae2a20b92c911b291cbc468d40e747754addb05",
     "dimension-text.js": "650ebc0aa025f6e98f7086d2df35fb3be691e287eb552d95394cd18a5d9b1790",
     "measurement-tools.js": "3b2d6c61f32cea08fcc4aa6ea2c4820abed87dceabf23339eff7ac1f432c960d",
     "dimension-occlusion.js": "b2cb0dae7e9a42f3bd4de1453251761fa7e03f78982031a8d5ebe7c7f63c1178",
@@ -21,8 +22,8 @@
     "revisions.css": "e2f3bafc9ec4afa58e047c6aeaa9deff7cb2fb9c106b20903ef2e27501567386"
   },
   "selectedBuildIds": [
-    "bceca64ec9238921",
-    "ee43f5fee62d0524"
+    "9b3046dbad241152",
+    "1539ad7ca55db71d"
   ],
   "sourceMaterialsPreserved": true
 }

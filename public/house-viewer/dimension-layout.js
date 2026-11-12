@@ -36,7 +36,7 @@ export function buildWallDimensionSpecs(surfaces, aspectForText) {
         lines.push([end.clone(),end.clone().add(diagonal)],[point(end,across,-tick*1.6),point(end,across,tick*1.6)]);
       }
       const corners=[[-1,-1],[1,-1],[1,1],[-1,1]].map(([x,y])=>center.clone().addScaledVector(along,x*textWidth/2).addScaledVector(across,y*textHeight/2));
-      return {id:face.id+':'+axis,faceId:face.id,axis,valueMm,text,length,textAspect:aspect,textWidth,textHeight,normal:normal.toArray(),
+      return {id:face.id+':'+axis,faceId:face.id,face:{objectId:face.objectId||face.id,area:face.area||face.width*face.height,origin:face.origin,right:right.toArray(),width:face.width,height:face.height,solidRatio:face.solidRatio??1},axis,valueMm,text,length,textAspect:aspect,textWidth,textHeight,normal:normal.toArray(),
         a:a.toArray(),b:b.toArray(),center:center.toArray(),right:along.toArray(),up:across.toArray(),corners:corners.map(p=>p.toArray()),lines:lines.map(pair=>pair.map(p=>p.toArray()))};
     });
   });

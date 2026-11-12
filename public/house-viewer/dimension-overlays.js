@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { buildWallSurfaceManifest } from './wall-surfaces.js';
 import { createDimensionTextAtlas } from './dimension-text.js';
 import { buildWallDimensionSpecs } from './dimension-layout.js';
+import { filterDimensionSpecs } from './dimension-filter.js';
 
 const vector = a => new THREE.Vector3(...a);
 // Static CAD-style linework: no camera tracking or measurement in the render loop.
@@ -46,7 +47,7 @@ class Draft {
 export function createDimensionOverlays(root, plan, manifest) {
   const measured=manifest||buildWallSurfaceManifest(root),surfaces=measured.surfaces;
   const atlas=createDimensionTextAtlas(surfaces.flatMap(face=>[String(Math.round(face.width*1000)),String(Math.round(face.height*1000))]));
-  const specs=buildWallDimensionSpecs(surfaces,atlas.aspect);
+  const rawSpecs=buildWallDimensionSpecs(surfaces,atlas.aspect),filtered=filterDimensionSpecs(rawSpecs),specs=filtered.specs;
   const wallDraft=new Draft(true),planDraft=new Draft(false);
   for(const spec of specs){
     for(const pair of spec.lines)wallDraft.line(...pair.map(vector));
@@ -70,9 +71,9 @@ export function createDimensionOverlays(root, plan, manifest) {
     planDraft.label(String(dimension.valueMm),center,right,up,height);
   }
   const walls=wallDraft.build('Model wall dimensions (mm)',atlas),drawing=planDraft.build('PDF plan dimensions (mm)');
-  // Every axis stays in the GPU buffers. Depth, front-face and frustum clipping
+  // Retained axes stay in the GPU buffers. Depth, front-face and frustum clipping
   // work per fragment; no camera-dependent suppression or buffer compaction.
-  const wallLabels={getState:()=>({generatedFaces:surfaces.length,generatedDimensions:specs.length,
+  const wallLabels={getState:()=>({generatedFaces:surfaces.length,generatedDimensions:rawSpecs.length,retainedDimensions:specs.length,filtering:{removed:filtered.removed,adjusted:filtered.adjusted,unresolved:filtered.unresolved,policy:filtered.policy},
     enabled:walls.group.visible,submittedDimensions:walls.group.visible?specs.length:0,
     placement:'static-gpu-depth',items:specs,geometryVersions:walls.geometryVersions()})};
   return {walls,drawing,surfaces,plan,manifest:measured,wallLabels,

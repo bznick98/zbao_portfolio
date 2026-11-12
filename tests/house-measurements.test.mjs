@@ -59,3 +59,12 @@ test('wall dimensions have separate numeric axes at fixed line midpoints',async(
   near(Math.hypot(...spec.a.map((n,i)=>n-spec.b[i])),face[spec.axis]);
  }
 });
+
+test('imported filtering merges nearby duplicates with complete accounting and fixed numeric geometry',async()=>{
+ const {buildWallDimensionSpecs}=await import('../public/house-viewer/dimension-layout.js'),{filterDimensionSpecs}=await import('../public/house-viewer/dimension-filter.js');
+ const root=new THREE.Group(),a=wall(),b=wall();b.name='finish';b.position.z=.04;root.add(a,b);
+ const raw=buildWallDimensionSpecs(collectWallSurfaces(root),text=>(text.length*36+24)/96),result=filterDimensionSpecs(raw);
+ assert.ok(result.removed.length>0);assert.equal(result.retained+result.removed.length,raw.length);assert.deepEqual(result,filterDimensionSpecs([...raw].reverse()));
+ for(const removed of result.removed){const rep=result.specs.find(s=>s.id===removed.representativeId),source=raw.find(s=>s.id===removed.id);assert.ok(rep);assert.equal(rep.axis,source.axis);assert.equal(rep.valueMm,source.valueMm);}
+ for(const s of result.specs){near(s.textWidth/s.textHeight,s.textAspect);near(Math.hypot(...s.a.map((n,i)=>n-s.b[i])),s.length);s.center.forEach((n,i)=>near(n,(s.a[i]+s.b[i])/2));}
+});
