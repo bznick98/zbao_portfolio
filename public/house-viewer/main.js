@@ -21,6 +21,11 @@ scene.background=new THREE.Color('#d5dfe2');
 const skyFill=new THREE.HemisphereLight(0xe9f1ff,0x8e9390,1.65);skyFill.position.set(15,13,4);scene.add(skyFill);scene.add(new THREE.AmbientLight(0xfff4e6,.08));
 const sun=new THREE.DirectionalLight(0xfffaf0,3);sun.position.set(32,28,-2);sun.target.position.set(10,0,-7);sun.castShadow=true;sun.shadow.mapSize.set(2048,2048);Object.assign(sun.shadow.camera,{left:-23,right:23,top:23,bottom:-23,near:.5,far:90});sun.shadow.normalBias=.035;sun.shadow.bias=-.00015;scene.add(sun,sun.target);
 const colorTarget=new THREE.WebGLRenderTarget(1,1,{type:THREE.HalfFloatType,samples:4});const composer=new EffectComposer(renderer,colorTarget);const renderPass=new RenderPass(scene,camera);composer.addPass(renderPass);const ao=new GTAOPass(scene,camera,innerWidth,innerHeight);ao.updateGtaoMaterial({radius:.5,scale:.65,thickness:.6,samples:16,distanceExponent:1,distanceFallOff:1});ao.blendIntensity=.65;ao.updatePdMaterial({radius:5,lumaPhi:10,depthPhi:2,normalPhi:3});composer.addPass(ao);composer.addPass(new OutputPass());
+// AO's normal override ignores atlas alpha and would turn text quads into dark cards.
+// Keep annotations in the beauty/depth pass, but out of AO's geometry inputs.
+const renderAmbientOcclusion=ao.render.bind(ao);
+ao.render=(...args)=>measurementTools?measurementTools.withoutAnnotations(()=>renderAmbientOcclusion(...args)):renderAmbientOcclusion(...args);
+
 $('menu-toggle').onclick=()=>{const open=$('settings').hidden;$('settings').hidden=!open;$('menu-toggle').setAttribute('aria-expanded',String(open));};document.addEventListener('pointerdown',e=>{if(!e.target.closest('.nav')){$('settings').hidden=true;$('menu-toggle').setAttribute('aria-expanded','false');}});const mapStorageKey=`house-minimap:${location.pathname}`;
 function setMapVisible(visible){$('map-toggle').checked=visible;$('map-panel').hidden=!visible;$('map-button').setAttribute('aria-pressed',String(visible));try{localStorage.setItem(mapStorageKey,String(visible));}catch{}if(visible)drawMap();}
 $('map-toggle').onchange=e=>setMapVisible(e.target.checked);$('map-button').onclick=()=>setMapVisible(!$('map-toggle').checked);

@@ -48,3 +48,14 @@ test('website importer preserves revision materials instead of repainting design
   assert.equal(main.includes('applyHouseFinishes'),false);
   const provenance=JSON.parse(await readFile(new URL('../public/house-viewer/provenance.json',import.meta.url),'utf8'));assert.equal(provenance.sourceMaterialsPreserved,true);
 });
+
+test('wall dimensions have separate numeric axes at fixed line midpoints',async()=>{
+ const {buildWallDimensionSpecs}=await import('../public/house-viewer/dimension-layout.js');
+ const faces=collectWallSurfaces(wall()),specs=buildWallDimensionSpecs(faces);
+ assert.equal(specs.length,faces.length*2);assert.deepEqual(specs,buildWallDimensionSpecs([...faces].reverse()));
+ for(const spec of specs){
+  assert.match(spec.text,/^\d+$/);const face=faces.find(f=>f.id===spec.faceId);assert.equal(spec.valueMm,Math.round(face[spec.axis]*1000));
+  for(let i=0;i<3;i++)near(spec.center[i],(spec.a[i]+spec.b[i])/2);
+  near(Math.hypot(...spec.a.map((n,i)=>n-spec.b[i])),face[spec.axis]);
+ }
+});

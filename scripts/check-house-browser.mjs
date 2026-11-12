@@ -122,6 +122,24 @@ try {
   }
   assert.equal(await frame.evaluate(() => __walkthrough.controls.getState().annotationMeshes), 2);
   assert.equal(measurements.length,432);
+  assert.equal(await frame.locator('.wall-dimension-label,.wall-label-leaders').count(),0);
+  const stableDimensions=await frame.evaluate(async()=>{
+    const {buildWallDimensionSpecs,dimensionConflict}=await import('./dimension-layout.js'),tools=__walkthrough.tools,camera=__walkthrough.modes.camera,start=camera.quaternion.clone();
+    const specs=new Map(buildWallDimensionSpecs(tools.getState().measurements).map(s=>[s.id,s]));let samples=0;
+    for(let i=0;i<40;i++){
+      camera.quaternion.copy(start);camera.rotateY(Math.sin(i*.2)*.1);camera.updateMatrixWorld(true);tools.update(performance.now());
+      const visible=tools.getState().wallLabels.visible;
+      for(const [index,item] of visible.entries()){
+        const spec=specs.get(item.id);
+        if(item.text!==String(spec.valueMm)||JSON.stringify(item.worldCenter)!==JSON.stringify(spec.center))throw Error('dimension anchor or value changed');
+        if(visible.slice(index+1).some(other=>dimensionConflict(item,other)))throw Error('overlapping fixed dimensions');samples++;
+      }
+    }
+    camera.quaternion.copy(start);camera.updateMatrixWorld(true);tools.update(performance.now());return {samples,generated:tools.getState().wallLabels.generatedDimensions};
+  });
+  assert.equal(stableDimensions.generated,864);assert.ok(stableDimensions.samples>0);
+  checks.push('Fixed width/height numbers at line midpoints, no floating cards, stable world anchors and nonoverlapping strokes through 40 camera poses');
+
   assert.equal(await frame.evaluate(()=>__walkthrough.revisions.getState().revisionId),'0.2');
   await frame.click('#menu-toggle');
   await frame.selectOption('#rooms', 'living_corridor');

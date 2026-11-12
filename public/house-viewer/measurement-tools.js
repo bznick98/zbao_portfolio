@@ -101,6 +101,11 @@ export function installMeasurementTools({ root, scene, renderer, modes, plan, wa
   window.addEventListener('blur',cancel);document.addEventListener('keydown',key);
   const unsubscribe=modes.subscribe(()=>{cancel();syncDimensions();});
   return { setDimensions, setMeasuring, pickAt, activate,
+    withoutAnnotations(render) {
+      const groups=[group,annotations?.walls.group,annotations?.drawing.group].filter(Boolean),visible=groups.map(g=>g.visible);
+      for(const g of groups)g.visible=false;
+      try{return render();}finally{groups.forEach((g,i)=>{g.visible=visible[i];});}
+    },
     update(now) { annotations?.update(modes.camera,modes.activeRoot,now); },
     getState:()=>({dimensions,dimensionsVisible:Boolean(annotations?.walls.group.visible||annotations?.drawing.group.visible),
       wallDimensionsVisible:Boolean(annotations?.walls.group.visible),planDimensionsVisible:Boolean(annotations?.drawing.group.visible),

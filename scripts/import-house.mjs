@@ -7,7 +7,7 @@ globalThis.crypto ??= webcrypto;
 const root=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
 const hash=bytes=>createHash('sha256').update(bytes).digest('hex');
 const json=async file=>JSON.parse(await readFile(file,'utf8'));
-const modules=['artifact-modes.js','artifact-modes.css','i18n.js','measurement-geometry.js','dimension-overlays.js','measurement-tools.js','dimension-occlusion.js','wall-surfaces.js','wall-labels.js','dimensions.css','plan-map.js','revision-loader.js','revision-state.js','revisions.css'];
+const modules=['artifact-modes.js','artifact-modes.css','i18n.js','measurement-geometry.js','dimension-overlays.js','dimension-layout.js','measurement-tools.js','dimension-occlusion.js','wall-surfaces.js','wall-labels.js','dimensions.css','plan-map.js','revision-loader.js','revision-state.js','revisions.css'];
 async function checked(base,name,expected){
  if(!expected||name.includes('..')||name.includes('\\')||path.isAbsolute(name))throw Error('Unverified release path: '+name);
  const resolved=await realpath(path.join(base,name));if(!resolved.startsWith(await realpath(base)+path.sep))throw Error('Release path escapes source.');

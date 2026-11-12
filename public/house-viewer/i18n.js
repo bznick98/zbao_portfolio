@@ -1,5 +1,4 @@
 const messages = {
-  dimensionFace:['{width} × {height}','{width} × {height}'],
   dimensionWidth:['W {mm}','宽 {mm}'],dimensionHeight:['H {mm}','高 {mm}'],
   revisionParent:['Parent: {parent}','父版本：{parent}'],revisionRulerCleared:['Revision changed. Previous measurement cleared.','版本已切换，旧量尺已清除。'],revisionFallback:['Requested revision/build is unavailable. Showing an available version.','链接中的版本或构建不可用，已显示可用版本。'],
   revision:['Revision','设计版本'], build:['Build','构建'], revisionDetails:['Revision details','版本详情'],
@@ -23,7 +22,7 @@ const messages = {
   zoom: ['View zoom', '视角'], zoomLabel: ['View zoom', '视角缩放'], zoomReset: ['Reset zoom', '重置视角'],
   dimensions: ['Dimensions', '尺寸标注'],
   tools: ['Common tools', '常用工具'], measure: ['Measure distance', '量尺'],
-  wallDimensionsNote: ['Wall face W × H · mm · Model dimensions', '墙面宽 × 高 · 毫米 · 模型尺寸'],
+  wallDimensionsNote: ['Wall dimensions · mm', '墙面尺寸 · 毫米'],
   planDimensionsNote: ['Plan dimensions · mm', '平面图尺寸 · 毫米'],
   measureFirst: ['Select the first point on a surface.', '点击模型表面，选择第一个点。'],
   measureSecond: ['Select the second point. Drag to adjust the view.', '选择第二个点。可拖动画面调整视角。'],
