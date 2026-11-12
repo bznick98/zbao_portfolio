@@ -1,19 +1,19 @@
 {
   "schema": 1,
-  "sourceDelivery": "interactive-c19d3904a8f5",
-  "sourceManifestSha256": "f25f3154377b55fd3727b63e4a36fc1026ea8303f098d9756999e45f505f7b5b",
+  "sourceDelivery": "interactive-9340bb9d4e2d",
+  "sourceManifestSha256": "cb5ae3210f00188d5d4ba29fe2add423f9a48ef3822ebcc129aef082cba0ca5d",
   "runtime": {
     "main.js": "a8f1489e4ed4df7e564bbad5adf5dfae346bc05a02dfac71630ee2d92841acea",
     "artifact-modes.js": "b2f338a0c7680b5a7cac3d943ae18d2339ab3671500eb88bbc4c7dee018b3907",
     "artifact-modes.css": "48a4d55e4c9eaec6b146cf2aab3f1b1bf7f56641e58f0afb2d9718f453ba5817",
     "i18n.js": "92fe04440a04df7cef37dd9b45d0fac52d5c6dcbacded96d6523c570214e951f",
     "measurement-geometry.js": "d8fddfaefbd4fd7a7f965368cfb03775f56c923f16bbaa2908bd5e444d70c988",
-    "dimension-overlays.js": "ba560f8504649a5b6e4d661050c8da92105cc14d1c7dc3b1666bcb33c83fa8f9",
-    "dimension-layout.js": "04000b174f23c95b3b5d1c03bb3d45faf211a2000af3aecabd17ec134f1eae30",
+    "dimension-overlays.js": "248395746c1d4f9973fe1c0b85aa3ba82bbe996435234d16e5c78a38385d9ee1",
+    "dimension-layout.js": "ebb85865a75d456b44e4f52d9024d1c4fc2d1e01b422843afd56d7fd19e91be1",
+    "dimension-text.js": "650ebc0aa025f6e98f7086d2df35fb3be691e287eb552d95394cd18a5d9b1790",
     "measurement-tools.js": "3b2d6c61f32cea08fcc4aa6ea2c4820abed87dceabf23339eff7ac1f432c960d",
     "dimension-occlusion.js": "b2cb0dae7e9a42f3bd4de1453251761fa7e03f78982031a8d5ebe7c7f63c1178",
     "wall-surfaces.js": "ef33893d79a135d079893ddd91042dab4783bd4bd88487df2630e6ff4699d390",
-    "wall-labels.js": "e6a83b9e6022c173c5cc471569fc0f033c4425ac8e764828e2690dfb190155c4",
     "dimensions.css": "b0541ebdc0718ad456f434ddcec2a81f57bb0b3f045596aed7e62d84928f88bd",
     "plan-map.js": "0ee8f7bf5942280069895ed7df5fe7e85c1b23ff0e8b8c77e09540c86a9ebaad",
     "revision-loader.js": "5e4562bc5ce61c6f550c0fe0337b6de5c6995726239bf418fb93aa440d9b38a4",
@@ -21,8 +21,8 @@
     "revisions.css": "e2f3bafc9ec4afa58e047c6aeaa9deff7cb2fb9c106b20903ef2e27501567386"
   },
   "selectedBuildIds": [
-    "600614032d990f90",
-    "9e8b6f4ae0d8bf8c"
+    "bceca64ec9238921",
+    "ee43f5fee62d0524"
   ],
   "sourceMaterialsPreserved": true
 }
