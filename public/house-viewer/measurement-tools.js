@@ -3,9 +3,10 @@ import { createDimensionOverlays } from './dimension-overlays.js';
 import { distanceMeters, pickSurface } from './measurement-geometry.js';
 import { setText } from './i18n.js';
 
-export function installMeasurementTools({ root, scene, renderer, modes, plan, clearWalkInput }) {
+export function installMeasurementTools({ root, scene, renderer, modes, plan, wallDimensions, clearWalkInput, bindUI = true }) {
   const $ = id => document.getElementById(id), canvas = renderer.domElement;
   const dimensionsButton = $('dimensions-toggle'), rulerButton = $('measure-toggle');
+  let bound=false;
   let dimensions = false, measuring = false, annotations, points = [], preview = null, gesture = false;
   const pointers = new Map();
   const group = new THREE.Group(); group.name = 'Two-point ruler'; group.visible = false; scene.add(group);
@@ -22,6 +23,7 @@ export function installMeasurementTools({ root, scene, renderer, modes, plan, cl
 
   function hint(key) { setText($('measure-hint'),key); }
   function redraw() {
+    if(!bound)return;
     const pair = points.length===2 ? points : points.length===1 && preview ? [points[0],preview] : null;
     group.visible = measuring;
     markers.forEach((marker,index) => { const p = (pair||points)[index]; marker.visible=Boolean(p); if(p) marker.position.fromArray(p); });
@@ -43,6 +45,7 @@ export function installMeasurementTools({ root, scene, renderer, modes, plan, cl
     clear();
   }
   function syncDimensions() {
+    if(!bound)return;
     if (annotations) {
       annotations.walls.group.visible=dimensions && (modes.mode==='walk'||!plan?.dimensions.length);
       annotations.drawing.group.visible=dimensions && modes.mode==='model' && Boolean(plan?.dimensions.length);
@@ -53,7 +56,7 @@ export function installMeasurementTools({ root, scene, renderer, modes, plan, cl
   }
   function setDimensions(value) {
     dimensions=Boolean(value);
-    if(dimensions&&!annotations) { annotations=createDimensionOverlays(root,plan);scene.add(annotations.walls.group,annotations.drawing.group); }
+    if(dimensions&&!annotations) { annotations=createDimensionOverlays(root,plan,wallDimensions);scene.add(annotations.walls.group,annotations.drawing.group); }
     syncDimensions();
   }
   function pickAt(clientX,clientY) {
@@ -87,15 +90,26 @@ export function installMeasurementTools({ root, scene, renderer, modes, plan, cl
   }
   function cancel() { pointers.clear();gesture=false;preview=null;redraw(); }
   function key(event) { if(event.key==='Escape'&&measuring&&$('settings').hidden)setMeasuring(false); }
-  dimensionsButton.disabled=rulerButton.disabled=false;
-  dimensionsButton.onclick=()=>setDimensions(!dimensions);rulerButton.onclick=()=>setMeasuring(!measuring);$('measure-clear').onclick=clear;
+  function activate() {
+    bound=true;
+    dimensionsButton.disabled=rulerButton.disabled=false;
+    dimensionsButton.onclick=()=>setDimensions(!dimensions);rulerButton.onclick=()=>setMeasuring(!measuring);$('measure-clear').onclick=clear;
+    syncDimensions();setMeasuring(measuring);
+  }
+  if(bindUI)activate();
   canvas.addEventListener('pointerdown',down,true);canvas.addEventListener('pointermove',move,true);canvas.addEventListener('pointerup',up,true);canvas.addEventListener('pointercancel',cancel,true);
   window.addEventListener('blur',cancel);document.addEventListener('keydown',key);
   const unsubscribe=modes.subscribe(()=>{cancel();syncDimensions();});
-  return { setDimensions, setMeasuring, pickAt,
+  return { setDimensions, setMeasuring, pickAt, activate,
+    withoutAnnotations(render) {
+      const groups=[group,annotations?.walls.group,annotations?.drawing.group].filter(Boolean),visible=groups.map(g=>g.visible);
+      for(const g of groups)g.visible=false;
+      try{return render();}finally{groups.forEach((g,i)=>{g.visible=visible[i];});}
+    },
+    update(now) { annotations?.update(modes.camera,modes.activeRoot,now); },
     getState:()=>({dimensions,dimensionsVisible:Boolean(annotations?.walls.group.visible||annotations?.drawing.group.visible),
       wallDimensionsVisible:Boolean(annotations?.walls.group.visible),planDimensionsVisible:Boolean(annotations?.drawing.group.visible),
-      annotationMeshes:annotations?.walls.group.children.length||0,measurements:annotations?.surfaces.map(face=>({...face}))||[],
+      annotationMeshes:annotations?.walls.group.children.length||0,wallCoverage:annotations?.manifest.coverage||null,wallLabels:annotations?.wallLabels.getState()||null,measurements:annotations?.surfaces.map(face=>({...face}))||[],
       planDimensions:plan?.dimensions||[],planSource:plan?.sourceDrawing||null,
       ruler:{enabled:measuring,points:points.map(p=>[...p]),distanceMeters:points.length===2?distanceMeters(...points):null,
         line:points.length===2?[...geometry.attributes.position.array]:[],projected:points.map(p=>new THREE.Vector3(...p).project(modes.camera).toArray())}}),

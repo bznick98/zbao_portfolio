@@ -1,5 +1,8 @@
 import * as THREE from 'three';
-import { collectWallSurfaces } from './measurement-geometry.js';
+import { buildWallSurfaceManifest } from './wall-surfaces.js';
+import { createDimensionTextAtlas } from './dimension-text.js';
+import { buildWallDimensionSpecs } from './dimension-layout.js';
+import { filterDimensionSpecs } from './dimension-filter.js';
 
 const vector = a => new THREE.Vector3(...a);
 // Static CAD-style linework: no camera tracking or measurement in the render loop.
@@ -11,57 +14,44 @@ class Draft {
     this.line(p.clone().sub(offset), p.clone().add(offset));
   }
   label(text, center, right, up, height = .18) {
-    this.labels.push({ text, center, right, up, height, width: height * (text.length * .58 + .7) });
+    this.labels.push({ text, center, right, up, height });
   }
-  build(name) {
+  build(name, atlas=createDimensionTextAtlas(this.labels.map(label=>label.text),!this.depthTest)) {
     const group = new THREE.Group(); group.name = name;
     const geometry = new THREE.BufferGeometry();
     geometry.setAttribute('position', new THREE.Float32BufferAttribute(this.lines, 3));
     const material = new THREE.LineBasicMaterial({ color: '#24353e', depthTest: this.depthTest, depthWrite: false, toneMapped: false });
     const lines = new THREE.LineSegments(geometry, material); lines.renderOrder = 200; group.add(lines);
-    const texts = [...new Set(this.labels.map(label => label.text))];
-    const canvas = document.createElement('canvas'), cellWidth = 320, cellHeight = 96, columns = 4;
-    canvas.width = cellWidth * columns; canvas.height = Math.max(1, Math.ceil(texts.length / columns)) * cellHeight;
-    const ctx = canvas.getContext('2d'), entries = new Map();
-    for (const [i, text] of texts.entries()) {
-      const x = i % columns * cellWidth, y = Math.floor(i / columns) * cellHeight;
-      ctx.font = '500 64px Arial, sans-serif';
-      const width = Math.min(cellWidth,Math.ceil(ctx.measureText(text).width)+28);
-      ctx.fillStyle = 'rgba(250,250,246,.96)'; ctx.fillRect(x + 3, y + 3, width - 6, cellHeight - 6);
-      ctx.fillStyle = '#000000'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-      ctx.fillText(text, x + width / 2, y + cellHeight / 2, width - 24);
-      entries.set(text, [x / canvas.width, 1 - (y + cellHeight) / canvas.height, (x + width) / canvas.width, 1 - y / canvas.height, width / cellHeight]);
-    }
     const positions = [], uv = [];
     for (const label of this.labels) for (const [x, y] of [[0,0],[1,0],[1,1],[0,0],[1,1],[0,1]]) {
-      const rect = entries.get(label.text);
-      const p = label.center.clone().addScaledVector(label.right, (x - .5) * label.height * rect[4]).addScaledVector(label.up, (y - .5) * label.height);
+      const entry=atlas.entries.get(label.text),rect=entry.uv;
+      const p = label.center.clone().addScaledVector(label.right, (x - .5) * (label.height * entry.aspect)).addScaledVector(label.up, (y - .5) * label.height);
       positions.push(...p.toArray());
       uv.push(THREE.MathUtils.lerp(rect[0], rect[2], x), THREE.MathUtils.lerp(rect[1], rect[3], y));
     }
-    const texture = new THREE.CanvasTexture(canvas); texture.colorSpace = THREE.SRGBColorSpace; texture.anisotropy = 4;
+    const texture=atlas.texture;
     const labelsGeometry = new THREE.BufferGeometry();
     labelsGeometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
     labelsGeometry.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2));
+    // Immutable buffers and full bounds are shared by every camera pose.
+    geometry.computeBoundingSphere();labelsGeometry.computeBoundingSphere();
     const labels = new THREE.Mesh(labelsGeometry, new THREE.MeshBasicMaterial({ map: texture, transparent: true, alphaTest: .1, depthTest: this.depthTest, depthWrite: false, toneMapped: false, side: THREE.FrontSide }));
     labels.renderOrder = 201; group.add(labels); group.visible = false;
-    return { group, segmentCount: this.lines.length / 6, labelCount: this.labels.length,
+    geometry.setDrawRange(0,this.lines.length/3);labelsGeometry.setDrawRange(0,positions.length/3);
+    return { group, segmentCount:this.lines.length/6,labelCount:this.labels.length,
+      geometryVersions:()=>[geometry.attributes.position.version,labelsGeometry.attributes.position.version,labelsGeometry.attributes.uv.version],
       dispose() { geometry.dispose(); material.dispose(); labelsGeometry.dispose(); labels.material.dispose(); texture.dispose(); } };
   }
 }
 
-export function createDimensionOverlays(root, plan) {
-  const surfaces = collectWallSurfaces(root), wallDraft = new Draft(true), planDraft = new Draft(false);
-  for (const face of surfaces) {
-    const right = vector(face.right), up = new THREE.Vector3(0,1,0), origin = vector(face.origin).addScaledVector(vector(face.normal), .006);
-    const point = (x,y) => origin.clone().addScaledVector(right,x).addScaledVector(up,y);
-    const y = Math.min(1.15, face.height * .4), x = .18;
-    wallDraft.line(point(0,y), point(face.width,y));
-    for (const end of [0,face.width]) { wallDraft.line(point(end,.08), point(end,y+.12)); wallDraft.tick(point(end,y),right,up); }
-    wallDraft.label(String(Math.round(face.width*1000)),point(face.width/2,y+.14),right,up);
-    wallDraft.line(point(x,0),point(x,face.height));
-    for (const end of [0,face.height]) { wallDraft.line(point(.05,end),point(x+.12,end)); wallDraft.tick(point(x,end),right,up); }
-    wallDraft.label(`H ${Math.round(face.height*1000)}`,point(x+.14,face.height*.65),up,right.clone().negate(),.16);
+export function createDimensionOverlays(root, plan, manifest) {
+  const measured=manifest||buildWallSurfaceManifest(root),surfaces=measured.surfaces;
+  const atlas=createDimensionTextAtlas(surfaces.flatMap(face=>[String(Math.round(face.width*1000)),String(Math.round(face.height*1000))]));
+  const rawSpecs=buildWallDimensionSpecs(surfaces,atlas.aspect),filtered=filterDimensionSpecs(rawSpecs),specs=filtered.specs;
+  const wallDraft=new Draft(true),planDraft=new Draft(false);
+  for(const spec of specs){
+    for(const pair of spec.lines)wallDraft.line(...pair.map(vector));
+    wallDraft.label(spec.text,vector(spec.center),vector(spec.right),vector(spec.up),spec.textHeight);
   }
   for (const dimension of plan?.dimensions || []) {
     const a = vector(dimension.a), b = vector(dimension.b);
@@ -80,7 +70,13 @@ export function createDimensionOverlays(root, plan) {
     const center = a.clone().add(b).multiplyScalar(.5).addScaledVector(up,side*height*.75);
     planDraft.label(String(dimension.valueMm),center,right,up,height);
   }
-  const walls = wallDraft.build('Model wall dimensions (mm)'), drawing = planDraft.build('PDF plan dimensions (mm)');
-  return { walls, drawing, surfaces, plan,
-    dispose() { walls.dispose(); drawing.dispose(); } };
+  const walls=wallDraft.build('Model wall dimensions (mm)',atlas),drawing=planDraft.build('PDF plan dimensions (mm)');
+  // Retained axes stay in the GPU buffers. Depth, front-face and frustum clipping
+  // work per fragment; no camera-dependent suppression or buffer compaction.
+  const wallLabels={getState:()=>({generatedFaces:surfaces.length,generatedDimensions:rawSpecs.length,retainedDimensions:specs.length,filtering:{removed:filtered.removed,adjusted:filtered.adjusted,unresolved:filtered.unresolved,policy:filtered.policy},
+    enabled:walls.group.visible,submittedDimensions:walls.group.visible?specs.length:0,
+    placement:'static-gpu-depth',items:specs,geometryVersions:walls.geometryVersions()})};
+  return {walls,drawing,surfaces,plan,manifest:measured,wallLabels,
+    update(){},
+    dispose(){walls.dispose();drawing.dispose();}};
 }

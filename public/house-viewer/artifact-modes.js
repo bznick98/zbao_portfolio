@@ -54,13 +54,15 @@ function appearanceSignature(root) {
   return hash >>> 0;
 }
 
-export function createArtifactModes({ root, scene, walkCamera, renderer, getWalkPose, restoreWalkPose, clearWalkInput }) {
+export function createArtifactModes({ root, scene, walkCamera, renderer, getWalkPose, restoreWalkPose, clearWalkInput, bindUI = true, walkAvailable = true }) {
   const { shell, bounds, counts, dispose: disposeShell } = createShell(root);
   const camera = new THREE.PerspectiveCamera(42, 1, .1, 300);
-  const originalBackground = scene.background;
+  const originalBackground = new THREE.Color('#d5dfe2');
   const modelBackground = new THREE.Color('#e7e8e2');
   const subscribers = new Set(), pointers = new Set();
   const canvas = renderer.domElement;
+  let bound = false;
+  const inputEvents = new AbortController();
   let mode = 'walk', savedPose, originalVisibility = root.visible, controls;
   let viewport = { width: canvas.clientWidth, height: canvas.clientHeight };
   const marker = new THREE.Group(); marker.name = 'Current walkthrough position';
@@ -91,24 +93,25 @@ export function createArtifactModes({ root, scene, walkCamera, renderer, getWalk
     controls?.dispose(); controls = null;
     canvas.style.touchAction = 'none';
   }
-  canvas.addEventListener('pointerdown', event => { if (mode === 'model') pointers.add(event.pointerId); }, true);
-  for (const event of ['pointerup', 'pointercancel']) canvas.addEventListener(event, event => pointers.delete(event.pointerId), true);
+  canvas.addEventListener('pointerdown', event => { if (mode === 'model') pointers.add(event.pointerId); }, {capture:true,signal:inputEvents.signal});
+  for (const event of ['pointerup', 'pointercancel']) canvas.addEventListener(event, event => pointers.delete(event.pointerId), {capture:true,signal:inputEvents.signal});
   function syncUI() {
+    if(!bound)return;
     document.documentElement.dataset.artifactMode = mode;
     for (const value of ['walk', 'model']) {
       const button = document.getElementById(`mode-${value}`);
-      button.disabled = false; button.setAttribute('aria-pressed', String(mode === value));
+      button.disabled = value==='walk'&&!walkAvailable; button.setAttribute('aria-pressed', String(mode === value));
     }
     document.getElementById('model-reset').disabled = false;
     for (const callback of subscribers) callback(mode);
   }
   function setMode(next) {
-    if (!['walk', 'model'].includes(next) || next === mode) return;
+    if (!['walk', 'model'].includes(next) || next === mode || (next==='walk'&&!walkAvailable)) return;
     clearWalkInput();
     if (next === 'model') {
       savedPose = poseCopy(getWalkPose()); originalVisibility = root.visible; mode = 'model';
       if (document.pointerLockElement) document.exitPointerLock();
-      root.visible = false; shell.visible = marker.visible = true; scene.background = modelBackground;
+      root.visible = false; shell.visible = true; marker.visible = walkAvailable; scene.background = modelBackground;
       marker.position.fromArray(savedPose.position);
       marker.rotation.y = savedPose.yaw;
       controls = new OrbitControls(camera, canvas);
@@ -122,15 +125,24 @@ export function createArtifactModes({ root, scene, walkCamera, renderer, getWalk
     }
     syncUI();
   }
-  document.getElementById('mode-walk').onclick = () => setMode('walk');
-  document.getElementById('mode-model').onclick = () => setMode('model');
-  document.getElementById('model-reset').onclick = resetOverview;
-  syncUI();
+  function activate() {
+    bound=true;
+    document.getElementById('mode-walk').onclick = () => setMode('walk');
+    document.getElementById('mode-model').onclick = () => setMode('model');
+    document.getElementById('model-reset').onclick = resetOverview;
+    syncUI();
+  }
+  if(bindUI)activate();
   return {
     get mode() { return mode; },
     get activeRoot() { return mode === 'walk' ? root : shell; },
     get camera() { return mode === 'walk' ? walkCamera : camera; },
-    setMode, resetOverview,
+    setMode, resetOverview, activate,
+    restoreModelView(view) {
+      if(!controls||!view?.target)return;
+      camera.position.fromArray(view.position);camera.quaternion.fromArray(view.quaternion);camera.zoom=view.zoom;
+      controls.target.fromArray(view.target);camera.updateProjectionMatrix();controls.update();
+    },
     subscribe(callback) { subscribers.add(callback); callback(mode); return () => subscribers.delete(callback); },
     resize(width, height) {
       if (width === viewport.width && height === viewport.height) return;
@@ -148,6 +160,6 @@ export function createArtifactModes({ root, scene, walkCamera, renderer, getWalk
         walkRootVisible: root.visible, walkAppearance: appearanceSignature(root), resources: { ...renderer.info.memory },
       };
     },
-    dispose() { stopModelInput(); disposeShell(); marker.traverse(object => { object.geometry?.dispose(); object.material?.dispose(); }); scene.remove(shell, marker); },
+    dispose() { inputEvents.abort(); subscribers.clear(); stopModelInput(); disposeShell(); marker.traverse(object => { object.geometry?.dispose(); object.material?.dispose(); }); scene.remove(shell, marker); },
   };
 }
