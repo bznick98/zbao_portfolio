@@ -1,6 +1,8 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { ArrowLeft, ArrowRight, LoaderCircle } from 'lucide-react';
 import { HousePasswordError, unlockHouse, type HouseAssets } from '../lib/house-release';
+import {HouseDocuments} from '../components/HouseDocuments';
+import {getHouseDocuments} from '../lib/house-documents.mjs';
 import './house.css';
 
 export function House({ isDarkMode }: { isDarkMode: boolean }) {
@@ -10,6 +12,7 @@ export function House({ isDarkMode }: { isDarkMode: boolean }) {
   const [error, setError] = useState('');
   const [passwordError, setPasswordError] = useState(false);
   const [assets, setAssets] = useState<HouseAssets | null>(null);
+  const [documentsOpen,setDocumentsOpen]=useState(false);
   const currentAssets = useRef<HouseAssets | null>(null);
   const request = useRef<AbortController | null>(null);
   const resourceRequests = useRef(new Map<number,AbortController>());
@@ -45,6 +48,10 @@ export function House({ isDarkMode }: { isDarkMode: boolean }) {
         return;
       }
       if (event.data?.type === 'house:lock') { lock(); return; }
+      if (event.data?.type === 'house:documents') {
+        if(getHouseDocuments(currentAssets.current?.catalog).length)setDocumentsOpen(true);
+        return;
+      }
       if (event.data?.type === 'house:ready') {
         setStatus('');
         frame.current?.focus();
@@ -85,7 +92,7 @@ export function House({ isDarkMode }: { isDarkMode: boolean }) {
   function lock() {
     request.current?.abort();
     for(const controller of resourceRequests.current.values())controller.abort();resourceRequests.current.clear();
-    setAssets(null); setPassword(''); setError(''); setStatus(''); setBusy(false); setPasswordError(false);
+    setDocumentsOpen(false); setAssets(null); setPassword(''); setError(''); setStatus(''); setBusy(false); setPasswordError(false);
     currentAssets.current?.dispose(); currentAssets.current = null;
     window.setTimeout(() => input.current?.focus(), 0);
   }
@@ -111,9 +118,10 @@ export function House({ isDarkMode }: { isDarkMode: boolean }) {
         </>
       ) : (
         <>
-          <iframe ref={frame} className="house-frame" src="/house-viewer/index.html" title="House — interactive 3D walkthrough"
+          <iframe ref={frame} inert={documentsOpen} aria-hidden={documentsOpen||undefined} className="house-frame" src="/house-viewer/index.html" title="House — interactive 3D walkthrough"
             allow="fullscreen" allowFullScreen onLoad={() => frame.current?.contentWindow?.postMessage({ type: 'house:open', scene: assets.scene, model: assets.model, catalog: assets.catalog, theme }, window.location.origin)} />
           {error && <div className="house-viewer-error"><p role="alert">{error}</p><button type="button" onClick={lock}>Try again</button></div>}
+          {documentsOpen&&<HouseDocuments assets={assets} onLock={lock} onClose={()=>{setDocumentsOpen(false);window.setTimeout(()=>{frame.current?.focus();frame.current?.contentWindow?.postMessage({type:'house:documents-closed'},window.location.origin)},0)}}/>}
         </>
       )}
     </section>
