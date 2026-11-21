@@ -10,6 +10,9 @@
     ] },
     { "source": "/house-viewer/release.json", "headers": [
       { "key": "Cache-Control", "value": "no-cache, max-age=0, must-revalidate" }
+    ] },
+    { "source": "/house-viewer/(.*)/catalog.bin", "headers": [
+      { "key": "Cache-Control", "value": "no-cache, max-age=0, must-revalidate" }
     ] }
   ]
 }

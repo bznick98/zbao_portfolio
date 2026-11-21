@@ -1,3 +1,6 @@
+import {installSuggestions} from './suggestions.js';
+let suggestions;
+import {prepareFixedLayout} from './fixed-layout.js';
 import {installHouseControls} from './controls.js';
 let houseControls;
 import {initLanguage,t,setText,setRoomText} from './i18n.js';
@@ -51,7 +54,7 @@ pad.addEventListener('pointerdown',e=>{e.preventDefault();if(!ready||artifactMod
 $('rooms').onchange=e=>go(e.target.value);$('reset').onclick=()=>go(data.stations[0]?.station);$('fullscreen').onclick=async()=>{try{if(document.fullscreenElement)await document.exitFullscreen();else await document.documentElement.requestFullscreen();}catch{toast('fullscreenError');}};
 const planMap=createPlanMap($('minimap'));
 function drawMap(){if(!data)return;const room=data.rooms.find(r=>pointIn(camera.position.x,-camera.position.z,r.polygon));if(room?.id!==roomId){roomId=room?.id||'';setRoomText($('room-name'),room?.name||'过道');}if(!$('map-panel').hidden&&artifactModes?.mode!=='model')planMap.draw(data,camera.position.toArray(),yaw,room);}
-function animate(now){requestAnimationFrame(animate);const dt=Math.min((now-lastTime)/1000,.04);lastTime=now;if(document.hidden)return;if(ready&&artifactModes?.mode!=='model'){let side=(keys.has('KeyD')||keys.has('ArrowRight')?1:0)-(keys.has('KeyA')||keys.has('ArrowLeft')?1:0)+joy.x;let forward=(keys.has('KeyW')||keys.has('ArrowUp')?1:0)-(keys.has('KeyS')||keys.has('ArrowDown')?1:0)+joy.y;const len=Math.hypot(side,forward);if(len>1){side/=len;forward/=len;}const speed=keys.has('ShiftLeft')||keys.has('ShiftRight')?2.4:1.45;const target=new THREE.Vector2((Math.cos(yaw)*side-Math.sin(yaw)*forward)*speed,(-Math.sin(yaw)*side-Math.cos(yaw)*forward)*speed);velocity.lerp(target,1-Math.exp(-14*dt));if(velocity.lengthSq()>.00001)moveWorld(velocity.x*dt,velocity.y*dt);if(now-lastMap>80){drawMap();lastMap=now;}}renderPass.camera=artifactModes?.camera||camera;ao.camera=renderPass.camera;measurementTools?.update(now);composer.render();}
+function animate(now){requestAnimationFrame(animate);const dt=Math.min((now-lastTime)/1000,.04);lastTime=now;if(document.hidden)return;if(ready&&artifactModes?.mode!=='model'){let side=(keys.has('KeyD')||keys.has('ArrowRight')?1:0)-(keys.has('KeyA')||keys.has('ArrowLeft')?1:0)+joy.x;let forward=(keys.has('KeyW')||keys.has('ArrowUp')?1:0)-(keys.has('KeyS')||keys.has('ArrowDown')?1:0)+joy.y;const len=Math.hypot(side,forward);if(len>1){side/=len;forward/=len;}const speed=keys.has('ShiftLeft')||keys.has('ShiftRight')?2.4:1.45;const target=new THREE.Vector2((Math.cos(yaw)*side-Math.sin(yaw)*forward)*speed,(-Math.sin(yaw)*side-Math.cos(yaw)*forward)*speed);velocity.lerp(target,1-Math.exp(-14*dt));if(velocity.lengthSq()>.00001)moveWorld(velocity.x*dt,velocity.y*dt);if(now-lastMap>80){drawMap();lastMap=now;}}renderPass.camera=artifactModes?.camera||camera;ao.camera=renderPass.camera;artifactModes?.update();measurementTools?.update(now);suggestions?.update();composer.render();}
 
 function capturePose(){return {position:camera.position.toArray(),yaw,pitch,room:roomId,station:$('rooms').value,zoom:camera.zoom};}
 function restorePose(pose){camera.position.fromArray(pose.position);yaw=pose.yaw;pitch=pose.pitch;camera.zoom=pose.zoom;camera.updateProjectionMatrix();look();$('rooms').value=pose.station;roomId='';drawMap();}
@@ -72,7 +75,7 @@ function prepareRoot(root,info){
  if(!count)throw Error('Empty model');return {obstacles,count};
 }
 function commitRevision(root,info){
- const {obstacles,count}=prepareRoot(root,info);
+ prepareFixedLayout(root);const {obstacles,count}=prepareRoot(root,info);
  const oldMode=artifactModes?.getState(),oldTools=measurementTools?.getState(),previous=ready?capturePose():null;
  const frame=data?.revision?.coordinateFrameId,newFrame=info.revision?.coordinateFrameId,sameGeometry=data?.revision?.geometrySha256===info.revision?.geometrySha256;
  const safe=position=>position.length===3&&position.every(Number.isFinite)&&pointIn(position[0],-position[2],info.outline)&&!collisionAt(new THREE.Vector3(...position),obstacles);
@@ -82,7 +85,15 @@ function commitRevision(root,info){
  // navigation validation have all succeeded before this synchronous commit.
  let modes,tools;
  try{
-  modes=createArtifactModes({root,scene,walkCamera:camera,renderer,clearWalkInput:clearInput,getWalkPose:capturePose,restoreWalkPose:restorePose,bindUI:false,walkAvailable:!!chosen.pose});
+  modes=createArtifactModes({root,scene,walkCamera:camera,renderer,clearWalkInput:clearInput,getWalkPose:capturePose,restoreWalkPose:restorePose,bindUI:false,walkAvailable:!!chosen.pose,
+   canTeleport:()=>!tools?.isMeasuring && !suggestions?.isPicking,
+   onTeleportRejected:()=>toast('modelTeleportBlocked'),
+   resolveTeleport:(point,pose)=>{
+    const position=[point.x,point.y+1.6,point.z];
+    if(!safe(position))return null;
+    return {...pose,position,pitch:0,room:'',station:''};
+   },
+  });
   tools=installMeasurementTools({root,scene,renderer,modes,plan:info.planDimensions,wallDimensions:info.wallDimensions,clearWalkInput:clearInput,bindUI:false});
  }catch(error){tools?.dispose();modes?.dispose();throw error;}
  clearInput();if(document.pointerLockElement)document.exitPointerLock();
@@ -97,11 +108,16 @@ function commitRevision(root,info){
  if(oldTools){measurementTools.setDimensions(oldTools.dimensions);measurementTools.setMeasuring(oldTools.ruler.enabled);if(oldTools.ruler.points.length)setText($('measure-hint'),'revisionRulerCleared');}
  for(const id of ['rooms','reset','lock'])$(id).disabled=!chosen.pose;
  if(previousRoot)disposeModel(previousRoot);
- houseControls?.dispose();houseControls=installHouseControls({camera,renderer,root,scene,modes:artifactModes,tools:measurementTools});resize();drawMap();return chosen.reason;
+ houseControls?.dispose();houseControls=installHouseControls({camera,renderer,root,scene,modes:artifactModes,tools:measurementTools});suggestions?.modelChanged();resize();drawMap();return chosen.reason;
 }
 async function init(){try{
  revisionLoader=await createRevisionLoader(commitRevision);
  if(!revisionLoader){const response=await fetch(window.__HOUSE_ASSETS.scene);if(!response.ok)throw Error(t('sceneError'));const info=await response.json();const gltf=await new GLTFLoader().loadAsync(window.__HOUSE_ASSETS.model,e=>{if(e.total){const p=Math.round(e.loaded/e.total*100);$('progress').value=p;setText($('load-text'),'loadingProgress',{percent:p});}});commitRevision(gltf.scene,info);go(data.stations[0]?.station);}
+ suggestions=installSuggestions({
+  getContext:()=>({data,scene,tools:measurementTools,modes:artifactModes,canvas:renderer.domElement,contains:pointIn,renderFrame:()=>{renderPass.camera=ao.camera=artifactModes.camera;composer.render();}}),
+  selectRevision:(id,build)=>revisionLoader?.select(id,build),
+  restorePose,clearInput
+ });
  $('loading').remove();parent.postMessage({type:'house:ready'},location.origin);setText($('help'),matchMedia('(pointer:coarse)').matches?'helpTouch':'helpDesktop');
  window.__walkthrough={get controls(){return houseControls;},get tools(){return measurementTools;},map:planMap,get modes(){return artifactModes;},get revisions(){return revisionLoader;},get ready(){return ready;},get meshCount(){return meshCount;},get colliderCount(){return colliders.length;},get stationCount(){return data.stations.length;},getState:()=>({position:camera.position.toArray(),yaw,pitch,room:roomId,speed:velocity.length(),fov:camera.fov,aspect:camera.aspect,drawCalls:renderer.info.render.calls,ambientOcclusion:ao.enabled,revisionId:data.revision?.revisionId,buildId:data.buildId}),go,moveWorld,collision:()=>{const h=collisionAt(camera.position);return h?{depth:h.depth,normal:h.normal.toArray()}:null;}};
  }catch(error){parent.postMessage({type:'house:error'},location.origin);console.error(error);setText($('load-text'),'loadError',{error:error.message});$('progress').removeAttribute('value');}}

@@ -3,7 +3,7 @@ import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import os from 'node:os';
 import assert from 'node:assert/strict';
-import { checkArtifactModes } from './check-artifact-modes.mjs';
+import { checkArtifactModes, clickTool } from './check-artifact-modes.mjs';
 
 const require = createRequire(import.meta.url);
 let playwright;
@@ -27,6 +27,9 @@ const defaultModel=release.files[defaultRevision.builds[defaultRevision.selected
 const sceneDescriptor=defaultRevision.builds[defaultRevision.selectedBuildId].scene;
 const sceneFile=release.files[sceneDescriptor.url.replace('house-asset:','')];
 const expectedScene=JSON.parse(new TextDecoder().decode(await decryptHouseFile(key,await readFile(new URL('../public/house-viewer/'+sceneFile.file,import.meta.url)),sceneFile.iv,release.buildId,sceneDescriptor.url.replace('house-asset:',''))));
+const expectedFaceCount = expectedScene.wallDimensions.surfaces.length;
+const hasPlan = Boolean(expectedScene.planDimensions?.dimensions?.length);
+const fixedLayout = defaultRevision.revisionId === '0.5';
 const modelFiles=catalog.revisions.map(r=>release.files[r.builds[r.selectedBuildId].model.url.replace('house-asset:','')].file);
 const errors = [];
 const checks = [];
@@ -52,7 +55,7 @@ async function fullscreen(page, frame) {
 async function minimal(frame, mapVisible = true) {
   assert.equal(await frame.locator('#settings').isVisible(), false);
   assert.equal(await frame.locator('.map').isVisible(), mapVisible);
-  assert.equal(await frame.locator('h1, h2').count(), 0);
+  assert.equal(await frame.locator('h1:visible, h2:visible').count(), 0);
   assert.equal(await frame.evaluate(() => __walkthrough.controls.getState().dimensions), false);
   assert.equal(await frame.locator('#dimensions-overlay').count(), 0);
 }
@@ -77,7 +80,7 @@ try {
   await fullscreen(page, frame);
   await minimal(frame);
   await page.screenshot({ path: path.join(artifacts, 'desktop-fullscreen-dark.png') });
-  await checkArtifactModes({page,frame,artifacts});
+  await checkArtifactModes({page,frame,artifacts,expectedPlan:expectedScene.planDimensions,fixedLayout});
   assert.equal(downloads.filter(url => url.endsWith('/' + defaultModel)).length, 1);
   await frame.evaluate(() => __walkthrough.go('living_wide'));
   const zoomPosition = await frame.evaluate(() => __walkthrough.getState().position);
@@ -112,7 +115,7 @@ try {
   assert.equal(await frame.evaluate(() => __walkthrough.getState().ambientOcclusion), false);
   await frame.uncheck('#map-toggle'); assert.equal(await frame.locator('.map').isVisible(), false);
   await frame.check('#map-toggle'); assert.equal(await frame.locator('.map').isVisible(), true);
-  await frame.click('#dimensions-toggle');
+  await clickTool(frame,'#dimensions-toggle');
   await frame.waitForFunction(() => __walkthrough.controls.getState().measurements.length > 20);
   const measurements = await frame.evaluate(() => __walkthrough.controls.getState().measurements);
   assert.deepEqual(measurements,expectedScene.wallDimensions.surfaces,'rendered measurements must match the encrypted source scene');
@@ -121,7 +124,7 @@ try {
     assert.ok(Math.abs(Math.hypot(...item.normal) - 1) < .0001);
   }
   assert.equal(await frame.evaluate(() => __walkthrough.controls.getState().annotationMeshes), 2);
-  assert.equal(measurements.length,432);
+  assert.equal(measurements.length,expectedFaceCount);
   assert.equal(await frame.locator('.wall-dimension-label,.wall-label-leaders').count(),0);
   const stableDimensions=await frame.evaluate(()=>{
     const tools=__walkthrough.tools,camera=__walkthrough.modes.camera,start=camera.quaternion.clone(),zoom=camera.zoom,initial=tools.getState().wallLabels;
@@ -133,9 +136,9 @@ try {
     for(const spec of initial.items)if(Math.abs(spec.textWidth/spec.textHeight-spec.textAspect)>.00001)throw Error('Text aspect changed');
     camera.quaternion.copy(start);camera.zoom=zoom;camera.updateProjectionMatrix();camera.updateMatrixWorld(true);tools.update(performance.now());return {poses:60,submitted:initial.submittedDimensions,generated:initial.generatedDimensions,removed:initial.filtering.removed.length,unresolved:initial.filtering.unresolved.length};
   });
-  assert.equal(stableDimensions.generated,864);assert.ok(stableDimensions.submitted>0&&stableDimensions.submitted<864);assert.equal(stableDimensions.submitted+stableDimensions.removed,864);assert.equal(stableDimensions.unresolved,0);
-  checks.push(`${stableDimensions.submitted} retained dimensions (${stableDimensions.removed} local duplicates filtered) keep fixed geometry through 60 camera/zoom poses; all 864 raw measurements remain accounted for and glyph aspect is preserved`);
-  assert.equal(await frame.evaluate(()=>__walkthrough.revisions.getState().revisionId),'0.2');
+  assert.equal(stableDimensions.generated,(expectedFaceCount*2));assert.ok(stableDimensions.submitted>0&&stableDimensions.submitted<(expectedFaceCount*2));assert.equal(stableDimensions.submitted+stableDimensions.removed,(expectedFaceCount*2));assert.equal(stableDimensions.unresolved,0);
+  checks.push(`${stableDimensions.submitted} retained dimensions (${stableDimensions.removed} local duplicates filtered) keep fixed geometry through 60 camera/zoom poses; all ${expectedFaceCount*2} raw measurements remain accounted for and glyph aspect is preserved`);
+  assert.equal(await frame.evaluate(()=>__walkthrough.revisions.getState().revisionId),catalog.defaultRevisionId);
   await frame.click('#menu-toggle');
   await frame.selectOption('#rooms', 'living_corridor');
   await frame.selectOption('#quality', 'high');
@@ -147,8 +150,8 @@ try {
   await page.screenshot({ path: path.join(artifacts, 'desktop-dimensions.png') });
   const preserved = await frame.evaluate(() => ({ walk: __walkthrough.getState(), zoom: __walkthrough.controls.getState().zoom, quality: document.getElementById('quality').value }));
   await frame.click('#mode-model');
-  assert.equal(await frame.evaluate(() => __walkthrough.controls.getState().wallDimensionsVisible), false);
-  assert.equal(await frame.evaluate(() => __walkthrough.controls.getState().planDimensionsVisible), true);
+  assert.equal(await frame.evaluate(() => __walkthrough.controls.getState().wallDimensionsVisible), !hasPlan);
+  assert.equal(await frame.evaluate(() => __walkthrough.controls.getState().planDimensionsVisible), hasPlan);
   await page.mouse.move(720, 450); await page.mouse.wheel(0, -150);
   await page.keyboard.down('KeyW'); await page.waitForTimeout(180); await page.keyboard.up('KeyW');
   const actualWalk = await frame.evaluate(() => __walkthrough.getState());
@@ -158,47 +161,51 @@ try {
   assert.equal(await frame.evaluate(() => __walkthrough.controls.getState().dimensionsVisible), true);
   assert.equal(await frame.evaluate(() => __walkthrough.controls.getState().zoom), preserved.zoom);
   assert.equal(await frame.locator('#quality').inputValue(), preserved.quality);
-  await frame.click('#dimensions-toggle');
+  await clickTool(frame,'#dimensions-toggle');
   assert.equal(await frame.evaluate(() => __walkthrough.controls.getState().dimensions), false);
   assert.equal(await frame.locator('#dimensions-overlay').count(), 0);
   await page.keyboard.press('Escape');
   await minimal(frame);
-  const revisionPose=await frame.evaluate(()=>__walkthrough.getState());
+  let revisionPose=await frame.evaluate(()=>__walkthrough.getState());
   const zoomBeforeRevision=await frame.evaluate(()=>__walkthrough.controls.getState().zoom);
-  await frame.click('#map-button');assert.equal(await frame.locator('.map').isVisible(),false);
-  await frame.click('#dimensions-toggle');
+  await clickTool(frame,'#map-button');assert.equal(await frame.locator('.map').isVisible(),false);
+  await clickTool(frame,'#dimensions-toggle');
   for(const revision of ['0.1','0.2','0.1','0.2']){
     assert.equal(await frame.evaluate(id=>__walkthrough.revisions.select(id),revision),true);
-    assert.deepEqual(await frame.evaluate(()=>__walkthrough.getState().position),revisionPose.position);
+    const nextPose=await frame.evaluate(()=>__walkthrough.getState());
+    const reason=await frame.evaluate(()=>__walkthrough.revisions.getState().lastReason);
+    if(reason==='preserved')assert.deepEqual(nextPose.position,revisionPose.position);
+    else {assert.equal(reason,'relocated');assert.equal(await frame.evaluate(()=>__walkthrough.collision()),null);}
+    revisionPose=nextPose;
     assert.equal(await frame.evaluate(()=>__walkthrough.controls.getState().zoom),zoomBeforeRevision);
     assert.equal(await frame.evaluate(()=>__walkthrough.tools.getState().measurements.length),432);
     assert.equal(await frame.locator('.map').isVisible(),false);
   }
-  assert.equal(downloads.filter(url=>modelFiles.some(file=>url.endsWith(file))).length,2,'load each revision model once per unlock');
+  assert.equal(downloads.filter(url=>modelFiles.some(file=>url.endsWith(file))).length,new Set([catalog.defaultRevisionId,'0.1','0.2']).size,'load each selected model once within the retained cache window');
   assert.equal(await frame.evaluate(()=>__walkthrough.revisions.getState().cacheEntries),2);
   const a=await frame.locator('.artifact-modes').boundingBox(),b=await frame.locator('#revision-controls').boundingBox();
   assert.ok(Math.abs(a.y-b.y)<2&&b.x>=a.x+a.width,'revision must sit beside modes');
   await page.screenshot({path:path.join(artifacts,'desktop-revisions-dimensions.png')});
-  await frame.click('#dimensions-toggle');await frame.click('#map-button');
+  await clickTool(frame,'#dimensions-toggle');await clickTool(frame,'#map-button');
   await frame.click('#menu-toggle');await frame.locator('#revision-details summary').click();
   const artifactLink=frame.locator('#revision-outputs a').first();
   const popupPromise=page.waitForEvent('popup');await artifactLink.click();const popup=await popupPromise;
   await popup.waitForURL(/^blob:/);await popup.locator('svg').waitFor();await popup.close();
   await frame.click('#menu-toggle');
   checks.push('Encrypted revision 0.1/0.2 selection, bounded lazy model cache, exact pose/zoom and minimap retention, 432 deterministic faces, private map export');
-  await frame.click('#language-toggle');
+  await clickTool(frame,'#language-toggle');
   await frame.click('#menu-toggle'); await frame.click('#lock-page');
   await page.getByLabel('Password / 访问密码').waitFor();
   assert.equal(await page.locator('iframe').count(), 0);
   frame = await login(page);
-  assert.equal(await frame.evaluate(()=>__walkthrough.revisions.getState().revisionId),'0.2');
+  assert.equal(await frame.evaluate(()=>__walkthrough.revisions.getState().revisionId),revisionPose.revisionId,'restore the last selected revision after unlock');
   assert.equal(await frame.locator('html').getAttribute('lang'), 'zh-CN');
   assert.equal(await frame.locator('#mode-walk').textContent(), '室内漫游');
-  await frame.click('#language-toggle');
+  await clickTool(frame,'#language-toggle');
   await page.reload();
   await page.getByLabel('Password / 访问密码').waitFor();
   assert.equal(await page.locator('iframe').count(), 0);
-  checks.push('Password rejection, no early model download, fullscreen canvas, English default, persistent EN/CN switch without pose reset, no duplicate shortcut, two-mode pose round trips, empty shell, orbit and fixed marker, default minimap, wheel zoom without movement, zoom slider/reset/resize, CAD-style fixed wall dimensions and 79 PDF-aligned plan annotations; two-point 3D ruler in both modes, stable across navigation and zoom, revision source materials, 11 viewpoints, keyboard movement, quality, Escape, locking and reload');
+  checks.push('Password rejection, no early model download, fullscreen canvas, English default, persistent EN/CN switch without pose reset, no duplicate shortcut, two-mode pose round trips, cutaway model, orbit and position pawn, default minimap, wheel zoom without movement, zoom slider/reset/resize, CAD-style fixed wall dimensions and revision-specific plan annotations; two-point 3D ruler in both modes, stable across navigation and zoom, revision source materials, 11 viewpoints, keyboard movement, quality, Escape, locking and reload');
 
   // Theme controls stay on the portfolio; House inherits the selected theme.
   await page.evaluate(() => { location.hash = 'profile'; });
@@ -230,7 +237,7 @@ try {
   await mobile.screenshot({ path: path.join(artifacts, 'mobile-locked-dark.png') });
   frame = await login(mobile);
   await fullscreen(mobile, frame); await minimal(frame);
-  await checkArtifactModes({page:mobile,frame,artifacts,mobile:true});
+  await checkArtifactModes({page:mobile,frame,artifacts,mobile:true,expectedPlan:expectedScene.planDimensions,fixedLayout});
   await mobile.setViewportSize({width:320,height:844});
   const modeBox=await frame.locator('.artifact-modes').boundingBox(),revisionBox=await frame.locator('#revision-controls').boundingBox();
   assert.ok(Math.abs(modeBox.y-revisionBox.y)<2&&revisionBox.x>=modeBox.x+modeBox.width&&revisionBox.x+revisionBox.width<=320);
@@ -252,13 +259,13 @@ try {
   await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
   const moveAfter = await frame.evaluate(() => __walkthrough.getState().position);
   assert.ok(Math.hypot(...moveAfter.map((n, i) => n - moveBefore[i])) > .01);
-  await frame.click('#dimensions-toggle');
+  await clickTool(frame,'#dimensions-toggle');
   await frame.waitForFunction(() => __walkthrough.controls.getState().measurements.length > 20);
   await frame.click('#menu-toggle');
   await frame.selectOption('#rooms', 'master_wide');
   await frame.click('#menu-toggle');
   await mobile.screenshot({ path: path.join(artifacts, 'mobile-dimensions.png') });
-  await frame.click('#dimensions-toggle');
+  await clickTool(frame,'#dimensions-toggle');
   await mobile.screenshot({ path: path.join(artifacts, 'mobile-fullscreen-dark.png') });
   await mobile.setViewportSize({ width: 844, height: 390 });
   await frame.waitForFunction(() => __walkthrough.getState().aspect > 2);

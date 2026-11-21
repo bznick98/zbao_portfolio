@@ -100,7 +100,7 @@ export function installMeasurementTools({ root, scene, renderer, modes, plan, wa
   canvas.addEventListener('pointerdown',down,true);canvas.addEventListener('pointermove',move,true);canvas.addEventListener('pointerup',up,true);canvas.addEventListener('pointercancel',cancel,true);
   window.addEventListener('blur',cancel);document.addEventListener('keydown',key);
   const unsubscribe=modes.subscribe(()=>{cancel();syncDimensions();});
-  return { setDimensions, setMeasuring, pickAt, activate,
+  return { setDimensions, setMeasuring, pickAt, activate, get isMeasuring() { return measuring; },
     withoutAnnotations(render) {
       const groups=[group,annotations?.walls.group,annotations?.drawing.group].filter(Boolean),visible=groups.map(g=>g.visible);
       for(const g of groups)g.visible=false;

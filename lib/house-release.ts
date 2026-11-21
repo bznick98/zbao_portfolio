@@ -1,9 +1,9 @@
-import { ITERATIONS, deriveHouseKey, decryptHouseFile } from './house-crypto.mjs';
+import { MAX_HOUSE_FILES, ITERATIONS, deriveHouseKey, decryptHouseFile } from './house-crypto.mjs';
 
 type EncryptedFile = { file: string; iv: number[]; bytes: number };
 type Manifest = { schema: number; buildId: string; iterations: number; salt: number[]; files: Record<string, EncryptedFile> };
 export type HouseAssets = {
-  scene?: string; model?: string; catalog?: unknown;
+  suggestionKey: CryptoKey; scene?: string; model?: string; catalog?: unknown;
   readAsset?: (id: string, signal: AbortSignal) => Promise<ArrayBuffer>;
   dispose: () => void;
 };
@@ -16,9 +16,9 @@ function validManifest(m: Manifest): boolean {
   if (![1,2].includes(m?.schema) || !/^[a-f0-9]{16}$/.test(m.buildId) || m.iterations !== ITERATIONS || !byteArray(m.salt,16)) return false;
   const names = Object.keys(m.files || {});
   if (m.schema === 1 ? !['scene','model'].every(n=>names.includes(n)) : !names.includes('catalog')) return false;
-  return names.length <= 100 && names.every(name => {
+  return names.length <= MAX_HOUSE_FILES && names.every(name => {
     const file = m.files[name];
-    return /^(scene|model|catalog|asset-[a-f0-9]{64})$/.test(name) && file.file === `${m.buildId}/${name}.bin`
+    return /^(scene|model|catalog|asset-[a-f0-9]{64})$/.test(name) && (file.file === `${m.buildId}/${name}.bin` || (name==='catalog' && file.file.startsWith(m.buildId+'/') && /^catalog-[a-f0-9]{64}[.]bin$/.test(file.file.slice(m.buildId.length+1))))
       && byteArray(file.iv,12) && Number.isSafeInteger(file.bytes) && file.bytes > 16 && file.bytes < 100_000_000;
   });
 }
@@ -31,7 +31,7 @@ export async function unlockHouse(password: string, signal: AbortSignal, status:
   const manifest: Manifest = await response.json();
   if (!validManifest(manifest)) throw new Error('The house release could not be read. Please refresh.');
   let key: CryptoKey | null = await deriveHouseKey(password,manifest.salt);
-  password='';
+
   signal.throwIfAborted();
   let closed = false;
   const requests = new Set<AbortController>(), urls = new Set<string>();
@@ -67,10 +67,14 @@ export async function unlockHouse(password: string, signal: AbortSignal, status:
       if (error instanceof DOMException && error.name==='OperationError') throw new HousePasswordError('That password didn’t open the door. Try again.');
       throw error;
     }
+    // Independent, non-exportable key for browser-local review notes across release rotations.
+    const suggestionKey = await deriveHouseKey(password,new TextEncoder().encode('House private review 96f46c8d-6206-42c5-a8d2-90a24e2aa019'),['encrypt','decrypt']);
+    password='';
+    signal.throwIfAborted();
     if (manifest.schema===2) {
       const catalog = JSON.parse(new TextDecoder().decode(first));
       if (catalog.schema!==1 || !Array.isArray(catalog.revisions) || !catalog.revisions.length) throw new Error('The house catalog could not be read.');
-      return {catalog,readAsset:async(id,requestSignal)=>{
+      return {suggestionKey,catalog,readAsset:async(id,requestSignal)=>{
         if (!/^asset-[a-f0-9]{64}$/.test(id)) throw new Error('Unknown house resource.');
         try {return await read(id,requestSignal);}
         catch(error){if(error instanceof DOMException&&error.name==='OperationError')throw new Error('The house files could not be verified. Please refresh and try again.');throw error;}
@@ -82,6 +86,6 @@ export async function unlockHouse(password: string, signal: AbortSignal, status:
     catch(error){if(error instanceof DOMException&&error.name==='OperationError')throw new Error('The house files could not be verified. Please refresh and try again.');throw error;}
     const sceneUrl=URL.createObjectURL(new Blob([first],{type:'application/json'}));urls.add(sceneUrl);
     const modelUrl=URL.createObjectURL(new Blob([model],{type:'model/gltf-binary'}));urls.add(modelUrl);
-    return {scene:sceneUrl,model:modelUrl,dispose};
+    return {suggestionKey,scene:sceneUrl,model:modelUrl,dispose};
   }catch(error){dispose();throw error;}
 }
