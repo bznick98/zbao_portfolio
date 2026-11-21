@@ -112,7 +112,7 @@ export const About: React.FC = () => {
             {posts.slice(0, 2).map(post => (
               <li key={post.slug}>
                 <a href={`#blog/${post.slug}`}>
-                  <img src={post.cover.src} alt="" width="80" height="56" loading="lazy" />
+                  <img src={post.cover.src} alt="" width={post.cover.width} height={post.cover.height} loading="lazy" />
                   <div><span>On the blog</span>{post.title}</div><ArrowUpRight size={18} aria-hidden="true" />
                 </a>
               </li>

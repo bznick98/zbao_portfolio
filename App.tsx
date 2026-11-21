@@ -1,4 +1,4 @@
-import React, { lazy, Suspense, useEffect, useState } from 'react';
+import React, { lazy, startTransition, Suspense, useEffect, useRef, useState } from 'react';
 import { Moon, Sun } from 'lucide-react';
 import { Menu } from './components/Menu';
 import { Home } from './pages/Home';
@@ -14,6 +14,7 @@ const House = lazy(() => import('./pages/House').then(module => ({ default: modu
 
 const App: React.FC = () => {
   const [hash, setHash] = useState(() => window.location.hash);
+  const previousHash = useRef(hash);
   const post = posts.find(entry => hash === `#blog/${entry.slug}`);
   const pages: Record<string, string> = {
     '#about': 'About', '#profile': 'About', '#contact': 'About',
@@ -22,12 +23,13 @@ const App: React.FC = () => {
   const currentPage = hash.startsWith('#blog/') ? 'Blog' : (pages[hash] ?? 'Home');
 
   useEffect(() => {
-    const change = () => setHash(window.location.hash);
+    const change = () => startTransition(() => setHash(window.location.hash));
     window.addEventListener('hashchange', change);
     return () => window.removeEventListener('hashchange', change);
   }, []);
   useEffect(() => {
-    window.scrollTo({ top: 0, behavior: 'instant' });
+    if (previousHash.current !== hash) window.scrollTo({ top: 0, behavior: 'instant' });
+    previousHash.current = hash;
     document.title = `${post?.title ?? currentPage} — Zongnan Bao`;
   }, [hash, post, currentPage]);
   const [isEyeEnabled, setIsEyeEnabled] = useState(false);
@@ -44,10 +46,10 @@ const App: React.FC = () => {
   const renderPage = () => {
     switch (currentPage) {
       case 'Home': return <Home />;
-      case 'About': return <Suspense fallback={null}><About /></Suspense>;
-      case 'Blog': return <Suspense fallback={<p className="writing-page">Loading blog…</p>}><Blog post={post} /></Suspense>;
-      case 'Poe': return <Suspense fallback={null}><Poe /></Suspense>;
-      case 'House': return <Suspense fallback={null}><House isDarkMode={isDarkMode} /></Suspense>;
+      case 'About': return <About />;
+      case 'Blog': return <Blog post={post} />;
+      case 'Poe': return <Poe />;
+      case 'House': return <House isDarkMode={isDarkMode} />;
       default: return <Home />;
     }
   };
@@ -131,7 +133,9 @@ const App: React.FC = () => {
         )}
 
         <main className="w-full">
-          {renderPage()}
+          <Suspense fallback={<p className="writing-page min-h-screen" role="status">Loading…</p>}>
+            {renderPage()}
+          </Suspense>
         </main>
         {currentPage !== 'House' && (
           <footer className="portfolio-footer">

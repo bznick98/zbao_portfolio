@@ -1,11 +1,16 @@
-.menu-overlay[open] {
+.menu-overlay {
   position: fixed; inset: 0; width: 100%; height: 100%; max-width: none; max-height: none;
-  display: flex; flex-direction: column; gap: 1.5rem; align-items: center;
+  flex-direction: column; gap: 1.5rem; align-items: center;
   justify-content: safe center; overflow-y: auto; padding: 3.5rem 1rem 1rem;
 }
+.menu-overlay[open] { display: flex; }
 @media (prefers-reduced-motion: no-preference) {
-  .menu-overlay[open] { animation: portfolio-menu-open .28s ease-out; }
-  @keyframes portfolio-menu-open { from { transform: translateY(-100%); } }
+  .menu-overlay {
+    transform: translateY(-100%);
+    transition: transform 350ms cubic-bezier(.22,.72,.2,1), display 350ms allow-discrete, overlay 350ms allow-discrete;
+  }
+  .menu-overlay[open] { transform: translateY(0); }
+  @starting-style { .menu-overlay[open] { transform: translateY(-100%); } }
 }
 .writing-page, .about-intro, .updates-section, .portfolio-footer {
   font-family: Rubik, system-ui, sans-serif;
@@ -26,7 +31,7 @@
 }
 .post-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: clamp(2rem, 4vw, 4rem); }
 .post-card { display: block; }
-.post-card img { display: block; width: 100%; aspect-ratio: 16 / 9; object-fit: cover; margin-bottom: 1.15rem; }
+.post-card img { display: block; width: 100%; height: auto; margin-bottom: 1.15rem; }
 .post-category, .updates-section h2, .updates-section li span {
   font-size: .77rem; text-transform: uppercase; letter-spacing: .09em;
 }
@@ -70,7 +75,7 @@
 .updates-section { display: grid; grid-template-columns: 1fr 3fr; gap: 2rem; margin: 4rem 0 5rem; }
 .updates-section h2 { margin-top: .9rem; }
 .updates-section li > * { display: flex; gap: 1rem; align-items: center; padding: .85rem 0; line-height: 1.45; }
-.updates-section li img { width: 4.5rem; height: 3.15rem; object-fit: cover; flex: none; }
+.updates-section li img { width: 4.5rem; height: auto; flex: none; }
 .updates-section li span { opacity: .7; display: block; }
 .updates-section li > div { display: block; }
 .updates-section li svg { flex-shrink: 0; margin-left: auto; }
@@ -85,17 +90,68 @@
 
 }
 
-.home-gallery { position: relative; isolation: isolate; padding: clamp(5.5rem, 8vw, 8rem) clamp(1rem, 4vw, 4rem) 3rem; max-width: 104rem; margin: auto; }
-.photo-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: clamp(.65rem, 1.8vw, 1.75rem); }
-.photo-tile { width: 100%; display: block; cursor: zoom-in; background-size: cover; background-position: center; }
-.photo-tile img { display: block; width: 100%; height: auto; aspect-ratio: 3 / 2; object-fit: cover; }
-.photo-tile:focus-visible, .photo-close:focus-visible { outline: 3px solid currentColor; outline-offset: 3px; }
-.gallery-wordmark { position: fixed; inset: 50% 4% auto; z-index: 2; pointer-events: none; transform: translateY(-50%); display: flex; justify-content: space-between; color: white; mix-blend-mode: difference; font: 400 clamp(1rem,3vw,3rem)/1 "Major Mono Display", monospace; }
-@media (max-width: 600px) { .photo-grid { grid-template-columns: 1fr; } }
-.photo-viewer[open] { position: fixed; inset: 0; margin: 0; padding: 2.75rem 1rem; width: 100%; height: 100%; max-width: none; max-height: none; display: grid; place-items: center; background: rgb(12 12 12 / 96%); color: white; }
-.photo-viewer::backdrop { background: #101112; }
-.photo-viewer figure { text-align: center; max-width: 100%; }
-.photo-viewer img { margin: auto; width: auto; max-width: 100%; max-height: 78dvh; object-fit: contain; }
-.photo-viewer figcaption { margin-top: .7rem; font: .9rem/1.4 Rubik, sans-serif; }
-.photo-close { position: absolute; right: 1rem; top: 1rem; padding: .7rem; cursor: pointer; }
+.home-gallery {
+  --gallery-edge: clamp(1.25rem, 4.5vw, 5rem);
+  max-width: 108rem;
+  padding: clamp(4.25rem, 5vw, 5.75rem) var(--gallery-edge) clamp(3rem, 6vw, 7rem);
+  margin-inline: auto;
+}
+.gallery-masthead {
+  display: flex;
+  align-items: baseline;
+  gap: clamp(.9rem, 2vw, 2rem);
+  margin-bottom: clamp(1rem, 1.65vw, 2rem);
+}
+.gallery-masthead h1 { font: 500 clamp(2.3rem, 4.75vw, 5rem)/1 "Cormorant Upright", Georgia, serif; letter-spacing: -.035em; }
+.gallery-masthead p, .gallery-print figcaption, .photo-viewer figcaption { font: 400 .84rem/1.45 Rubik, system-ui, sans-serif; }
+.gallery-masthead p { opacity: .7; }
+.photo-sequence {
+  display: grid;
+  grid-template-columns: repeat(24, minmax(0, 1fr));
+  column-gap: clamp(.5rem, 1vw, 1.1rem);
+  row-gap: clamp(2rem, 4.5vw, 5rem);
+  align-items: start;
+}
+/* A lead and companion, a triptych, a single wide print, then two quieter pairs. */
+.gallery-print:nth-child(10n + 1) { grid-column: 1 / 16; }
+.gallery-print:nth-child(10n + 2) { grid-column: 18 / 25; align-self: center; }
+.gallery-print:nth-child(10n + 3) { grid-column: 2 / 7; }
+.gallery-print:nth-child(10n + 4) { grid-column: 8 / 18; align-self: end; }
+.gallery-print:nth-child(10n + 5) { grid-column: 20 / 25; align-self: center; }
+.gallery-print:nth-child(10n + 6) { grid-column: 4 / 22; }
+.gallery-print:nth-child(10n + 7) { grid-column: 2 / 9; align-self: end; }
+.gallery-print:nth-child(10n + 8) { grid-column: 11 / 25; }
+.gallery-print:nth-child(10n + 9) { grid-column: 1 / 14; }
+.gallery-print:nth-child(10n) { grid-column: 16 / 24; align-self: center; }
+.gallery-print figcaption { margin-top: .55rem; opacity: .76; }
+.photo-tile { display: block; width: 100%; cursor: zoom-in; }
+.photo-tile img, .photo-viewer img { display: block; width: 100%; height: auto; }
+.photo-tile[aria-expanded="true"] img { visibility: hidden; }
+.photo-tile:focus-visible, .photo-close:focus-visible { outline: 2px solid currentColor; outline-offset: 4px; }
+
+@media (max-width: 700px) {
+  .photo-sequence { grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 1.75rem .45rem; }
+  .gallery-print:nth-child(n) { grid-column: 1 / -1; }
+  .gallery-print:nth-child(10n + 2), .gallery-print:nth-child(10n + 5), .gallery-print:nth-child(10n) { grid-column: 5 / -1; }
+  .gallery-print:nth-child(10n + 3), .gallery-print:nth-child(10n + 7) { grid-column: 1 / 9; }
+  .gallery-print:nth-child(10n + 4) { grid-column: 2 / -1; }
+}
+
+.photo-viewer[open] {
+  position: fixed; inset: 0; display: grid; place-items: center;
+  width: 100%; max-width: none; height: 100%; max-height: none; margin: 0;
+  padding: 3.25rem clamp(1rem, 4vw, 4.5rem); overflow: hidden;
+  background: transparent; color: #f3f4ef; cursor: zoom-out;
+}
+.photo-viewer::backdrop { background: transparent; }
+.viewer-shade { position: absolute; inset: 0; background: #101112; }
+.photo-viewer figure { position: relative; width: min(100%, calc((100dvh - 8rem) * var(--photo-ratio))); }
+.photo-viewer img { transform-origin: top left; }
+.photo-viewer figcaption { margin-top: .65rem; }
+.photo-close { position: absolute; top: .85rem; right: 1rem; padding: .7rem; cursor: pointer; }
 html:has(.photo-viewer[open]) { overflow: hidden; }
+@media (prefers-reduced-motion: no-preference) {
+  .photo-viewer figcaption, .photo-close { animation: viewer-label-in 360ms ease both; }
+  .photo-viewer[data-closing] figcaption, .photo-viewer[data-closing] .photo-close { animation: none; opacity: 0; }
+  @keyframes viewer-label-in { 0%, 50% { opacity: 0; } to { opacity: 1; } }
+}

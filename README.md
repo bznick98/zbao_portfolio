@@ -18,11 +18,13 @@ npm run dev
 
 Open the local URL printed by Vite. Run `npm run check` for TypeScript, the regression suite and a production build. `npm run preview` serves the built frontend. Vercel serves the frontend and the functions under `api/` in production.
 
+For browser regression checks, install Chromium once with `npx playwright install chromium`, then run `npm run test:gallery`. The suite checks layout before images load, refresh stability, native proportions, keyboard interaction and reduced motion at phone and desktop sizes.
+
 The site uses React and Vite, with Tailwind CSS compiled at build time. About uses the official GSAP React hook and respects reduced-motion preferences. Articles render locally with React Markdown and GitHub Flavored Markdown tables.
 
 ## Edit content
 
 - Add a post to the beginning of `posts` in `data/posts.ts`. Give it a title, publication date, cover photograph, alt text and source links. Write the complete article in `content/posts/<slug>.md`. Put figures and papers in `public/blog/` and reference them with `/blog/…` URLs. The Blog index lists every entry, and About picks up the latest two. Each article has a shareable URL at `/#blog/<slug>`.
 - Edit the bio, career updates, experience and education in `pages/About.tsx`. The four contact icons are in `components/SocialLinks.tsx`.
-- Edit the gallery in `data/gallery.ts`. Ten local photographs come from my [earlier portfolio](https://github.com/bznick98/bznick98.github.io/tree/master/images/gallery). An optional Unsplash access key (`VITE_UNSPLASH_ACCESS_KEY`) loads a rotating selection with the local photos as a fallback. Automatic captions use the server-side `OPENAI_API_KEY` on Vercel.
+- Arrange the Home exhibition in `data/gallery.ts`. Each entry has a print title, alt text, and the exact pixel dimensions of its file under `public/gallery/`. The browser reserves that space before loading the photograph. Home uses this sequence on every visit. The photographs come from my [earlier portfolio](https://github.com/bznick98/bznick98.github.io/tree/master/images/gallery).
 - The Coffee page is hidden. Its existing calendar integration is documented in the [coffee setup guide](docs/coffee-chat.md).

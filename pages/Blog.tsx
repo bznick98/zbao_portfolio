@@ -41,7 +41,7 @@ export function Blog({ post }: { post?: BlogPost }) {
         {posts.map(entry => (
           <li key={entry.slug}>
             <a className="post-card" href={`#blog/${entry.slug}`}>
-              <img src={entry.cover.src} alt={entry.cover.alt} width="730" height="482" />
+              <img src={entry.cover.src} alt={entry.cover.alt} width={entry.cover.width} height={entry.cover.height} />
               <Byline post={entry} />
               <h2>{entry.title}</h2>
               <p className="post-summary">{entry.summary}</p>

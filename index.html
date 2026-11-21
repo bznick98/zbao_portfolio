@@ -23,15 +23,16 @@
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC&amp;text=%E9%B2%8D%E5%AE%97%E5%8D%97&amp;display=swap" rel="stylesheet">
 
     <style>
+      html { background-color: #101112; scrollbar-gutter: stable; }
       body {
-        background-color: #faf9f6;
-        color: #111111;
+        background-color: #101112;
+        color: #f3f4ef;
         overflow-x: hidden;
         font-family: "Rubik Spray Paint", "Yuji Boku", serif;
       }
       /* Smooth scrolling setup */
-      html {
-        scroll-behavior: smooth;
+      @media (prefers-reduced-motion: no-preference) {
+        html { scroll-behavior: smooth; }
       }
       
       .hide-scrollbar::-webkit-scrollbar {
