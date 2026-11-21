@@ -12,7 +12,7 @@
   .menu-overlay[open] { transform: translateY(0); }
   @starting-style { .menu-overlay[open] { transform: translateY(-100%); } }
 }
-.writing-page, .about-intro, .updates-section, .portfolio-footer {
+.writing-page, .about-intro, .portfolio-footer {
   font-family: Rubik, system-ui, sans-serif;
 }
 .writing-page {
@@ -25,21 +25,24 @@
   text-transform: uppercase;
   margin: 0 0 clamp(2.5rem, 5vw, 5rem);
 }
-.blog-index ul, .updates-section ul { list-style: none; padding: 0; margin: 0; }
-.updates-section li, .portfolio-footer, .post-links {
+.post-list { list-style: none; padding: 0; margin: 0; }
+.post-list li, .portfolio-footer, .post-links {
   border-top: 1px solid color-mix(in srgb, currentColor 28%, transparent);
 }
-.post-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: clamp(2rem, 4vw, 4rem); }
-.post-card { display: block; }
-.post-card img { display: block; width: 100%; height: auto; margin-bottom: 1.15rem; }
-.post-category, .updates-section h2, .updates-section li span {
+.post-card {
+  display: grid; gap: 1rem; align-items: center;
+  padding-block: clamp(1.25rem, 3vw, 2.5rem);
+}
+.post-card img { display: block; width: 100%; height: auto; }
+.post-category {
   font-size: .77rem; text-transform: uppercase; letter-spacing: .09em;
 }
+.post-category time { display: inline-block; font-weight: 550; }
 .post-category span { margin: 0 .35em; }
 .post-card h2 { max-width: 23ch; font-size: clamp(1.65rem, 3.2vw, 3.2rem); font-weight: 500; line-height: 1.08; margin: .55rem 0 .8rem; }
 .post-card h2, .post-page h1 { letter-spacing: -.035em; text-wrap: balance; }
 .post-summary { max-width: 56ch; line-height: 1.6; opacity: .82; }
-.post-card:hover h2, .updates-section a:hover, .post-links a:hover { text-decoration: underline; text-underline-offset: .16em; }
+.post-card:hover h2, .post-card:focus-visible h2, .post-links a:hover { text-decoration: underline; text-underline-offset: .16em; }
 .back-link, .post-links a { display: inline-flex; align-items: center; gap: .5rem; }
 .post-page { max-width: 65rem; }
 .post-page header { margin: 3rem 0 2rem; }
@@ -72,22 +75,13 @@
 .chinese-name { font-family: "Noto Sans SC", "PingFang SC", "Microsoft YaHei", sans-serif; }
 .about-intro p + p { margin-top: 1rem; }
 .experience-platforms { display: flex; flex-wrap: wrap; gap: .6rem 1.2rem; margin-top: 1rem; font-size: .9rem; }
-.updates-section { display: grid; grid-template-columns: 1fr 3fr; gap: 2rem; margin: 4rem 0 5rem; }
-.updates-section h2 { margin-top: .9rem; }
-.updates-section li > * { display: flex; gap: 1rem; align-items: center; padding: .85rem 0; line-height: 1.45; }
-.updates-section li img { width: 4.5rem; height: auto; flex: none; }
-.updates-section li span { opacity: .7; display: block; }
-.updates-section li > div { display: block; }
-.updates-section li svg { flex-shrink: 0; margin-left: auto; }
 .portfolio-footer { justify-content: space-between; gap: 1rem; padding: 1.5rem clamp(1.5rem, 4vw, 4rem); }
 .portfolio-social { gap: .25rem; }
 .portfolio-social a { display: grid; place-items: center; width: 44px; height: 44px; border-radius: 50%; }
 .portfolio-social a:hover { background: color-mix(in srgb, currentColor 12%, transparent); }
 .portfolio-social svg { width: 19px; height: 19px; }
-@media (max-width: 640px) {
-  .post-grid { grid-template-columns: 1fr; }
-  .updates-section { grid-template-columns: 1fr; gap: 1rem; margin: 3rem 0; }
-
+@media (min-width: 48rem) {
+  .post-card { grid-template-columns: minmax(0, 32%) minmax(0, 1fr); gap: clamp(2rem, 5vw, 5rem); }
 }
 
 .home-gallery {

@@ -1,13 +1,13 @@
 import { ArrowLeft, ArrowRight } from 'lucide-react';
 import Markdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import { CalendarDate } from '../components/CalendarDate';
 import { posts, type BlogPost } from '../data/posts';
 
 const articles = import.meta.glob<string>('../content/posts/*.md', { eager: true, query: '?raw', import: 'default' });
-const dateFormat = new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' });
 
 function Byline({ post }: { post: BlogPost }) {
-  return <p className="post-category">{post.category} <span aria-hidden="true">·</span> <time dateTime={post.published}>{dateFormat.format(new Date(post.published))}</time></p>;
+  return <p className="post-category"><CalendarDate date={post.published} /> <span aria-hidden="true">·</span> {post.category}</p>;
 }
 
 export function Blog({ post }: { post?: BlogPost }) {
@@ -37,14 +37,16 @@ export function Blog({ post }: { post?: BlogPost }) {
   return (
     <div className="writing-page blog-index">
       <h1 className="portfolio-title">Blog</h1>
-      <ul className="post-grid">
+      <ul className="post-list">
         {posts.map(entry => (
           <li key={entry.slug}>
             <a className="post-card" href={`#blog/${entry.slug}`}>
               <img src={entry.cover.src} alt={entry.cover.alt} width={entry.cover.width} height={entry.cover.height} />
-              <Byline post={entry} />
-              <h2>{entry.title}</h2>
-              <p className="post-summary">{entry.summary}</p>
+              <div>
+                <Byline post={entry} />
+                <h2>{entry.title}</h2>
+                <p className="post-summary">{entry.summary}</p>
+              </div>
             </a>
           </li>
         ))}
