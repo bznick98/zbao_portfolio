@@ -45,7 +45,7 @@ window.addEventListener('message', async event => {
   started = true;
   theme(data.theme);
   window.__HOUSE_CATALOG = data.catalog;
-  document.getElementById('project-documents').hidden=!data.catalog?.documents?.items?.length;
+  document.getElementById('project-documents').hidden=!data.catalog?.revisions?.length;
   window.__HOUSE_ASSETS = { scene: data.scene, model: data.model };
   // Reuse the site's font declaration; the browser can reuse its cached fonts.
   const fonts = parent.document.querySelector('link[href^="https://fonts.googleapis.com/css"]');
@@ -58,7 +58,8 @@ document.getElementById('project-documents').onclick=()=>{
   if(document.pointerLockElement)document.exitPointerLock();
   document.getElementById('settings').hidden=true;
   document.getElementById('menu-toggle').setAttribute('aria-expanded','false');
-  parent.postMessage({type:'house:documents'},location.origin);
+  const revisionId=window.__walkthrough?.revisions?.getState().revisionId;
+  if(revisionId)parent.postMessage({type:'house:documents',revisionId},location.origin);
 };
 document.addEventListener('keydown', event => {
   if (event.key === 'Escape' && !document.getElementById('settings').hidden) {

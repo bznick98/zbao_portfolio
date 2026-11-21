@@ -1,4 +1,4 @@
-import { ITERATIONS, deriveHouseKey, decryptHouseFile } from './house-crypto.mjs';
+import { MAX_HOUSE_FILES, ITERATIONS, deriveHouseKey, decryptHouseFile } from './house-crypto.mjs';
 
 type EncryptedFile = { file: string; iv: number[]; bytes: number };
 type Manifest = { schema: number; buildId: string; iterations: number; salt: number[]; files: Record<string, EncryptedFile> };
@@ -16,9 +16,9 @@ function validManifest(m: Manifest): boolean {
   if (![1,2].includes(m?.schema) || !/^[a-f0-9]{16}$/.test(m.buildId) || m.iterations !== ITERATIONS || !byteArray(m.salt,16)) return false;
   const names = Object.keys(m.files || {});
   if (m.schema === 1 ? !['scene','model'].every(n=>names.includes(n)) : !names.includes('catalog')) return false;
-  return names.length <= 100 && names.every(name => {
+  return names.length <= MAX_HOUSE_FILES && names.every(name => {
     const file = m.files[name];
-    return /^(scene|model|catalog|asset-[a-f0-9]{64})$/.test(name) && file.file === `${m.buildId}/${name}.bin`
+    return /^(scene|model|catalog|asset-[a-f0-9]{64})$/.test(name) && (file.file === `${m.buildId}/${name}.bin` || (name==='catalog' && file.file.startsWith(m.buildId+'/') && /^catalog-[a-f0-9]{64}[.]bin$/.test(file.file.slice(m.buildId.length+1))))
       && byteArray(file.iv,12) && Number.isSafeInteger(file.bytes) && file.bytes > 16 && file.bytes < 100_000_000;
   });
 }

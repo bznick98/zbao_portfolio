@@ -31,3 +31,13 @@ password and loaded on demand. They are design studies, not a new 3D revision.
 See [gallery import and review](docs/house.md#design-previews).
 
 House also includes **Walkthrough / Model** modes with a top-left EN/CN language switch (English by default): inspect the empty architectural shell, then return to the exact saved walking position and heading. The revision dropdown sits beside these modes. Dimensions use deterministic face measurements and accelerated occlusion. See [interaction behavior and model import checks](docs/house.md#controls).
+
+### House revision reports
+
+A model revision can have a private paginated design report. From this checkout
+run `node scripts/import-house-report.mjs /path/to/report-manifest.json` with
+the existing House password on standard input. The importer verifies the frozen
+revision digest, the PDF and the page JPEGs before adding encrypted assets.
+The manifest lists projectId, revisionId, revisionDigest, title, pdf
+({path, sha256}) and pages (each with title, path, sha256), with schema 1.
+The viewer loads only the open page and fetches the PDF when someone downloads it.

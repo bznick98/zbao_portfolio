@@ -51,7 +51,7 @@ export async function importHouseDocuments(source,password,destination=path.join
   const {documents,provenance}=await packageHouseDocuments(source);
   const entries=[];
   async function encrypt(name,bytes) {
-    const iv=randomBytes(12),file=`${release.buildId}/${name}.bin`;
+    const iv=randomBytes(12),file=name==='catalog'?release.files.catalog.file:`${release.buildId}/${name}.bin`;
     const cipher=await crypto.subtle.encrypt({name:'AES-GCM',iv,additionalData:new TextEncoder().encode(`${release.buildId}/${name}`)},key,bytes);
     const temporary=path.join(destination,file+'.tmp');await writeFile(temporary,Buffer.from(cipher));await rename(temporary,path.join(destination,file));
     release.files[name]={file,iv:[...iv],bytes:cipher.byteLength};
@@ -61,7 +61,8 @@ export async function importHouseDocuments(source,password,destination=path.join
     const bytes=Buffer.from(doc.html),sha256=hash(bytes),assetId='asset-'+sha256;
     await encrypt(assetId,bytes);entries.push({id:doc.id,title:doc.title,kind:doc.kind,assetId,sha256,mime:'text/html'});
   }
-  catalog.documents={schema:1,updatedAt:'2026-11-16',items:entries};
+  const retained = (catalog.documents?.items || []).filter(item=>!entries.some(entry=>entry.id===item.id));
+  catalog.documents={schema:1,updatedAt:new Date().toISOString(),items:[...retained,...entries]};
   await encrypt('catalog',Buffer.from(JSON.stringify(catalog)));
   await writeFile(path.join(destination,'release.json'),JSON.stringify(release,null,2)+'\n');
   const reportDirectory=options.reportDirectory||path.join(root,'artifacts/house-documents');

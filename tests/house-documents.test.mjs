@@ -58,3 +58,12 @@ test('document import preserves model ciphertext, authenticates docs, and reject
  const html=new TextDecoder().decode(await decryptHouseFile(key,bytes,file.iv,buildId,item.assetId));assert.ok(html.includes('data:image/png'));
  const changed=Buffer.from(bytes);changed[0]^=1;await assert.rejects(decryptHouseFile(key,changed,file.iv,buildId,item.assetId));
 });
+
+test('reports follow the selected frozen revision and legacy previews stay on their actual baseline',()=>{
+ const sha='a'.repeat(64),pdf={id:'design-report-0.5',title:'Review',kind:'design-report',revisionId:'0.5',revisionDigest:'frozen',mime:'application/pdf',assetId:'asset-'+sha,pages:[{assetId:'asset-'+sha}]};
+ const old={id:'interior-study',title:'Early study',assetId:'asset-'+sha,mime:'text/html'};
+ const catalog={revisions:[{revisionId:'0.5',revisionDigest:'frozen'}],documents:{schema:1,items:[old,pdf]}};
+ assert.deepEqual(getHouseDocuments(catalog,'0.2'),[old]);
+ assert.deepEqual(getHouseDocuments(catalog,'0.5'),[pdf]);assert.deepEqual(getHouseDocuments(catalog,'0.1'),[]);
+ catalog.revisions[0].revisionDigest='different';assert.deepEqual(getHouseDocuments(catalog,'0.5'),[]);
+});
