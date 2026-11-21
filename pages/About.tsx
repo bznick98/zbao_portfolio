@@ -35,6 +35,7 @@ export const About: React.FC = () => {
             { name: 'Snapdragon 8 Elite (SM8750)', url: 'https://www.qualcomm.com/smartphones/products/8-series/snapdragon-8-elite-mobile-platform' },
             { name: 'Snapdragon 8 Elite Gen 5 (SM8850)', url: 'https://www.qualcomm.com/content/dam/qcomm-martech/dm-assets/documents/Snapdragon-8-Elite-Gen-5-product-brief.pdf' },
             { name: 'Snapdragon 8 Elite Gen 6 (SM8950)', url: 'https://www.qualcomm.com/content/dam/qcomm-martech/dm-assets/documents/Snapdragon-8-Elite-Gen-6-Product-Brief.pdf' },
+            { name: 'Snapdragon 8 Elite Extreme Gen 6 (SM8975)', url: 'https://www.qualcomm.com/smartphones/products/8-series/snapdragon-8-elite-extreme-gen-6-mobile-platform' },
         ],
     },
     {
