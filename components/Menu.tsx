@@ -1,39 +1,13 @@
-import React, { useState, useEffect } from 'react';
+import React, { useRef } from 'react';
 import { Menu as MenuIcon, X } from 'lucide-react';
-import gsap from 'gsap';
+import { SocialLinks } from './SocialLinks';
 
 interface MenuProps {
-  onNavigate: (page: string) => void;
   isDarkMode: boolean;
 }
 
-export const Menu: React.FC<MenuProps> = ({ onNavigate, isDarkMode }) => {
-  const [isOpen, setIsOpen] = useState(false);
-
-  useEffect(() => {
-    if (isOpen) {
-      gsap.to('.menu-overlay', {
-        y: '0%',
-        duration: 0.6,
-        ease: 'power3.out'
-      });
-      gsap.fromTo('.menu-item',
-        { y: 50, opacity: 0 },
-        { y: 0, opacity: 1, duration: 0.5, stagger: 0, delay: 0.05 }
-      );
-    } else {
-      gsap.to('.menu-overlay', {
-        y: '-100%',
-        duration: 0.6,
-        ease: 'power3.inOut'
-      });
-    }
-  }, [isOpen]);
-
-  const handleNavClick = (page: string) => {
-    onNavigate(page);
-    setIsOpen(false);
-  };
+export const Menu: React.FC<MenuProps> = ({ isDarkMode }) => {
+  const dialog = useRef<HTMLDialogElement>(null);
 
   return (
     <>
@@ -42,7 +16,7 @@ export const Menu: React.FC<MenuProps> = ({ onNavigate, isDarkMode }) => {
         style={isDarkMode ? { color: '#f3f4ef' } : undefined}
       >
         <button
-          onClick={() => setIsOpen(true)}
+          onClick={() => dialog.current?.showModal()}
           aria-label="Open menu"
           className="pointer-events-auto group flex items-center gap-2 text-sm uppercase tracking-widest font-medium hover:opacity-70 transition-opacity"
         >
@@ -51,14 +25,14 @@ export const Menu: React.FC<MenuProps> = ({ onNavigate, isDarkMode }) => {
         </button>
       </nav>
 
-      <div
-        className="menu-overlay fixed inset-0 z-[60] transform -translate-y-full flex flex-col justify-center items-center"
-        inert={!isOpen}
-        aria-hidden={!isOpen}
-        style={{ visibility: isOpen ? 'visible' : 'hidden', ...(isDarkMode ? { backgroundColor: '#f3f4ef', color: '#111111' } : { backgroundColor: '#111111', color: '#faf9f6' }) }}
+      <dialog
+        ref={dialog}
+        aria-label="Portfolio menu"
+        className="menu-overlay"
+        style={isDarkMode ? { backgroundColor: '#f3f4ef', color: '#111111' } : { backgroundColor: '#111111', color: '#faf9f6' }}
       >
         <button
-          onClick={() => setIsOpen(false)}
+          onClick={() => dialog.current?.close()}
           aria-label="Close menu"
           className="absolute top-6 left-6 md:top-8 md:left-12 p-2 hover:opacity-70 transition-opacity"
         >
@@ -66,21 +40,20 @@ export const Menu: React.FC<MenuProps> = ({ onNavigate, isDarkMode }) => {
         </button>
 
         <div className="flex flex-col items-center gap-5 md:gap-7 text-center">
-          {['Work', 'Profile', 'Coffee', 'Contact', 'Poe', 'House'].map((item) => (
-            <button
+          {['Home', 'About', 'Blog', 'Poe', 'House'].map((item) => (
+            <a
+              href={`#${item.toLowerCase()}`}
               key={item}
-              onClick={() => handleNavClick(item)}
+              onClick={() => dialog.current?.close()}
               className="menu-item text-4xl md:text-7xl font-serif hover:text-yellow-500 transition-all duration-300"
             >
               {item}
-            </button>
+            </a>
           ))}
         </div>
 
-        <div className="menu-item absolute bottom-12 text-sm uppercase tracking-widest opacity-50">
-          © 2026 Zongnan Bao
-        </div>
-      </div>
+        <SocialLinks />
+      </dialog>
     </>
   );
 };

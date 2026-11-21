@@ -1,6 +1,6 @@
 # Coffee & conversation
 
-Visit `/#coffee` or choose **Coffee** in the menu. The page uses the portfolio's shared menu, theme controls, spray-paint heading, Rubik body text, and monochrome palette. One compact form asks for a place, time, name, and email. Choose a café from the dropdown or map, or choose **Online · Google Meet** in the same dropdown. The map is an original illustration with approximate locations; the selected café links to Google Maps for navigation. Café addresses and hours were checked against official location pages on November 4, 2026:
+Coffee is hidden from the public menu and router. The page source and calendar integration are retained. The page uses the portfolio's shared menu, theme controls, spray-paint heading, Rubik body text, and monochrome palette. One compact form asks for a place, time, name, and email. Choose a café from the dropdown or map, or choose **Online · Google Meet** in the same dropdown. The map is an original illustration with approximate locations; the selected café links to Google Maps for navigation. Café addresses and hours were checked against official location pages on November 4, 2026:
 
 - [Saint Frank](https://www.saintfrankcoffee.com/pages/our-locations): Russian Hill and Menlo Park.
 - [Timeless Coffee](https://timelesscoffee.com/pages/locations): Piedmont Avenue, Oakland.
