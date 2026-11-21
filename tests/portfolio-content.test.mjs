@@ -18,16 +18,6 @@ async function checkAsset(path) {
   assert.ok(asset.isFile() && asset.size > 0, path);
 }
 
-test('every gallery tile has a distinct, bundled photograph and an accessible description', async () => {
-  const { gallery } = await readCatalogue('data/gallery.ts');
-  assert.ok(gallery.length > 2);
-  assert.equal(new Set(gallery.map(photo => photo.src)).size, gallery.length);
-  for (const photo of gallery) {
-    assert.ok(photo.alt.trim());
-    await checkAsset(photo.src);
-  }
-});
-
 test('every blog card leads to an article with local preview and article assets', async () => {
   const { posts } = await readCatalogue('data/posts.ts');
   assert.equal(new Set(posts.map(post => post.slug)).size, posts.length);

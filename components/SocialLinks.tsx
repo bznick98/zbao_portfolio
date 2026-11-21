@@ -1,10 +1,11 @@
 import React from 'react';
+import { unsplashProfile } from '../data/gallery';
 import { Github, Linkedin, Mail } from 'lucide-react';
 
 const links = [
   { label: 'LinkedIn', href: 'https://www.linkedin.com/in/zongnanbao/', Icon: Linkedin },
   { label: 'GitHub', href: 'https://github.com/bznick98', Icon: Github },
-  { label: 'Unsplash', href: 'https://unsplash.com/@nick19981122', Icon: Unsplash },
+  { label: 'Unsplash', href: unsplashProfile, Icon: Unsplash },
   { label: 'Email', href: 'mailto:zongnan.bao@gmail.com', Icon: Mail },
 ];
 

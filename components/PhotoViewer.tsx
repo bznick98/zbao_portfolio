@@ -58,7 +58,7 @@ export function PhotoViewer({ selection, onClose }: { selection: PhotoSelection;
   }
 
   return (
-    <dialog ref={dialog} className="photo-viewer" aria-label={photo.title} onClose={onClose}
+    <dialog ref={dialog} className="photo-viewer" aria-label={photo.alt} onClose={onClose}
       onCancel={event => { event.preventDefault(); close(); }}
       onClick={close}>
       <div className="viewer-shade" ref={shade} aria-hidden="true" />
@@ -66,7 +66,7 @@ export function PhotoViewer({ selection, onClose }: { selection: PhotoSelection;
         <div ref={frame}>
           <img ref={image} src={photo.src} width={photo.width} height={photo.height} alt={photo.alt} />
         </div>
-        <figcaption>{photo.title}</figcaption>
+        {photo.caption && <figcaption>{photo.caption}</figcaption>}
       </figure>
       <button type="button" className="photo-close" aria-label="Close photograph" autoFocus><X /></button>
     </dialog>
