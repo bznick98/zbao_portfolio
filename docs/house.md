@@ -14,6 +14,37 @@ The 864 raw width/height dimensions pass through a deterministic model-space fil
 
 The text atlas, line gap and world-space quad use the same measured font aspect ratio. There is no character-count width estimate or canvas maxWidth squeezing. AO geometry excludes annotation quads so text does not create rectangular shading. Camera/zoom tests assert all dimension submissions and attribute versions remain unchanged; source raster tests independently verify offscreen endpoints, partial/opaque/glass occlusion and matching atlas/world aspect ratios.
 
+## Design previews
+
+After unlocking House, open Settings → **Design previews / 设计效果图**. The
+gallery contains the current living-room limestone-look/teak comparison, dining
+and kitchen proposals, plus the three original-model camera renders. These are
+GPT design targets awaiting feedback, not an implemented interior-design revision.
+The 3D viewer still uses verified revisions 0.1 and 0.2; no new styled GLB or tour
+is implied. The two workflow diagrams are not part of this website update.
+
+The gallery downloads only when opened. Its HTML and all seven images are held in
+one encrypted resource, under the same House password. Closing it restores the
+same 3D iframe, pose and zoom. Locking destroys both frames and cancels pending
+downloads. The gallery runs without parent-DOM or network access. Source photos,
+PDFs and raw model files are not added to public assets.
+
+Update the gallery after importing a model release:
+`npm run house:designs -- /path/to/layout2house`
+Supply the existing password through stdin. This reads the current
+`projects/zhijiang/reference/interior/concepts/tuscan-materials-v2/manifest.json`,
+verifies the seven image hashes, and adds the gallery to the existing encrypted
+catalog. It preserves model ciphertext and selected model builds. Re-running the
+base `house:import` replaces the catalog, so run `house:designs` afterward when the
+design previews should remain available. Source hashes/import reports are local
+under ignored `artifacts/house-documents/`.
+
+Run `npm run check`, then serve the production build and run
+`node scripts/check-house-designs.mjs <origin>` with the password on stdin. The
+browser check covers 1440px, 390px and 320px, lazy loading, all image comparisons,
+unchanged walk pose, frame isolation, and locking. The existing full House browser
+check remains the regression check for revisions, dimensions and navigation.
+
 ## Private resources
 
 The public release is schema 2. It contains an encrypted catalog and encrypted assets with opaque IDs. Model files, scene/navigation metadata, wall measurements, plan SVGs and route SVGs are all AES-256-GCM encrypted, with separate random nonces and authenticated resource identities. A PBKDF2-SHA-256 key uses a random salt and 600,000 iterations. No password or reusable key is shipped.

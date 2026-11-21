@@ -25,4 +25,9 @@ The **House** menu opens a fullscreen, password-gated Three.js walkthrough at `/
 
 Use Node.js 22.12+ and `npm ci`. Run `npm run check` for TypeScript, regression tests, and a production build. The existing Vercel deployment serves the page and encrypted model without new runtime configuration.
 
+House Settings also opens **Design previews / 设计效果图**: the latest four
+interior proposals and three original-model views, encrypted under the same
+password and loaded on demand. They are design studies, not a new 3D revision.
+See [gallery import and review](docs/house.md#design-previews).
+
 House also includes **Walkthrough / Model** modes with a top-left EN/CN language switch (English by default): inspect the empty architectural shell, then return to the exact saved walking position and heading. The revision dropdown sits beside these modes. Dimensions use deterministic face measurements and accelerated occlusion. See [interaction behavior and model import checks](docs/house.md#controls).

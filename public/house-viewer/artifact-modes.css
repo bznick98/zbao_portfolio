@@ -25,7 +25,7 @@
 #model-tools button { color:var(--artifact-ink); border:1px solid var(--artifact-line); border-radius:0; }
 #model-tools small { font-size:10px; opacity:.7; }
 .position-legend { font-size:12px; display:flex; align-items:center; gap:6px; }
-.position-legend i { width:9px; height:9px; background:#f2b64b; border:1px solid #382c1c; border-radius:50%; }
+.position-legend i { color:#e4b264; font-size:21px; line-height:1; font-style:normal; }
 [data-artifact-mode=walk] [data-model-only], [data-artifact-mode=model] [data-walk-only] { display:none!important; }
 @media(max-width:900px) { .view-controls { top:72px; } #tool-readout { top:128px; } }
 @media(max-width:600px) { .view-controls { gap:6px; }.artifact-modes button { padding:8px 9px; font-size:12px; } .common-tools { left:max(12px,env(safe-area-inset-left)); } #language-toggle { padding:8px; font-size:11px; } #tool-readout { top:128px; } #model-tools { gap:9px; } }

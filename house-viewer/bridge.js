@@ -39,11 +39,13 @@ window.addEventListener('message', async event => {
    if(data.error)item.reject(new Error(data.error));else if(data.bytes instanceof ArrayBuffer)item.resolve(data.bytes);else item.reject(new Error('Invalid resource response.'));return;
   }
   if (data?.type === 'house:theme') { theme(data.theme); return; }
+  if (data?.type === 'house:documents-closed') {document.getElementById('menu-toggle').focus();return;}
   if (started || data?.type !== 'house:open') return;
   if (!data.catalog && ![data.scene, data.model].every(url => typeof url === 'string' && url.startsWith(`blob:${location.origin}/`))) return;
   started = true;
   theme(data.theme);
   window.__HOUSE_CATALOG = data.catalog;
+  document.getElementById('project-documents').hidden=!data.catalog?.documents?.items?.length;
   window.__HOUSE_ASSETS = { scene: data.scene, model: data.model };
   // Reuse the site's font declaration; the browser can reuse its cached fonts.
   const fonts = parent.document.querySelector('link[href^="https://fonts.googleapis.com/css"]');
@@ -51,6 +53,13 @@ window.addEventListener('message', async event => {
   try { await import('./main.js'); } catch { fail(); }
 });
 document.getElementById('lock-page').onclick = () => parent.postMessage({ type: 'house:lock' }, location.origin);
+document.getElementById('project-documents').onclick=()=>{
+  window.dispatchEvent(new Event('blur'));
+  if(document.pointerLockElement)document.exitPointerLock();
+  document.getElementById('settings').hidden=true;
+  document.getElementById('menu-toggle').setAttribute('aria-expanded','false');
+  parent.postMessage({type:'house:documents'},location.origin);
+};
 document.addEventListener('keydown', event => {
   if (event.key === 'Escape' && !document.getElementById('settings').hidden) {
     document.getElementById('settings').hidden = true;

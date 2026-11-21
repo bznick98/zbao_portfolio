@@ -1,5 +1,7 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { createDoubleTapGesture, createPositionPawn, floorBelow, pickModelFloor } from './model-teleport.js';
+import { setText } from './i18n.js';
 
 export const SHELL_LAYERS = new Set(['Walls', 'Structure', 'Floors', 'Doors', 'Windows']);
 
@@ -10,9 +12,10 @@ export function createShell(root) {
   shell.traverse(object => {
     if (!object.isMesh) return;
     const layer = object.userData.layer;
-    object.visible = object.visible && SHELL_LAYERS.has(layer);
+    object.visible = object.visible && (SHELL_LAYERS.has(layer) || object.userData.fixedFitout);
     if (!object.visible) return;
     counts[layer] = (counts[layer] || 0) + 1;
+    if (object.userData.fixedFitout) return;
     const source = Array.isArray(object.material) ? object.material : [object.material];
     const replaced = source.map(material => {
       const key = `${layer}:${material.transparent ? 'glass' : 'solid'}`;
@@ -54,7 +57,7 @@ function appearanceSignature(root) {
   return hash >>> 0;
 }
 
-export function createArtifactModes({ root, scene, walkCamera, renderer, getWalkPose, restoreWalkPose, clearWalkInput, bindUI = true, walkAvailable = true }) {
+export function createArtifactModes({ root, scene, walkCamera, renderer, getWalkPose, restoreWalkPose, clearWalkInput, resolveTeleport = () => null, canTeleport = () => true, onTeleportRejected = () => {}, bindUI = true, walkAvailable = true }) {
   const { shell, bounds, counts, dispose: disposeShell } = createShell(root);
   const camera = new THREE.PerspectiveCamera(42, 1, .1, 300);
   const originalBackground = new THREE.Color('#d5dfe2');
@@ -65,19 +68,12 @@ export function createArtifactModes({ root, scene, walkCamera, renderer, getWalk
   const inputEvents = new AbortController();
   let mode = 'walk', savedPose, originalVisibility = root.visible, controls;
   let viewport = { width: canvas.clientWidth, height: canvas.clientHeight };
-  const marker = new THREE.Group(); marker.name = 'Current walkthrough position';
-  function markerPart(geometry, color) {
-    const material = new THREE.MeshBasicMaterial({ color, depthTest: false, depthWrite: false, toneMapped: false, side: THREE.DoubleSide });
-    const mesh = new THREE.Mesh(geometry, material); mesh.renderOrder = 1000; marker.add(mesh); return mesh;
-  }
-  markerPart(new THREE.CylinderGeometry(.52, .52, .025, 32), '#382c1c');
-  markerPart(new THREE.CylinderGeometry(.40, .40, .035, 32), '#f2b64b').position.y = .02;
-  const arrow = markerPart(new THREE.ConeGeometry(.25, .8, 3), '#f2b64b');
-  arrow.rotation.x = -Math.PI / 2; arrow.position.set(0, .08, -.68);
+  const marker = createPositionPawn(), taps = createDoubleTapGesture();
   shell.visible = marker.visible = false; scene.add(shell, marker);
 
   function poseCopy(value) { return JSON.parse(JSON.stringify(value)); }
   function resetOverview() {
+    taps.reset();
     const fit = fitOverview(camera, bounds, canvas.clientWidth / canvas.clientHeight);
     if (controls) {
       controls.target.copy(fit.center); controls.cursor.copy(fit.center);
@@ -88,12 +84,40 @@ export function createArtifactModes({ root, scene, walkCamera, renderer, getWalk
     }
   }
   function stopModelInput() {
+    taps.reset();
     for (const pointerId of pointers) if (canvas.hasPointerCapture(pointerId)) canvas.releasePointerCapture(pointerId);
     pointers.clear();
     controls?.dispose(); controls = null;
     canvas.style.touchAction = 'none';
   }
-  canvas.addEventListener('pointerdown', event => { if (mode === 'model') pointers.add(event.pointerId); }, {capture:true,signal:inputEvents.signal});
+  function teleportAt(clientX, clientY) {
+    if(mode!=='model'||!walkAvailable||!canTeleport())return null;
+    const box=canvas.getBoundingClientRect();
+    if(clientX<box.left||clientX>box.right||clientY<box.top||clientY>box.bottom)return null;
+    const point=pickModelFloor(shell,camera,new THREE.Vector2((clientX-box.left)/box.width*2-1,-(clientY-box.top)/box.height*2+1));
+    return point ? resolveTeleport(point,poseCopy(savedPose)) : null;
+  }
+  canvas.addEventListener('pointerdown', event => {
+    if(mode!=='model')return;
+    pointers.add(event.pointerId);
+    if(canTeleport())taps.down(event);else taps.reset();
+  }, {capture:true,signal:inputEvents.signal});
+  canvas.addEventListener('pointermove', event => taps.move(event), {capture:true,signal:inputEvents.signal});
+  canvas.addEventListener('pointerup', event => {
+    if(mode!=='model'||!walkAvailable||!canTeleport()){taps.reset();return;}
+    if(!taps.up(event))return;
+    const pose=teleportAt(event.clientX,event.clientY);
+    // Let OrbitControls finish releasing its pointer before changing modes.
+    queueMicrotask(()=>{
+      if(inputEvents.signal.aborted||mode!=='model'||!canTeleport())return;
+      if(!pose){onTeleportRejected();return;}
+      savedPose=pose;setMode('walk');
+    });
+  }, {capture:true,signal:inputEvents.signal});
+  canvas.addEventListener('pointercancel',()=>taps.reset(),{signal:inputEvents.signal});
+  canvas.addEventListener('lostpointercapture',event=>{if(pointers.has(event.pointerId))taps.reset();},{signal:inputEvents.signal});
+  window.addEventListener('blur',()=>taps.reset(),{signal:inputEvents.signal});
+  canvas.addEventListener('wheel',()=>taps.reset(),{passive:true,signal:inputEvents.signal});
   for (const event of ['pointerup', 'pointercancel']) canvas.addEventListener(event, event => pointers.delete(event.pointerId), {capture:true,signal:inputEvents.signal});
   function syncUI() {
     if(!bound)return;
@@ -113,6 +137,7 @@ export function createArtifactModes({ root, scene, walkCamera, renderer, getWalk
       if (document.pointerLockElement) document.exitPointerLock();
       root.visible = false; shell.visible = true; marker.visible = walkAvailable; scene.background = modelBackground;
       marker.position.fromArray(savedPose.position);
+      marker.position.y=floorBelow(shell,savedPose.position)+.015;
       marker.rotation.y = savedPose.yaw;
       controls = new OrbitControls(camera, canvas);
       controls.enableDamping = false; controls.screenSpacePanning = false;
@@ -130,6 +155,7 @@ export function createArtifactModes({ root, scene, walkCamera, renderer, getWalk
     document.getElementById('mode-walk').onclick = () => setMode('walk');
     document.getElementById('mode-model').onclick = () => setMode('model');
     document.getElementById('model-reset').onclick = resetOverview;
+    setText(document.getElementById('model-teleport-hint'),matchMedia('(pointer:coarse)').matches?'modelTeleportTouch':'modelTeleportDesktop');
     syncUI();
   }
   if(bindUI)activate();
@@ -137,7 +163,14 @@ export function createArtifactModes({ root, scene, walkCamera, renderer, getWalk
     get mode() { return mode; },
     get activeRoot() { return mode === 'walk' ? root : shell; },
     get camera() { return mode === 'walk' ? walkCamera : camera; },
-    setMode, resetOverview, activate,
+    setMode, resetOverview, activate, teleportAt,
+    update() {
+      if(mode!=='model')return;
+      camera.updateMatrixWorld(true);
+      const base=marker.position.clone().project(camera),top=marker.position.clone().add(new THREE.Vector3(0,.98,0)).project(camera);
+      const pixels=Math.abs(top.y-base.y)*canvas.clientHeight/2;
+      marker.scale.setScalar(THREE.MathUtils.clamp(16/Math.max(pixels,1),1,2.5));
+    },
     restoreModelView(view) {
       if(!controls||!view?.target)return;
       camera.position.fromArray(view.position);camera.quaternion.fromArray(view.quaternion);camera.zoom=view.zoom;
@@ -154,12 +187,12 @@ export function createArtifactModes({ root, scene, walkCamera, renderer, getWalk
       const corners = [];
       for (const x of [bounds.min.x, bounds.max.x]) for (const y of [bounds.min.y, bounds.max.y]) for (const z of [bounds.min.z, bounds.max.z]) corners.push(new THREE.Vector3(x,y,z).project(camera).toArray());
       return { mode, walkPose: poseCopy(mode === 'walk' ? getWalkPose() : savedPose),
-        marker: { position: marker.position.toArray(), yaw: marker.rotation.y, visible: marker.visible, projected: marker.position.clone().project(camera).toArray() },
+        marker: { kind:'pawn', position: marker.position.toArray(), yaw: marker.rotation.y, visible: marker.visible, projected: marker.position.clone().project(camera).toArray() },
         modelView: { position: camera.position.toArray(), quaternion: camera.quaternion.toArray(), target: controls?.target.toArray(), zoom: camera.zoom, boundsInView: corners.every(point => point.every(Number.isFinite) && Math.abs(point[0]) <= 1 && Math.abs(point[1]) <= 1 && point[2] >= -1 && point[2] <= 1) },
         shell: { visible: shell.visible, layers: { ...counts }, sharesGeometry: true },
         walkRootVisible: root.visible, walkAppearance: appearanceSignature(root), resources: { ...renderer.info.memory },
       };
     },
-    dispose() { inputEvents.abort(); subscribers.clear(); stopModelInput(); disposeShell(); marker.traverse(object => { object.geometry?.dispose(); object.material?.dispose(); }); scene.remove(shell, marker); },
+    dispose() { inputEvents.abort(); subscribers.clear(); stopModelInput(); disposeShell(); marker.userData.dispose(); scene.remove(shell, marker); },
   };
 }
