@@ -21,19 +21,13 @@ export const BLOCKS: ContentBlock[] = [
 
   // --- LAYER 1: SCROLLING CONTENT ---
   
-  // Spacer to push content down initially so name is visible
-  {
-    id: 'spacer-top',
-    type: 'spacer',
-    mobile: { colSpan: 'col-span-2', marginBottom: 'h-[24vh]' },
-    desktop: { colSpan: 'col-span-12', marginBottom: 'h-[36vh]' },
-  },
-
   // --- Denser Layout: Added more image blocks interspersed ---
 
   // Image A (New - Left Top) -> Increased size
   {
     id: 'img-extra-1',
+    src: '/gallery/mountains.webp',
+    alt: 'A glacier curves between snow-covered mountain peaks',
     type: 'image',
     aspectRatio: 'aspect-[3/4]',
     useNaturalAspectRatio: true,
@@ -45,6 +39,8 @@ export const BLOCKS: ContentBlock[] = [
   // Image 1 (Existing - Right Top) -> Increased size
   {
     id: 'img-1',
+    src: '/gallery/getty.webp',
+    alt: 'Sunlight on a stone wall and lawn at the Getty Center',
     type: 'image',
     aspectRatio: 'aspect-[3/4]',
     useNaturalAspectRatio: true,

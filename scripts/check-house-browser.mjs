@@ -202,12 +202,12 @@ try {
 
   // Theme controls stay on the portfolio; House inherits the selected theme.
   await page.evaluate(() => { location.hash = 'profile'; });
-  await page.getByRole('heading', { name: 'Profile', exact: true }).waitFor();
+  await page.getByRole('heading', { name: 'About', exact: true }).waitFor();
   assert.equal(await page.evaluate(() => document.documentElement.style.overflow), '');
   await page.getByRole('button', { name: 'Switch to light mode' }).click();
   await page.locator('.theme-transition-flash').waitFor({ state: 'detached' });
   await page.getByRole('button', { name: 'Open menu' }).click();
-  await page.getByRole('button', { name: 'House', exact: true }).click();
+  await page.getByRole('link', { name: 'House', exact: true }).click();
   await page.getByLabel('Password / 访问密码').waitFor();
   await page.screenshot({ path: path.join(artifacts, 'desktop-locked-light.png') });
   await page.getByLabel('Password / 访问密码').fill(password);
@@ -218,7 +218,7 @@ try {
   await fullscreen(page, frame); await minimal(frame);
   await page.screenshot({ path: path.join(artifacts, 'desktop-fullscreen-light.png') });
   await page.goBack();
-  await page.getByRole('heading', { name: 'Profile', exact: true }).waitFor();
+  await page.getByRole('heading', { name: 'About', exact: true }).waitFor();
   assert.equal(await page.evaluate(() => document.documentElement.style.overflow), '');
   checks.push('Portfolio navigation/theme restored on exit; minimal login and fullscreen viewer inherit light theme; keyboard entry');
   await page.close();

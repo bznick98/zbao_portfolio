@@ -1,8 +1,9 @@
 import React, { useLayoutEffect, useRef } from 'react';
+import { posts } from '../data/posts';
 import gsap from 'gsap';
 import { ArrowUpRight } from 'lucide-react';
 
-export const Profile: React.FC = () => {
+export const About: React.FC = () => {
   const containerRef = useRef<HTMLDivElement>(null);
 
   useLayoutEffect(() => {
@@ -22,7 +23,7 @@ export const Profile: React.FC = () => {
         link: 'https://www.apple.com/',
         role: 'Hardware and Software Modeling Engineer',
         duration: 'Present',
-        description: 'Working on performance modeling and analysis for Apple Silicons.'
+        description: 'Modeling and analyzing the performance of Apple silicon.'
     },
     {
         company: 'Qualcomm',
@@ -91,68 +92,63 @@ export const Profile: React.FC = () => {
     <div ref={containerRef} className="w-full px-6 md:px-12 pt-32 pb-24 min-h-screen bg-[#faf9f6]">
       <div className="max-w-[1800px] mx-auto">
         
-        {/* Title - Kept consistent (Rubik Spray Paint) */}
-        <div className="mb-24 profile-anim">
-            <h1 className="text-[10vw] md:text-[12vw] leading-none font-bold tracking-normal uppercase text-black mix-blend-difference">Profile</h1>
-        </div>
+        <header className="about-intro">
+          <h1 className="portfolio-title">About</h1>
+          <p>I’m Zongnan Bao (鲍宗南). I model hardware and software performance at Apple.
+            My interest in how cameras make pictures took me from HDR imaging at Dolby
+            to camera architecture at Qualcomm. I still like to work through those questions
+            with a camera in hand.</p>
+        </header>
 
-        {/* Content - Switched to Rubik for readability */}
-        <div className="grid grid-cols-12 gap-x-4 md:gap-x-8 gap-y-24 font-rubik">
+        <section className="updates-section" aria-labelledby="updates-title">
+          <h2 id="updates-title">Recent updates</h2>
+          <ul>
+            {posts.slice(0, 2).map(post => (
+              <li key={post.slug}>
+                <a href={`#blog/${post.slug}`}><span>On the blog</span>{post.title}<ArrowUpRight size={18} /></a>
+              </li>
+            ))}
+            <li><div><span>At work</span>I joined Apple as a Hardware and Software Modeling Engineer.</div></li>
+          </ul>
+        </section>
 
-            {/* BIO SECTION */}
-            <div className="col-span-12 md:col-span-3 profile-anim">
-                <span className="text-sm uppercase tracking-widest opacity-50 border-t border-black pt-4 inline-block w-full text-black mix-blend-difference">About</span>
-            </div>
-            <div className="col-span-12 md:col-span-9 flex flex-col gap-8 profile-anim">
-                <p className="text-lg md:text-xl leading-relaxed text-black mix-blend-difference">
-                    Hello, I'm <span className="font-bold">Zongnan Bao (鲍宗南)</span>.
-                </p>
-                <div className="text-base md:text-lg opacity-80 max-w-2xl text-black mix-blend-difference">
-                    <p className="mb-4">
-                        Outside of work and academics, I love photography and enjoy sharing my work. I'm honored to be a top 1,000 contributor on <a href="https://unsplash.com/@nick19981122" target="_blank" rel="noreferrer" className="underline hover:text-white/60 transition-colors">Unsplash</a>, with over 200M views and over 1M downloads.
-                    </p>
-                    <p>
-                        I also have a passion for music, starting with classical guitar and later exploring fingerstyle.
-                    </p>
-                </div>
-            </div>
-
+        <div className="grid grid-cols-12 gap-x-4 md:gap-x-8 gap-y-8 md:gap-y-20 font-rubik">
             {/* EXPERIENCE SECTION */}
             <div className="col-span-12 md:col-span-3 profile-anim">
-                <span className="text-sm uppercase tracking-widest opacity-50 border-t border-black pt-4 inline-block w-full text-black mix-blend-difference">Experience</span>
+                <h2 className="text-sm uppercase tracking-widest border-t border-black pt-4">Experience</h2>
             </div>
             <div className="col-span-12 md:col-span-9 flex flex-col gap-12 profile-anim">
                 {experiences.map((exp, i) => (
                     <div key={i} className="group border-b border-black/10 pb-12 last:border-0">
                         <div className="flex flex-col md:flex-row md:items-baseline justify-between mb-2">
-                            <a href={exp.link} target="_blank" rel="noreferrer" className="text-xl md:text-2xl font-bold flex items-center gap-2 transition-all duration-300 hover:text-black/60 text-black mix-blend-difference">
+                            <a href={exp.link} target="_blank" rel="noreferrer" className="text-xl md:text-2xl font-bold flex items-center gap-2 transition-all duration-300 hover:text-black/60 text-black">
                                 {exp.company} <ArrowUpRight className="w-5 h-5 opacity-0 group-hover:opacity-100 transition-opacity" />
                             </a>
-                            <span className="text-xs uppercase tracking-widest opacity-50 mt-1 md:mt-0 text-black mix-blend-difference">{exp.duration}</span>
+                            <span className="text-xs uppercase tracking-widest opacity-50 mt-1 md:mt-0 text-black">{exp.duration}</span>
                         </div>
-                        <div className="text-lg font-medium mb-4 text-black mix-blend-difference">{exp.role}</div>
-                        <p className="opacity-80 max-w-3xl leading-relaxed text-black mix-blend-difference text-base">{exp.description}</p>
+                        <div className="text-lg font-medium mb-4 text-black">{exp.role}</div>
+                        <p className="opacity-80 max-w-3xl leading-relaxed text-black text-base">{exp.description}</p>
                     </div>
                 ))}
             </div>
 
             {/* EDUCATION SECTION */}
             <div className="col-span-12 md:col-span-3 profile-anim">
-                <span className="text-sm uppercase tracking-widest opacity-50 border-t border-black pt-4 inline-block w-full text-black mix-blend-difference">Education</span>
+                <h2 className="text-sm uppercase tracking-widest border-t border-black pt-4">Education</h2>
             </div>
             <div className="col-span-12 md:col-span-9 flex flex-col gap-16 profile-anim">
                 {education.map((edu, i) => (
                     <div key={i} className="flex flex-col gap-4">
                         <div className="flex flex-col md:flex-row md:items-baseline justify-between">
-                             <a href={edu.link} target="_blank" rel="noreferrer" className="text-xl md:text-2xl font-bold transition-all duration-300 hover:text-black/60 max-w-2xl text-black mix-blend-difference">
+                             <a href={edu.link} target="_blank" rel="noreferrer" className="text-xl md:text-2xl font-bold transition-all duration-300 hover:text-black/60 max-w-2xl text-black">
                                 {edu.school}
                              </a>
-                             <span className="text-xs uppercase tracking-widest opacity-50 mt-1 md:mt-0 shrink-0 text-black mix-blend-difference">{edu.period}</span>
+                             <span className="text-xs uppercase tracking-widest opacity-50 mt-1 md:mt-0 shrink-0 text-black">{edu.period}</span>
                         </div>
-                        <div className="text-lg font-medium text-black mix-blend-difference">{edu.degree}</div>
+                        <div className="text-lg font-medium text-black">{edu.degree}</div>
                         
                         <div className="mt-2">
-                            <span className="text-xs uppercase tracking-widest opacity-50 block mb-2 text-black mix-blend-difference">Relevant Coursework</span>
+                            <span className="text-xs uppercase tracking-widest opacity-50 block mb-2 text-black">Relevant Coursework</span>
                             <div className="flex flex-wrap gap-2">
                                 {edu.courses.map((c, idx) => (
                                     c.url ? (
@@ -161,14 +157,14 @@ export const Profile: React.FC = () => {
                                             href={c.url} 
                                             target="_blank" 
                                             rel="noreferrer" 
-                                            className="border border-black/10 px-3 py-1 rounded-full text-xs uppercase tracking-wide bg-white hover:bg-[#111] hover:text-[#faf9f6] transition-colors cursor-pointer text-black mix-blend-difference"
+                                            className="border border-black/10 px-3 py-1 rounded-full text-xs uppercase tracking-wide bg-white hover:bg-[#111] hover:text-[#faf9f6] transition-colors cursor-pointer text-black"
                                         >
                                             {c.name}
                                         </a>
                                     ) : (
                                         <span 
                                             key={idx} 
-                                            className="border border-black/10 px-3 py-1 rounded-full text-xs uppercase tracking-wide bg-white hover:bg-[#111] hover:text-[#faf9f6] transition-colors cursor-default text-black mix-blend-difference"
+                                            className="border border-black/10 px-3 py-1 rounded-full text-xs uppercase tracking-wide bg-white hover:bg-[#111] hover:text-[#faf9f6] transition-colors cursor-default text-black"
                                         >
                                             {c.name}
                                         </span>
@@ -182,7 +178,7 @@ export const Profile: React.FC = () => {
 
             {/* PATENT SECTION */}
             <div className="col-span-12 md:col-span-3 profile-anim">
-                <span className="text-sm uppercase tracking-widest opacity-50 border-t border-black pt-4 inline-block w-full text-black mix-blend-difference">Patents</span>
+                <h2 className="text-sm uppercase tracking-widest border-t border-black pt-4">Patents</h2>
             </div>
             <div className="col-span-12 md:col-span-9 profile-anim">
                  <a 
@@ -191,10 +187,10 @@ export const Profile: React.FC = () => {
                     rel="noreferrer"
                     className="group block"
                  >
-                    <h3 className="text-lg md:text-xl font-medium mb-2 text-black mix-blend-difference transition-colors duration-300 group-hover:text-black/60">
+                    <h3 className="text-lg md:text-xl font-medium mb-2 text-black transition-colors duration-300 group-hover:text-black/60">
                         Estimating Metadata for Images Having Absent Metadata or Unusable Form of Metadata
                     </h3>
-                    <p className="text-sm uppercase tracking-widest opacity-50 text-black mix-blend-difference">Dolby Laboratories, Inc.</p>
+                    <p className="text-sm uppercase tracking-widest opacity-50 text-black">Dolby Laboratories, Inc.</p>
                  </a>
             </div>
 

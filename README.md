@@ -1,28 +1,26 @@
-<div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
-</div>
+# Zongnan Bao’s portfolio
 
-# Run and deploy your AI Studio app
+[Visit zbao.art](https://zbao.art). This is my photography portfolio and the home of my technical writing on computational photography, camera systems and image processing.
 
-This contains everything you need to run your app locally.
+- **[Home](https://zbao.art/#home)** opens the photography gallery. Select a photo to see it at a larger size.
+- **[About](https://zbao.art/#about)** collects my introduction, recent updates, experience, education and patent work.
+- **[Blog](https://zbao.art/#blog)** contains project articles with figures, measurements and links to code. The bilateral image enhancement article also includes my UCLA capstone paper.
+- **[Poe](https://zbao.art/#poe)** is an interactive divination experience. **[House](https://zbao.art/#house)** opens a password-gated Three.js walkthrough. See the [House guide](docs/house.md) for controls, model imports and access details.
 
-View your app in AI Studio: https://ai.studio/apps/drive/1YEWbqrkbaiFiNbzVNlRiA5WN1GaYRDo-
+## Run locally
 
-## Run Locally
+Use Node.js 22.12 or later. From the repository root:
 
-**Prerequisites:**  Node.js
+```sh
+npm ci
+npm run dev
+```
 
+Open the local URL printed by Vite. Run `npm run check` for TypeScript, the regression suite and a production build. `npm run preview` serves the built frontend. Vercel serves the frontend and the functions under `api/` in production.
 
-1. Install dependencies:
-   `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
-3. Run the app:
-   `npm run dev`
+## Edit content
 
-## House
-
-The **House** menu opens a fullscreen, password-gated Three.js walkthrough at `/#house`. The login is a single password field. The minimap is on by default; a direct map icon toggles it, and a round menu contains view zoom and other settings. Dimensions and a two-point ruler sit beside the EN/CN switch in the top-left toolbar. Mouse-wheel zoom changes the view without walking. Controls follow the site's selected light or dark theme. Its verified layout2house delivery carries encrypted design revisions; each model loads only when selected after entering the shared password. See [House setup, model updates, and access limitations](docs/house.md).
-
-Use Node.js 22.12+ and `npm ci`. Run `npm run check` for TypeScript, regression tests, and a production build. The existing Vercel deployment serves the page and encrypted model without new runtime configuration.
-
-House also includes **Walkthrough / Model** modes with a top-left EN/CN language switch (English by default): inspect the empty architectural shell, then return to the exact saved walking position and heading. The revision dropdown sits beside these modes. Dimensions use deterministic face measurements and accelerated occlusion. See [interaction behavior and model import checks](docs/house.md#controls).
+- Add a post to the beginning of `posts` in `data/posts.ts`. Give it a unique slug, two comparison figures, article sections and source links. Put figures and papers in `public/blog/`. The Blog index lists every entry, and About picks up the latest two. Each article has a shareable URL at `/#blog/<slug>`.
+- Edit the bio, career updates, experience and education in `pages/About.tsx`. The four contact icons are in `components/SocialLinks.tsx`.
+- Edit the gallery in `data/content.ts`. Its opening photographs come from my [earlier portfolio](https://github.com/bznick98/bznick98.github.io/tree/master/images/gallery). An optional Unsplash access key (`VITE_UNSPLASH_ACCESS_KEY`) loads a rotating selection. Automatic captions use the server-side `OPENAI_API_KEY` on Vercel.
+- The Coffee page is hidden. Its existing calendar integration is documented in the [coffee setup guide](docs/coffee-chat.md).

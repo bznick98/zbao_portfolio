@@ -3,24 +3,34 @@ import { Moon, Sun } from 'lucide-react';
 import { Menu } from './components/Menu';
 import { BlockRenderer } from './components/BlockRenderer';
 import { BLOCKS } from './data/content';
-import { Work } from './pages/Work';
-import { Profile } from './pages/Profile';
-import { Contact } from './pages/Contact';
+import { Home } from './pages/Home';
+import { About } from './pages/About';
+import { Blog } from './pages/Blog';
+import { posts } from './data/posts';
+import { SocialLinks } from './components/SocialLinks';
+import './portfolio.css';
 import { Eye } from './components/Eye';
 import { Poe } from './pages/Poe';
-import { Coffee } from './pages/Coffee';
 const House = lazy(() => import('./pages/House').then(module => ({ default: module.House })));
 
-const pageFromHash = () => ({ '#house': 'House', '#coffee': 'Coffee', '#profile': 'Profile', '#contact': 'Contact', '#poe': 'Poe' }[window.location.hash] || 'Work');
-
 const App: React.FC = () => {
-  const [currentPage, setCurrentPage] = useState(pageFromHash);
+  const [hash, setHash] = useState(() => window.location.hash);
+  const post = posts.find(entry => hash === `#blog/${entry.slug}`);
+  const pages: Record<string, string> = {
+    '#about': 'About', '#profile': 'About', '#contact': 'About',
+    '#blog': 'Blog', '#poe': 'Poe', '#house': 'House',
+  };
+  const currentPage = hash.startsWith('#blog/') ? 'Blog' : (pages[hash] ?? 'Home');
+
   useEffect(() => {
-    const change = () => { setCurrentPage(pageFromHash()); window.scrollTo(0, 0); };
+    const change = () => setHash(window.location.hash);
     window.addEventListener('hashchange', change);
     return () => window.removeEventListener('hashchange', change);
   }, []);
-  const navigate = (page: string) => { window.location.hash = page.toLowerCase(); setCurrentPage(page); };
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: 'instant' });
+    document.title = `${post?.title ?? currentPage} — Zongnan Bao`;
+  }, [hash, post, currentPage]);
   const [isEyeEnabled, setIsEyeEnabled] = useState(false);
   const [isDarkMode, setIsDarkMode] = useState(true);
   const [isThemeTransitioning, setIsThemeTransitioning] = useState(false);
@@ -35,13 +45,12 @@ const App: React.FC = () => {
 
   const renderPage = () => {
     switch (currentPage) {
-      case 'Work': return <Work />;
-      case 'Profile': return <Profile />;
-      case 'Contact': return <Contact />;
+      case 'Home': return <Home />;
+      case 'About': return <About />;
+      case 'Blog': return <Blog post={post} />;
       case 'Poe': return <Poe />;
-      case 'Coffee': return <Coffee />;
       case 'House': return <Suspense fallback={null}><House isDarkMode={isDarkMode} /></Suspense>;
-      default: return <Work />;
+      default: return <Home />;
     }
   };
 
@@ -94,7 +103,7 @@ const App: React.FC = () => {
       `}</style>
 
       <div className="app-theme min-h-screen" data-theme={isDarkMode ? 'dark' : 'light'}>
-        {currentPage !== 'House' && <Menu onNavigate={navigate} isDarkMode={isDarkMode} />}
+        {currentPage !== 'House' && <Menu isDarkMode={isDarkMode} />}
 
         {currentPage !== 'House' && <div className="fixed top-4 right-4 z-50 flex items-center gap-2">
           <button
@@ -123,7 +132,7 @@ const App: React.FC = () => {
           </div>
         )}
 
-        {currentPage === 'Work' && (
+        {currentPage === 'Home' && (
           <div className="fixed inset-0 w-full h-full pointer-events-none z-40 px-4 md:px-12 mix-blend-difference text-white">
             <div className="grid grid-cols-12 gap-x-4 md:gap-x-8 w-full h-full content-center">
               {heroBlocks.map((block) => (
@@ -136,6 +145,12 @@ const App: React.FC = () => {
         <main className="w-full">
           {renderPage()}
         </main>
+        {currentPage !== 'House' && (
+          <footer className="portfolio-footer">
+            <a href="#home">Zongnan Bao</a>
+            <SocialLinks />
+          </footer>
+        )}
       </div>
 
       {isThemeTransitioning && currentPage !== 'House' && <div className="theme-transition-flash" aria-hidden="true" />}
