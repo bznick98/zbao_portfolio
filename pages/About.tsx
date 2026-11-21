@@ -1,21 +1,21 @@
-import React, { useLayoutEffect, useRef } from 'react';
+import React, { useRef } from 'react';
 import { posts } from '../data/posts';
 import gsap from 'gsap';
+import { useGSAP } from '@gsap/react';
 import { ArrowUpRight } from 'lucide-react';
+
+gsap.registerPlugin(useGSAP);
 
 export const About: React.FC = () => {
   const containerRef = useRef<HTMLDivElement>(null);
 
-  useLayoutEffect(() => {
-    window.scrollTo(0, 0);
-    const ctx = gsap.context(() => {
-        gsap.fromTo('.profile-anim', 
-            { y: 50, opacity: 0 },
-            { y: 0, opacity: 1, duration: 1, stagger: 0.1, ease: 'power3.out' }
-        );
-    }, containerRef);
-    return () => ctx.revert();
-  }, []);
+  useGSAP(() => {
+    const media = gsap.matchMedia();
+    media.add('(prefers-reduced-motion: no-preference)', () => {
+      gsap.from('.profile-anim', { y: 10, opacity: 0, duration: 0.32, stagger: 0.03, clearProps: 'transform,opacity' });
+    });
+    return () => media.revert();
+  }, { scope: containerRef });
 
   const experiences = [
     {
@@ -23,28 +23,33 @@ export const About: React.FC = () => {
         link: 'https://www.apple.com/',
         role: 'Hardware and Software Modeling Engineer',
         duration: 'Present',
-        description: 'Modeling and analyzing the performance of Apple silicon.'
+        description: 'I build performance models for Apple silicon, including A-series and M-series SoCs. I use them to understand where workloads spend time and to compare hardware and software design choices.'
     },
     {
         company: 'Qualcomm',
         link: 'https://www.qualcomm.com/home',
         role: 'Camera System Architect',
         duration: '2 years & 2 months',
-        description: 'Worked on the Spectra ISP as a Camera System Architecture Engineer, focusing on modeling and analyzing next-generation imaging pipelines. Developed frameworks to simulate camera dataflows and evaluate new architectural ideas, guiding design decisions to improve efficiency, performance, and user experience.'
+        description: 'I worked on the architecture of the Spectra image signal processor across three Snapdragon generations. I developed simulation tools to trace how camera data moved through the ISP and to evaluate the performance and efficiency of proposed pipeline designs.',
+        platforms: [
+            { name: 'Snapdragon 8 Elite (SM8750)', url: 'https://www.qualcomm.com/smartphones/products/8-series/snapdragon-8-elite-mobile-platform' },
+            { name: 'Snapdragon 8 Elite Gen 5 (SM8850)', url: 'https://www.qualcomm.com/content/dam/qcomm-martech/dm-assets/documents/Snapdragon-8-Elite-Gen-5-product-brief.pdf' },
+            { name: 'Snapdragon 8 Elite Gen 6 (SM8950)', url: 'https://www.qualcomm.com/content/dam/qcomm-martech/dm-assets/documents/Snapdragon-8-Elite-Gen-6-Product-Brief.pdf' },
+        ],
     },
     {
         company: 'Dolby Laboratories',
         link: 'https://www.dolby.com/',
         role: 'Image Engineering Intern',
         duration: '6 Months',
-        description: 'Focused on restoring image metadata from HDR/SDR pairs using Particle Swarm Optimization (PSO) for Dolby Vision. Conducted research and implemented deep learning papers to enhance HDR photos.'
+        description: 'I used particle swarm optimization to recover Dolby Vision metadata from paired HDR and SDR images. I also implemented and evaluated published deep learning methods for HDR photo enhancement.'
     },
     {
         company: 'YITU Technology',
         link: 'https://www.yitutech.com/en',
         role: 'Computer Vision Research Intern',
         duration: '3 Months',
-        description: 'Trained, evaluated, and improved object detection algorithms like SSD to help make cities smarter through computer vision.'
+        description: 'I trained and evaluated object detectors, including the Single Shot MultiBox Detector (SSD), for urban scenes.'
     }
   ];
 
@@ -94,10 +99,11 @@ export const About: React.FC = () => {
         
         <header className="about-intro">
           <h1 className="portfolio-title">About</h1>
-          <p>I’m Zongnan Bao (鲍宗南). I model hardware and software performance at Apple.
-            My interest in how cameras make pictures took me from HDR imaging at Dolby
-            to camera architecture at Qualcomm. I still like to work through those questions
-            with a camera in hand.</p>
+          <p>I’m Zongnan Bao (<span lang="zh-Hans" className="chinese-name">鲍宗南</span>). I work on performance modeling and hardware/software co-design
+            for Apple silicon, including A-series and M-series SoCs. Previously, I worked on image signal
+            processor architecture for Qualcomm Snapdragon.</p>
+          <p>I’m interested in machine learning systems, especially how compute, memory, and software
+            shape the performance of large language models and diffusion models.</p>
         </header>
 
         <section className="updates-section" aria-labelledby="updates-title">
@@ -105,7 +111,10 @@ export const About: React.FC = () => {
           <ul>
             {posts.slice(0, 2).map(post => (
               <li key={post.slug}>
-                <a href={`#blog/${post.slug}`}><span>On the blog</span>{post.title}<ArrowUpRight size={18} /></a>
+                <a href={`#blog/${post.slug}`}>
+                  <img src={post.cover.src} alt="" width="80" height="56" loading="lazy" />
+                  <div><span>On the blog</span>{post.title}</div><ArrowUpRight size={18} aria-hidden="true" />
+                </a>
               </li>
             ))}
             <li><div><span>At work</span>I joined Apple as a Hardware and Software Modeling Engineer.</div></li>
@@ -128,6 +137,9 @@ export const About: React.FC = () => {
                         </div>
                         <div className="text-lg font-medium mb-4 text-black">{exp.role}</div>
                         <p className="opacity-80 max-w-3xl leading-relaxed text-black text-base">{exp.description}</p>
+                        {exp.platforms && <ul className="experience-platforms" aria-label="Snapdragon platforms">
+                            {exp.platforms.map(platform => <li key={platform.name}><a href={platform.url}>{platform.name}</a></li>)}
+                        </ul>}
                     </div>
                 ))}
             </div>

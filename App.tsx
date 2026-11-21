@@ -1,16 +1,15 @@
-import React, { lazy, Suspense, useEffect, useMemo, useState } from 'react';
+import React, { lazy, Suspense, useEffect, useState } from 'react';
 import { Moon, Sun } from 'lucide-react';
 import { Menu } from './components/Menu';
-import { BlockRenderer } from './components/BlockRenderer';
-import { BLOCKS } from './data/content';
 import { Home } from './pages/Home';
-import { About } from './pages/About';
-import { Blog } from './pages/Blog';
 import { posts } from './data/posts';
 import { SocialLinks } from './components/SocialLinks';
 import './portfolio.css';
-import { Eye } from './components/Eye';
-import { Poe } from './pages/Poe';
+
+const Eye = lazy(() => import('./components/Eye').then(module => ({ default: module.Eye })));
+const About = lazy(() => import('./pages/About').then(module => ({ default: module.About })));
+const Blog = lazy(() => import('./pages/Blog').then(module => ({ default: module.Blog })));
+const Poe = lazy(() => import('./pages/Poe').then(module => ({ default: module.Poe })));
 const House = lazy(() => import('./pages/House').then(module => ({ default: module.House })));
 
 const App: React.FC = () => {
@@ -34,7 +33,6 @@ const App: React.FC = () => {
   const [isEyeEnabled, setIsEyeEnabled] = useState(false);
   const [isDarkMode, setIsDarkMode] = useState(true);
   const [isThemeTransitioning, setIsThemeTransitioning] = useState(false);
-  const heroBlocks = useMemo(() => BLOCKS.filter(block => block.isFixed), []);
 
   useEffect(() => {
     const bgColor = isDarkMode ? '#101112' : '#faf9f6';
@@ -46,9 +44,9 @@ const App: React.FC = () => {
   const renderPage = () => {
     switch (currentPage) {
       case 'Home': return <Home />;
-      case 'About': return <About />;
-      case 'Blog': return <Blog post={post} />;
-      case 'Poe': return <Poe />;
+      case 'About': return <Suspense fallback={null}><About /></Suspense>;
+      case 'Blog': return <Suspense fallback={<p className="writing-page">Loading blog…</p>}><Blog post={post} /></Suspense>;
+      case 'Poe': return <Suspense fallback={null}><Poe /></Suspense>;
       case 'House': return <Suspense fallback={null}><House isDarkMode={isDarkMode} /></Suspense>;
       default: return <Home />;
     }
@@ -128,17 +126,7 @@ const App: React.FC = () => {
 
         {isEyeEnabled && currentPage !== 'House' && (
           <div className="pointer-events-none fixed top-6 left-1/2 z-50 -translate-x-1/2">
-            <Eye className="h-28 w-28 md:h-36 md:w-36" />
-          </div>
-        )}
-
-        {currentPage === 'Home' && (
-          <div className="fixed inset-0 w-full h-full pointer-events-none z-40 px-4 md:px-12 mix-blend-difference text-white">
-            <div className="grid grid-cols-12 gap-x-4 md:gap-x-8 w-full h-full content-center">
-              {heroBlocks.map((block) => (
-                <BlockRenderer key={block.id} block={block} />
-              ))}
-            </div>
+            <Suspense fallback={null}><Eye className="h-28 w-28 md:h-36 md:w-36" /></Suspense>
           </div>
         )}
 

@@ -1,5 +1,5 @@
 # Portfolio preview workflow
 
-For this website, the owner has requested a Vercel preview for each completed update. After reviewing the diff and running the relevant checks, push the finished changes to a feature branch and open a pull request against `main`. If the update already has an open PR, push to its branch. Wait for Vercel and share the PR link and the working preview URL.
+The owner wants a Vercel preview for each finished update. Prepare a reviewable local draft, run the relevant checks, then request explicit confirmation for the concrete GitHub write. Name the repository, branch and PR or proposed PR. A general request to implement an update or open a PR does not grant confirmation.
 
-This standing request covers the feature-branch push and PR needed for the preview. Obtain explicit confirmation for merges, production publication, and other GitHub writes.
+After confirmation, push to the approved feature branch and open or update the approved PR against `main`. Wait for the Vercel preview and share its URL and the PR. Obtain explicit confirmation for every further GitHub write, including PR edits, comments, merges and releases.

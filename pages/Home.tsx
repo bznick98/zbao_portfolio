@@ -1,374 +1,99 @@
-import React, { useLayoutEffect, useMemo, useState, useEffect, useRef } from 'react';
-import { BLOCKS } from '../data/content';
-import { BlockRenderer } from '../components/BlockRenderer';
-import { ContentBlock } from '../types';
-import gsap from 'gsap';
-import { ScrollTrigger } from 'gsap/ScrollTrigger';
-gsap.registerPlugin(ScrollTrigger);
+import React, { useEffect, useRef, useState } from 'react';
+import { X } from 'lucide-react';
+import { gallery, type GalleryPhoto } from '../data/gallery';
 
-// --- CONFIGURATION ---
+const keys = ['', '_1', '_2', '_3', '_4', '_5']
+  .map(suffix => import.meta.env['VITE_UNSPLASH_ACCESS_KEY' + suffix])
+  .filter(Boolean);
 
-// 1. ENVIRONMENT VARIABLES
-// Create a .env.local file in your root directory to store these keys securely.
-// Example:
-// VITE_UNSPLASH_ACCESS_KEY=your_key_here
+interface UnsplashPhoto {
+  urls?: { regular?: string };
+  alt_description?: string;
+  description?: string;
+  created_at?: string;
+}
 
-const UNSPLASH_ACCESS_KEYS = [
-  (import.meta as any).env?.VITE_UNSPLASH_ACCESS_KEY,
-  (import.meta as any).env?.VITE_UNSPLASH_ACCESS_KEY_1,
-  (import.meta as any).env?.VITE_UNSPLASH_ACCESS_KEY_2,
-  (import.meta as any).env?.VITE_UNSPLASH_ACCESS_KEY_3,
-  (import.meta as any).env?.VITE_UNSPLASH_ACCESS_KEY_4,
-  (import.meta as any).env?.VITE_UNSPLASH_ACCESS_KEY_5
-].filter(Boolean) as string[];
-const UNSPLASH_USERNAME = 'zbao';
-type ImageOverlayState = ContentBlock & {
-  startRect: { top: number; left: number; width: number; height: number };
-  targetRect: { top: number; left: number; width: number; height: number };
-};
+async function loadSelection(signal: AbortSignal): Promise<GalleryPhoto[]> {
+  for (const key of keys) {
+    const url = new URL('https://api.unsplash.com/photos/random');
+    url.search = new URLSearchParams({ username: 'zbao', count: String(gallery.length), client_id: key }).toString();
+    const response = await fetch(url, { signal });
+    if (!response.ok) continue;
+    const data = await response.json();
+    const photos: UnsplashPhoto[] = Array.isArray(data) ? data : [data];
+    const selection: GalleryPhoto[] = [];
+    for (const photo of photos) {
+      const src = photo?.urls?.regular;
+      if (typeof src === 'string' && src) selection.push({
+        src,
+        alt: photo.alt_description || photo.description || 'Photograph by Zongnan Bao',
+        caption: photo.created_at?.slice(0, 4),
+      });
+    }
+    if (selection.length) return selection.slice(0, gallery.length);
+  }
+  return [];
+}
 
-export const Home: React.FC = () => {
-  const [blocks, setBlocks] = useState<ContentBlock[]>(BLOCKS);
-  const [activeImage, setActiveImage] = useState<ImageOverlayState | null>(null);
-  const [overlayPhase, setOverlayPhase] = useState<'opening' | 'open' | 'closing' | null>(null);
-  const [isCaptionVisible, setIsCaptionVisible] = useState(false);
-  const overlayImageRef = useRef<HTMLImageElement>(null);
-  const overlayLayerRef = useRef<HTMLDivElement>(null);
-  const overlayReadyAtRef = useRef(0);
-  const hasInitializedRef = useRef(false);
-  const captionsRequestedRef = useRef(false);
+export function Home() {
+  const [photos, setPhotos] = useState(gallery);
+  const [selected, setSelected] = useState<GalleryPhoto>();
+  const viewer = useRef<HTMLDialogElement>(null);
 
-  // Unsplash Fetch & GenAI Generation Logic
   useEffect(() => {
-    if (hasInitializedRef.current) {
-      return;
+    if (!keys.length) return;
+    const controller = new AbortController();
+    const { signal } = controller;
+    async function refresh() {
+      const selection = await loadSelection(signal);
+      if (!selection.length || signal.aborted) return;
+      setPhotos([...selection, ...gallery.slice(selection.length)]);
+      const response = await fetch('/api/generate-captions', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, signal,
+        body: JSON.stringify({ descriptions: selection.map(photo => photo.alt) }),
+      });
+      if (!response.ok) return;
+      const { titles } = await response.json();
+      if (!Array.isArray(titles) || signal.aborted) return;
+      setPhotos(current => current.map((photo, i) => {
+        if (photo.src !== selection[i]?.src || typeof titles[i] !== 'string' || !titles[i]) return photo;
+        const year = selection[i].caption;
+        return { ...photo, caption: year ? `${titles[i]} (${year})` : titles[i] };
+      }));
     }
-    hasInitializedRef.current = true;
-    if (UNSPLASH_ACCESS_KEYS.length === 0) {
-      console.warn('Unsplash Integration: No Access Key found in environment variables (VITE_UNSPLASH_ACCESS_KEY...). Using placeholder content.');
-      return;
-    }
-
-    const initContent = async () => {
-      try {
-        // Identify how many image blocks we need to fill
-        const imageBlockCount = BLOCKS.filter(b => b.type === 'image').length;
-
-        // --- STEP 1: Fetch photos from Unsplash ---
-        // Use /photos/random endpoint to ensure true randomness across the entire portfolio
-        let data: any = null;
-        let lastError: Error | null = null;
-
-        for (const accessKey of UNSPLASH_ACCESS_KEYS) {
-          try {
-            const response = await fetch(
-              `https://api.unsplash.com/photos/random?username=${UNSPLASH_USERNAME}&count=${imageBlockCount}&client_id=${accessKey}`
-            );
-
-            if (!response.ok) {
-              lastError = new Error(`Unsplash API request failed (${response.status})`);
-              continue;
-            }
-
-            data = await response.json();
-            break;
-          } catch (error) {
-            lastError = error as Error;
-          }
-        }
-
-        if (!data) {
-          throw lastError || new Error('Unsplash API request failed');
-        }
-        
-        // Normalize data
-        const selectedPhotos = Array.isArray(data) ? data : [data];
-        
-        if (selectedPhotos.length > 0) {
-          const applyPhotoUpdates = (captions: string[] = []) => {
-            setBlocks(prevBlocks => {
-              let imgIndex = 0;
-              return prevBlocks.map(block => {
-                if (block.type === 'image' && imgIndex < selectedPhotos.length) {
-                  const photo = selectedPhotos[imgIndex];
-                  const finalCaption = captions[imgIndex] || '';
-
-                  // Extract Year
-                  const year = photo.created_at ? new Date(photo.created_at).getFullYear() : new Date().getFullYear();
-
-                  imgIndex++;
-
-                  const captionValue = finalCaption ? `${finalCaption} (${year})` : undefined;
-
-                  return {
-                    ...block,
-                    src: photo.urls.regular,
-                    alt: photo.alt_description || 'Photograph by Zongnan Bao',
-                    caption: captionValue
-                  };
-                }
-                return block;
-              });
-            });
-          };
-
-          // --- STEP 2: Update UI immediately with images (no titles yet) ---
-          applyPhotoUpdates();
-
-          // --- STEP 3: Generate Poetic Captions using OpenAI via serverless API ---
-          if (!captionsRequestedRef.current) {
-            captionsRequestedRef.current = true;
-            const generateCaptions = async () => {
-              try {
-                // Prepare context for the model
-                const descriptions = selectedPhotos.map((p: any) => p.description || p.alt_description || 'Poetic image description');
-
-                // Call serverless API (keeps key off the client)
-                const response = await fetch('/api/generate-captions', {
-                  method: 'POST',
-                  headers: {
-                    'Content-Type': 'application/json'
-                  },
-                  body: JSON.stringify({
-                    descriptions
-                  })
-                });
-
-                if (!response.ok) {
-                  throw new Error('OpenAI API request failed');
-                }
-
-                const data = await response.json();
-                if (Array.isArray(data?.titles)) {
-                  const generatedCaptions = data.titles;
-                  applyPhotoUpdates(generatedCaptions);
-                }
-              } catch (e) {
-                console.error("OpenAI generation failed:", e);
-              }
-            };
-
-            generateCaptions();
-          }
-        }
-      } catch (error) {
-        console.error('Failed to fetch/process content:', error);
-      }
-    };
-
-    initContent();
-  }, []); // Run once on mount (refresh)
-
-  useLayoutEffect(() => {
-    window.scrollTo(0, 0);
+    // The local collection is already visible if either optional service is unavailable.
+    void refresh().catch(() => {});
+    return () => controller.abort();
   }, []);
 
-  useEffect(() => {
-    // Refresh ScrollTrigger after a slight delay to ensure DOM is ready and images might be loading
-    const timer = setTimeout(() => ScrollTrigger.refresh(), 500);
-    return () => clearTimeout(timer);
-  }, [blocks]);
-
-  useEffect(() => {
-    const onEscape = (event: KeyboardEvent) => {
-      if (event.key === 'Escape' && overlayPhase === 'open') {
-        setIsCaptionVisible(false);
-        setOverlayPhase('closing');
-      }
-    };
-
-    window.addEventListener('keydown', onEscape);
-    return () => window.removeEventListener('keydown', onEscape);
-  }, [overlayPhase]);
-
-  useEffect(() => {
-    document.body.style.overflow = activeImage ? 'hidden' : '';
-    return () => {
-      document.body.style.overflow = '';
-    };
-  }, [activeImage]);
-
-  useEffect(() => {
-    if (!activeImage || !overlayImageRef.current || !overlayLayerRef.current || !overlayPhase || overlayPhase === 'open') return;
-
-    const animatedImage = overlayImageRef.current;
-    const layer = overlayLayerRef.current;
-    const fromRect = overlayPhase === 'opening' ? activeImage.startRect : activeImage.targetRect;
-    const toRect = overlayPhase === 'opening' ? activeImage.targetRect : activeImage.startRect;
-
-    const timeline = gsap.timeline({
-      defaults: { ease: 'power3.inOut' },
-      onComplete: () => {
-        if (overlayPhase === 'opening') {
-          setOverlayPhase('open');
-          overlayReadyAtRef.current = performance.now() + 220;
-          setTimeout(() => setIsCaptionVisible(true), 120);
-          return;
-        }
-        setOverlayPhase(null);
-        setActiveImage(null);
-      }
-    });
-
-    timeline.fromTo(
-      layer,
-      { opacity: overlayPhase === 'opening' ? 0 : 1 },
-      { opacity: overlayPhase === 'opening' ? 1 : 0, duration: overlayPhase === 'opening' ? 0.25 : 0.2 },
-      0
-    );
-
-    timeline.fromTo(
-      animatedImage,
-      {
-        top: fromRect.top,
-        left: fromRect.left,
-        width: fromRect.width,
-        height: fromRect.height,
-        borderRadius: overlayPhase === 'opening' ? 10 : 0
-      },
-      {
-        top: toRect.top,
-        left: toRect.left,
-        width: toRect.width,
-        height: toRect.height,
-        borderRadius: overlayPhase === 'opening' ? 0 : 10,
-        duration: overlayPhase === 'opening' ? 0.75 : 0.65
-      },
-      0
-    );
-
-    return () => { timeline.kill(); };
-  }, [activeImage, overlayPhase]);
-
-  const getImageRatio = (src: string, fallbackRatio: number) =>
-    new Promise<number>((resolve) => {
-      const image = new Image();
-      image.src = src;
-      image.onload = () => resolve(image.naturalWidth / image.naturalHeight || fallbackRatio);
-      image.onerror = () => resolve(fallbackRatio);
-    });
-
-  const getCenteredRect = (ratio: number) => {
-    const maxW = window.innerWidth * 0.92;
-    const maxH = window.innerHeight * 0.78;
-    let width = maxW;
-    let height = width / ratio;
-    if (height > maxH) {
-      height = maxH;
-      width = height * ratio;
-    }
-    return {
-      width,
-      height,
-      left: (window.innerWidth - width) / 2,
-      top: (window.innerHeight - height) / 2
-    };
-  };
-
-  const handleImageSelect = async (block: ContentBlock, sourceElement: HTMLDivElement) => {
-    if (!block.src) return;
-    const rect = sourceElement.getBoundingClientRect();
-    const fallbackRatio = rect.width / rect.height;
-    const ratio = await getImageRatio(block.src, fallbackRatio);
-    const targetRect = getCenteredRect(ratio);
-    setIsCaptionVisible(false);
-    setActiveImage({
-      ...block,
-      startRect: {
-        top: rect.top,
-        left: rect.left,
-        width: rect.width,
-        height: rect.height
-      },
-      targetRect
-    });
-    setOverlayPhase('opening');
-  };
-
-  const closeSelectedImage = () => {
-    if (!activeImage || overlayPhase !== 'open') return;
-    if (performance.now() < overlayReadyAtRef.current) return;
-    setIsCaptionVisible(false);
-    setOverlayPhase('closing');
-  };
-
-  const scrollBlocks = useMemo(() => {
-    return blocks.filter(b => !b.isFixed);
-  }, [blocks]);
-
-  const selectedImageStyle = useMemo(() => {
-    if (!activeImage) return undefined;
-    const rect = overlayPhase === 'opening' ? activeImage.startRect : activeImage.targetRect;
-    return {
-      top: rect.top,
-      left: rect.left,
-      width: rect.width,
-      height: rect.height
-    };
-  }, [activeImage, overlayPhase]);
-  
-  const selectedCaptionStyle = useMemo(() => {
-    if (!activeImage) return undefined;
-    return {
-      top: activeImage.targetRect.top + activeImage.targetRect.height + 14,
-      left: activeImage.targetRect.left,
-      width: activeImage.targetRect.width
-    };
-  }, [activeImage]);
-
-  const activeImageId = activeImage?.id;
-
   return (
-    <div className="w-full">
-      <div className="max-w-[1800px] mx-auto relative">
-        {/* SCROLLING CONTENT */}
-        <div className="relative z-10 px-4 md:px-12 pb-12 pt-16 md:pt-20">
-          <div className="grid grid-cols-2 md:grid-cols-12 gap-x-4 md:gap-x-8 gap-y-0 auto-rows-min">
-            {scrollBlocks.map((block) => (
-              <BlockRenderer
-                key={block.id}
-                block={block}
-                onImageSelect={block.type === 'image' ? handleImageSelect : undefined}
-                isSelectedForTransition={Boolean(activeImageId && block.id === activeImageId)}
-              />
-            ))}
-          </div>
-          
-
-        </div>
+    <section className="home-gallery" aria-label="Photography by Zongnan Bao">
+      <div className="gallery-wordmark" aria-hidden="true"><span>Zongnan</span><span>Bao</span></div>
+      <div className="photo-grid">
+        {photos.map((photo, i) => (
+          <button key={gallery[i].src} className="photo-tile"
+            style={photo.src !== gallery[i].src ? { backgroundImage: `url("${gallery[i].src}")` } : undefined}
+            aria-label={`Enlarge photograph: ${photo.alt}`}
+            onClick={() => { setSelected(photo); viewer.current?.showModal(); }}>
+            <img src={photo.src} alt={photo.alt} width="900" height="600"
+              loading={i < 2 ? 'eager' : 'lazy'}
+              onError={() => {
+                if (photo.src === gallery[i].src) return;
+                setPhotos(current => current.map((p, index) => index === i ? gallery[i] : p));
+                setSelected(current => current?.src === photo.src ? gallery[i] : current);
+              }} />
+          </button>
+        ))}
       </div>
-
-      {activeImage?.src && (
-        <div className="fixed inset-0 z-[100]" aria-live="polite">
-          <div
-            ref={overlayLayerRef}
-            className={`fixed inset-0 bg-black/80 opacity-0 ${overlayPhase === 'open' ? 'pointer-events-auto' : 'pointer-events-none'}`}
-            onClick={closeSelectedImage}
-          />
-          <img
-            ref={overlayImageRef}
-            src={activeImage.src}
-            alt={activeImage.alt || 'Selected portfolio work'}
-            className="fixed z-[1] object-contain shadow-2xl"
-            style={selectedImageStyle}
-          />
-          {(activeImage.caption || activeImage.subCaption) && overlayPhase === 'open' && (
-            <div
-              className="fixed z-[2] text-center text-white"
-              style={selectedCaptionStyle}
-            >
-              <div className={`transition-all duration-500 ${isCaptionVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-3'}`}>
-                {activeImage.caption && (
-                  <p className="font-serif text-xl italic">{activeImage.caption}</p>
-                )}
-                {activeImage.subCaption && (
-                  <p className="mt-1 text-xs uppercase tracking-[0.25em] text-white/70">{activeImage.subCaption}</p>
-                )}
-              </div>
-            </div>
-          )}
-        </div>
-      )}
-    </div>
+      <dialog ref={viewer} className="photo-viewer" aria-label="Full-size photograph"
+        onClose={() => setSelected(undefined)}
+        onClick={event => { if (event.target === viewer.current) viewer.current.close(); }}>
+        {selected && <figure>
+          <img src={selected.src} alt={selected.alt} />
+          {selected.caption && <figcaption>{selected.caption}</figcaption>}
+        </figure>}
+        <button className="photo-close" aria-label="Close photograph" onClick={() => viewer.current?.close()}><X /></button>
+      </dialog>
+    </section>
   );
-};
+}

@@ -1,0 +1,13 @@
+@import "tailwindcss" source(none);
+@source "./App.tsx";
+@source "./pages";
+@source "./components";
+@theme {
+  --font-sans: "Rubik Spray Paint", "Yuji Boku", serif;
+  --font-serif: "Rubik Spray Paint", "Yuji Boku", serif;
+  --font-mono: "Rubik Spray Paint", "Yuji Boku", serif;
+  --font-rubik: Rubik, sans-serif;
+  --color-black: #111111;
+  --color-offwhite: #faf9f6;
+  --breakpoint-xs: 25rem;
+}

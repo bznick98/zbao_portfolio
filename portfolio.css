@@ -21,54 +21,81 @@
   margin: 0 0 clamp(2.5rem, 5vw, 5rem);
 }
 .blog-index ul, .updates-section ul { list-style: none; padding: 0; margin: 0; }
-.post-row, .updates-section li, .portfolio-footer, .post-links {
+.updates-section li, .portfolio-footer, .post-links {
   border-top: 1px solid color-mix(in srgb, currentColor 28%, transparent);
 }
-.post-row {
-  display: grid;
-  grid-template-columns: minmax(8rem, 25%) 1fr auto;
-  gap: clamp(1rem, 4vw, 4rem);
-  align-items: center;
-  padding: clamp(1.4rem, 3vw, 2.5rem) 0;
-}
-.post-row img { width: 100%; aspect-ratio: 3 / 2; object-fit: cover; }
+.post-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: clamp(2rem, 4vw, 4rem); }
+.post-card { display: block; }
+.post-card img { display: block; width: 100%; aspect-ratio: 16 / 9; object-fit: cover; margin-bottom: 1.15rem; }
 .post-category, .updates-section h2, .updates-section li span {
-  font-size: .77rem; text-transform: uppercase; letter-spacing: .12em;
+  font-size: .77rem; text-transform: uppercase; letter-spacing: .09em;
 }
-.post-row h2 { font-size: clamp(1.5rem, 3.2vw, 3.2rem); font-weight: 500; line-height: 1.08; margin: .45rem 0 .8rem; }
-.post-row h2, .post-page h1 { letter-spacing: -.035em; text-wrap: balance; }
+.post-category span { margin: 0 .35em; }
+.post-card h2 { max-width: 23ch; font-size: clamp(1.65rem, 3.2vw, 3.2rem); font-weight: 500; line-height: 1.08; margin: .55rem 0 .8rem; }
+.post-card h2, .post-page h1 { letter-spacing: -.035em; text-wrap: balance; }
 .post-summary { max-width: 56ch; line-height: 1.6; opacity: .82; }
-.post-row:hover h2, .updates-section a:hover, .post-links a:hover { text-decoration: underline; text-underline-offset: .16em; }
+.post-card:hover h2, .updates-section a:hover, .post-links a:hover { text-decoration: underline; text-underline-offset: .16em; }
 .back-link, .post-links a { display: inline-flex; align-items: center; gap: .5rem; }
 .post-page { max-width: 65rem; }
 .post-page header { margin: 3rem 0 2rem; }
 .post-page h1 { max-width: 19ch; font-size: clamp(2.3rem, 5vw, 4.5rem); line-height: 1.02; font-weight: 550; margin: .7rem 0 1.3rem; }
 .post-page .post-summary, .about-intro p { font-size: clamp(1.1rem, 1.7vw, 1.45rem); }
 .reviewers { font-size: .92rem; margin: 1rem 0; }
-.figure-pair { display: grid; grid-template-columns: 1fr 1fr; gap: .7rem; }
-.figure-pair img { width: 100%; aspect-ratio: 3 / 2; object-fit: contain; background: #141515; }
-.figure-pair figcaption { font-size: .8rem; margin: .4rem 0; }
-.post-body { max-width: 66ch; margin: 2.5rem auto 0; line-height: 1.7; }
-.post-body h2 { font-size: 1.5rem; font-weight: 550; line-height: 1.2; margin: 2.5rem 0 .75rem; }
-.post-body p + p { margin-top: .8rem; }
+.post-body { max-width: 76ch; margin: 2.5rem auto 0; line-height: 1.72; overflow-wrap: break-word; }
+.post-body h2 { font-size: clamp(1.55rem, 3vw, 2rem); font-weight: 550; line-height: 1.2; margin: 3.2rem 0 1rem; letter-spacing: -.025em; }
+.post-body h3 { font-size: 1.2rem; font-weight: 550; margin: 1.7rem 0 .8rem; }
+.post-body p, .post-body li { margin-bottom: .85rem; }
+.post-body p img { display: block; width: 100%; height: auto; margin: 1.3rem auto; }
+.post-body ul, .post-body ol { padding-left: 1.5rem; }
+.post-body ul { list-style: disc; }
+.post-body ol { list-style: decimal; }
+.post-body a, .experience-platforms a { text-decoration: underline; text-underline-offset: .18em; text-decoration-thickness: 1px; }
+.post-body a:hover, .experience-platforms a:hover { text-decoration-thickness: 2px; }
+.post-body pre { overflow: auto; max-width: 100%; padding: 1rem; margin: 1.2rem 0; background: color-mix(in srgb, currentColor 7%, transparent); }
+.post-body code { font: .88rem/1.6 ui-monospace, monospace; }
+.table-scroll { max-width: 100%; overflow-x: auto; margin: 1.4rem 0; }
+.post-body table { width: 100%; border-collapse: collapse; font-size: .9rem; line-height: 1.45; font-variant-numeric: tabular-nums; }
+.post-body th, .post-body td { padding: .65rem .55rem; border-bottom: 1px solid color-mix(in srgb, currentColor 22%, transparent); text-align: start; vertical-align: middle; }
+.post-body th { font-weight: 550; }
+.post-body table:has(img) { table-layout: fixed; }
+.post-body table:has(img) td { padding: .25rem; border: 0; }
+.post-body table:has(img) th { text-align: center; }
+.post-body td img { width: 100%; height: auto; }
 .post-links, .portfolio-social, .portfolio-footer { display: flex; align-items: center; flex-wrap: wrap; }
 .post-links { gap: .8rem 2rem; padding-top: 1.4rem; margin-top: 2.5rem; }
-.about-intro p { max-width: 58ch; line-height: 1.5; }
+.about-intro p { max-width: 62ch; line-height: 1.55; }
+.chinese-name { font-family: "Noto Sans SC", "PingFang SC", "Microsoft YaHei", sans-serif; }
+.about-intro p + p { margin-top: 1rem; }
+.experience-platforms { display: flex; flex-wrap: wrap; gap: .6rem 1.2rem; margin-top: 1rem; font-size: .9rem; }
 .updates-section { display: grid; grid-template-columns: 1fr 3fr; gap: 2rem; margin: 4rem 0 5rem; }
 .updates-section h2 { margin-top: .9rem; }
-.updates-section li > * { display: flex; gap: .75rem; align-items: baseline; padding: .85rem 0; line-height: 1.45; }
-.updates-section li span { opacity: .7; flex: 0 0 7rem; }
-.updates-section li svg { flex-shrink: 0; align-self: center; margin-left: auto; }
+.updates-section li > * { display: flex; gap: 1rem; align-items: center; padding: .85rem 0; line-height: 1.45; }
+.updates-section li img { width: 4.5rem; height: 3.15rem; object-fit: cover; flex: none; }
+.updates-section li span { opacity: .7; display: block; }
+.updates-section li > div { display: block; }
+.updates-section li svg { flex-shrink: 0; margin-left: auto; }
 .portfolio-footer { justify-content: space-between; gap: 1rem; padding: 1.5rem clamp(1.5rem, 4vw, 4rem); }
 .portfolio-social { gap: .25rem; }
 .portfolio-social a { display: grid; place-items: center; width: 44px; height: 44px; border-radius: 50%; }
 .portfolio-social a:hover { background: color-mix(in srgb, currentColor 12%, transparent); }
 .portfolio-social svg { width: 19px; height: 19px; }
 @media (max-width: 640px) {
-  .post-row { grid-template-columns: 6rem 1fr; align-items: start; gap: .9rem; }
-  .post-row img { aspect-ratio: 1; }
-  .row-arrow { display: none; }
+  .post-grid { grid-template-columns: 1fr; }
   .updates-section { grid-template-columns: 1fr; gap: 1rem; margin: 3rem 0; }
-  .updates-section li > * { flex-wrap: wrap; gap: .3rem; }
-  .updates-section li span { flex-basis: 100%; }
+
 }
+
+.home-gallery { position: relative; isolation: isolate; padding: clamp(5.5rem, 8vw, 8rem) clamp(1rem, 4vw, 4rem) 3rem; max-width: 104rem; margin: auto; }
+.photo-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: clamp(.65rem, 1.8vw, 1.75rem); }
+.photo-tile { width: 100%; display: block; cursor: zoom-in; background-size: cover; background-position: center; }
+.photo-tile img { display: block; width: 100%; height: auto; aspect-ratio: 3 / 2; object-fit: cover; }
+.photo-tile:focus-visible, .photo-close:focus-visible { outline: 3px solid currentColor; outline-offset: 3px; }
+.gallery-wordmark { position: fixed; inset: 50% 4% auto; z-index: 2; pointer-events: none; transform: translateY(-50%); display: flex; justify-content: space-between; color: white; mix-blend-mode: difference; font: 400 clamp(1rem,3vw,3rem)/1 "Major Mono Display", monospace; }
+@media (max-width: 600px) { .photo-grid { grid-template-columns: 1fr; } }
+.photo-viewer[open] { position: fixed; inset: 0; margin: 0; padding: 2.75rem 1rem; width: 100%; height: 100%; max-width: none; max-height: none; display: grid; place-items: center; background: rgb(12 12 12 / 96%); color: white; }
+.photo-viewer::backdrop { background: #101112; }
+.photo-viewer figure { text-align: center; max-width: 100%; }
+.photo-viewer img { margin: auto; width: auto; max-width: 100%; max-height: 78dvh; object-fit: contain; }
+.photo-viewer figcaption { margin-top: .7rem; font: .9rem/1.4 Rubik, sans-serif; }
+.photo-close { position: absolute; right: 1rem; top: 1rem; padding: .7rem; cursor: pointer; }
+html:has(.photo-viewer[open]) { overflow: hidden; }
