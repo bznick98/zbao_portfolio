@@ -67,6 +67,10 @@ Browser checks cover password rejection, no early model downloads, desktop/mobil
 
 The website uses its existing Vite/Vercel build. No Blender or new House environment variable is required in deployment. Use a supported Node runtime (22.12+). The source viewer vendors Three.js 0.180.0 and three-mesh-bvh 0.9.18 separately from the portfolio's Three.js, with runtime and texture licenses retained.
 
+## Import a revision report
+
+Run `node scripts/import-house-report.mjs /path/to/report-manifest.json` with the existing House password on standard input. The schema 1 manifest contains `projectId`, `revisionId`, `revisionDigest`, `title`, a `pdf` entry with its path and SHA-256, and a `pages` array with a title, path and SHA-256 for each page JPEG. The importer verifies the frozen revision and files before encrypting them. The viewer loads the open page on demand and fetches the PDF when the visitor downloads it.
+
 ## Saved design suggestions
 
 Tap **+** in the bottom Suggestions bar, choose a location, add a comment or reference images, and press **Save**. **Point** picks a surface detail, **Draw** lets you drag one freehand stroke directly on visible model surfaces, and **Object** picks a whole modeled asset. Lift to open the comment editor. **Change location** replaces the selection while preserving your text and attachments.

@@ -102,7 +102,7 @@ export function House({ isDarkMode }: { isDarkMode: boolean }) {
     <section className="house-page" aria-label="House">
       {!assets ? (
         <>
-          <a className="house-back" href="#work" aria-label="Back to work"><ArrowLeft size={20} aria-hidden="true" /></a>
+          <a className="house-back" href="#home" aria-label="Back to home"><ArrowLeft size={20} aria-hidden="true" /></a>
           <form className="house-form" onSubmit={enter} aria-busy={busy}>
             <label htmlFor="house-password" className="house-sr-only">Password / 访问密码</label>
             <div className="house-password-row">

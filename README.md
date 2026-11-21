@@ -1,43 +1,30 @@
-<div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
-</div>
+# Zongnan Bao’s portfolio
 
-# Run and deploy your AI Studio app
+[Visit zbao.art](https://zbao.art). This is my photography portfolio and the home of my technical writing on computational photography, camera systems and image processing. My professional interests include Apple silicon performance modeling, hardware/software co-design and ML systems.
 
-This contains everything you need to run your app locally.
+- **[Home](https://zbao.art/#home)** opens the photography gallery. Select a photo to see it at a larger size.
+- **[About](https://zbao.art/#about)** collects my introduction, recent updates, experience, education and patent work.
+- **[Blog](https://zbao.art/#blog)** contains project articles with figures, measurements and links to code. The bilateral image enhancement article also includes my UCLA capstone paper.
+- **[Poe](https://zbao.art/#poe)** is an interactive divination experience. **[House](https://zbao.art/#house)** opens a password-gated Three.js walkthrough. See the [House guide](docs/house.md) for controls, model imports and access details.
 
-View your app in AI Studio: https://ai.studio/apps/drive/1YEWbqrkbaiFiNbzVNlRiA5WN1GaYRDo-
+## Run locally
 
-## Run Locally
+Use Node.js 22.12 or later. Run these commands from the repository root.
 
-**Prerequisites:**  Node.js
+```sh
+npm ci
+npm run dev
+```
 
+Open the local URL printed by Vite. Run `npm run check` for TypeScript, the regression suite and a production build. `npm run preview` serves the built frontend. Vercel serves the frontend and the functions under `api/` in production.
 
-1. Install dependencies:
-   `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
-3. Run the app:
-   `npm run dev`
+For browser regression checks, install Chromium once with `npx playwright install chromium`, then run `npm run test:gallery`. The suite checks layout before images load, refresh stability, native proportions, keyboard interaction and reduced motion at phone and desktop sizes.
 
-## House
+The site uses React and Vite, with Tailwind CSS compiled at build time. About uses the official GSAP React hook and respects reduced-motion preferences. Articles render locally with React Markdown and GitHub Flavored Markdown tables.
 
-The **House** menu opens a fullscreen, password-gated Three.js walkthrough at `/#house`. The login is a single password field. The minimap is on by default; a direct map icon toggles it, and a round menu contains view zoom and other settings. Dimensions and a two-point ruler sit beside the EN/CN switch in the top-left toolbar. Mouse-wheel zoom changes the view without walking. Controls follow the site's selected light or dark theme. Its verified layout2house delivery carries encrypted design revisions; each model loads only when selected after entering the shared password. See [House setup, model updates, and access limitations](docs/house.md).
+## Edit content
 
-Use Node.js 22.12+ and `npm ci`. Run `npm run check` for TypeScript, regression tests, and a production build. The existing Vercel deployment serves the page and encrypted model without new runtime configuration.
-
-House Settings also opens **Design previews / 设计效果图**: the latest four
-interior proposals and three original-model views, encrypted under the same
-password and loaded on demand. They are design studies, not a new 3D revision.
-See [gallery import and review](docs/house.md#design-previews).
-
-House also includes **Walkthrough / Model** modes with a top-left EN/CN language switch (English by default): inspect the empty architectural shell, then return to the exact saved walking position and heading. The revision dropdown sits beside these modes. Dimensions use deterministic face measurements and accelerated occlusion. See [interaction behavior and model import checks](docs/house.md#controls).
-
-### House revision reports
-
-A model revision can have a private paginated design report. From this checkout
-run `node scripts/import-house-report.mjs /path/to/report-manifest.json` with
-the existing House password on standard input. The importer verifies the frozen
-revision digest, the PDF and the page JPEGs before adding encrypted assets.
-The manifest lists projectId, revisionId, revisionDigest, title, pdf
-({path, sha256}) and pages (each with title, path, sha256), with schema 1.
-The viewer loads only the open page and fetches the PDF when someone downloads it.
+- Add a post to the catalogue in `data/posts.ts`. Give it a title, publication date (`YYYY-MM-DD`), cover photograph, alt text and source links. Write the complete article in `content/posts/<slug>.md`. Put figures and papers in `public/blog/` and reference them with `/blog/…` URLs. Blog lists posts newest first. About combines the latest two with career updates in date order. Each article has a shareable URL at `/#blog/<slug>`.
+- Edit the bio, career updates, experience and education in `pages/About.tsx`. The four contact icons are in `components/SocialLinks.tsx`.
+- Home selects photographs from [@zbao on Unsplash](https://unsplash.com/@zbao) once per production build. Set `UNSPLASH_ACCESS_KEY` and `OPENAI_API_KEY` in the build environment. Existing `VITE_UNSPLASH_ACCESS_KEY` settings are also supported. One text-only model request titles the collection. The year comes from the Unsplash publication date. Failed title generation uses Unsplash metadata, and a failed selection uses the verified collection in `data/unsplash-snapshot.json`. Local development uses the snapshot directly.
+- The Coffee page is hidden. Its existing calendar integration is documented in the [coffee setup guide](docs/coffee-chat.md).
