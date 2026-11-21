@@ -30,12 +30,13 @@ export const About: React.FC = () => {
         link: 'https://www.qualcomm.com/home',
         role: 'Camera System Architect',
         duration: '2 years & 2 months',
-        description: 'I worked on the architecture of the Spectra image signal processor across three Snapdragon generations. I developed simulation tools to trace how camera data moved through the ISP and to evaluate the performance and efficiency of proposed pipeline designs.',
+        description: 'I worked on the architecture of the Spectra image signal processor across multiple Snapdragon generations. I developed simulation tools to trace how camera data moved through the ISP and to evaluate the performance and efficiency of proposed pipeline designs.',
         platforms: [
             { name: 'Snapdragon 8 Elite (SM8750)', url: 'https://www.qualcomm.com/smartphones/products/8-series/snapdragon-8-elite-mobile-platform' },
             { name: 'Snapdragon 8 Elite Gen 5 (SM8850)', url: 'https://www.qualcomm.com/content/dam/qcomm-martech/dm-assets/documents/Snapdragon-8-Elite-Gen-5-product-brief.pdf' },
             { name: 'Snapdragon 8 Elite Gen 6 (SM8950)', url: 'https://www.qualcomm.com/content/dam/qcomm-martech/dm-assets/documents/Snapdragon-8-Elite-Gen-6-Product-Brief.pdf' },
             { name: 'Snapdragon 8 Elite Extreme Gen 6 (SM8975)', url: 'https://www.qualcomm.com/smartphones/products/8-series/snapdragon-8-elite-extreme-gen-6-mobile-platform' },
+            { name: 'SM8A75' },
         ],
     },
     {
@@ -139,7 +140,11 @@ export const About: React.FC = () => {
                         <div className="text-lg font-medium mb-4 text-black">{exp.role}</div>
                         <p className="opacity-80 max-w-3xl leading-relaxed text-black text-base">{exp.description}</p>
                         {exp.platforms && <ul className="experience-platforms" aria-label="Snapdragon platforms">
-                            {exp.platforms.map(platform => <li key={platform.name}><a href={platform.url}>{platform.name}</a></li>)}
+                            {exp.platforms.map(platform => (
+                                <li key={platform.name}>
+                                    {platform.url ? <a href={platform.url}>{platform.name}</a> : platform.name}
+                                </li>
+                            ))}
                         </ul>}
                     </div>
                 ))}
