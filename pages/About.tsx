@@ -1,10 +1,30 @@
-import React, { useRef } from 'react';
-import { posts } from '../data/posts';
+import React, { useId, useRef } from 'react';
+import { posts, type BlogPost } from '../data/posts';
+import { CalendarDate } from '../components/CalendarDate';
 import gsap from 'gsap';
 import { useGSAP } from '@gsap/react';
 import { ArrowUpRight } from 'lucide-react';
 
 gsap.registerPlugin(useGSAP);
+
+function AboutSection({ title, children }: React.PropsWithChildren<{ title: string }>) {
+  const headingId = useId();
+  return (
+    <section aria-labelledby={headingId} className="grid grid-cols-12 gap-x-4 gap-y-8 md:gap-x-8">
+      <div className="col-span-12 md:col-span-3 profile-anim">
+        <h2 id={headingId} className="text-sm uppercase tracking-widest border-t border-black pt-4">{title}</h2>
+      </div>
+      <div className="col-span-12 min-w-0 md:col-span-9 profile-anim">{children}</div>
+    </section>
+  );
+}
+
+const appleStartDate = '2026-09-29';
+const updates: { title: string; date: string; post?: BlogPost }[] = [
+  { title: 'I joined Apple as a Hardware and Software Modeling Engineer.', date: appleStartDate },
+  ...posts.slice(0, 2).map(post => ({ title: post.title, date: post.published, post })),
+];
+updates.sort((a, b) => b.date.localeCompare(a.date));
 
 export const About: React.FC = () => {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -22,7 +42,7 @@ export const About: React.FC = () => {
         company: 'Apple',
         link: 'https://www.apple.com/',
         role: 'Hardware and Software Modeling Engineer',
-        duration: 'Present',
+        duration: <><CalendarDate date={appleStartDate} /> – Present</>,
         description: 'I build performance models for Apple silicon, including A-series and M-series SoCs. I use them to understand where workloads spend time and to compare hardware and software design choices.'
     },
     {
@@ -114,27 +134,24 @@ export const About: React.FC = () => {
             shape the performance of large language models and diffusion models.</p>
         </header>
 
-        <section className="updates-section" aria-labelledby="updates-title">
-          <h2 id="updates-title">Recent updates</h2>
-          <ul>
-            {posts.slice(0, 2).map(post => (
-              <li key={post.slug}>
-                <a href={`#blog/${post.slug}`}>
-                  <img src={post.cover.src} alt="" width={post.cover.width} height={post.cover.height} loading="lazy" />
-                  <div><span>On the blog</span>{post.title}</div><ArrowUpRight size={18} aria-hidden="true" />
-                </a>
-              </li>
-            ))}
-            <li><div><span>At work</span>I joined Apple as a Hardware and Software Modeling Engineer.</div></li>
-          </ul>
-        </section>
-
-        <div className="grid grid-cols-12 gap-x-4 md:gap-x-8 gap-y-8 md:gap-y-20 font-rubik">
-            {/* EXPERIENCE SECTION */}
-            <div className="col-span-12 md:col-span-3 profile-anim">
-                <h2 className="text-sm uppercase tracking-widest border-t border-black pt-4">Experience</h2>
-            </div>
-            <div className="col-span-12 md:col-span-9 flex flex-col gap-12 profile-anim">
+        <div className="mt-12 md:mt-16 flex flex-col gap-8 md:gap-20 font-rubik">
+          <AboutSection title="Recent updates">
+            <ol className="updates-section">
+              {updates.map(({ title, post }) => (
+                <li key={post?.slug ?? title} className="border-b border-black/10 last:border-0 py-4 first:pt-0 last:pb-0">
+                  <span className="block mb-1 text-xs uppercase tracking-widest opacity-60">{post ? 'On the blog' : 'At work'}</span>
+                  {post ? (
+                    <a className="group flex items-center justify-between gap-4" href={`#blog/${post.slug}`}>
+                      <span className="text-lg font-medium group-hover:underline">{title}</span>
+                      <img className="w-16 h-auto shrink-0" src={post.cover.src} alt="" width={post.cover.width} height={post.cover.height} loading="lazy" />
+                    </a>
+                  ) : <p className="text-lg font-medium">{title}</p>}
+                </li>
+              ))}
+            </ol>
+          </AboutSection>
+          <AboutSection title="Experience">
+            <div className="flex flex-col gap-12">
                 {experiences.map((exp, i) => (
                     <div key={i} className="group border-b border-black/10 pb-12 last:border-0">
                         <div className="flex flex-col md:flex-row md:items-baseline justify-between mb-2">
@@ -149,12 +166,9 @@ export const About: React.FC = () => {
                     </div>
                 ))}
             </div>
-
-            {/* EDUCATION SECTION */}
-            <div className="col-span-12 md:col-span-3 profile-anim">
-                <h2 className="text-sm uppercase tracking-widest border-t border-black pt-4">Education</h2>
-            </div>
-            <div className="col-span-12 md:col-span-9 flex flex-col gap-16 profile-anim">
+          </AboutSection>
+          <AboutSection title="Education">
+            <div className="flex flex-col gap-16">
                 {education.map((edu, i) => (
                     <div key={i} className="flex flex-col gap-4">
                         <div className="flex flex-col md:flex-row md:items-baseline justify-between">
@@ -193,25 +207,20 @@ export const About: React.FC = () => {
                     </div>
                 ))}
             </div>
-
-            {/* PATENT SECTION */}
-            <div className="col-span-12 md:col-span-3 profile-anim">
-                <h2 className="text-sm uppercase tracking-widest border-t border-black pt-4">Patents</h2>
-            </div>
-            <div className="col-span-12 md:col-span-9 profile-anim">
-                 <a 
-                    href="https://patentscope.wipo.int/search/en/detail.jsf?docId=WO2024107472" 
-                    target="_blank" 
-                    rel="noreferrer"
-                    className="group block"
-                 >
-                    <h3 className="text-lg md:text-xl font-medium mb-2 text-black transition-colors duration-300 group-hover:text-black/60">
-                        Estimating Metadata for Images Having Absent Metadata or Unusable Form of Metadata
-                    </h3>
-                    <p className="text-sm uppercase tracking-widest opacity-50 text-black">Dolby Laboratories, Inc.</p>
-                 </a>
-            </div>
-
+          </AboutSection>
+          <AboutSection title="Patents">
+            <a
+              href="https://patentscope.wipo.int/search/en/detail.jsf?docId=WO2024107472"
+              target="_blank"
+              rel="noreferrer"
+              className="group block"
+            >
+              <h3 className="text-lg md:text-xl font-medium mb-2 text-black transition-colors duration-300 group-hover:text-black/60">
+                Estimating Metadata for Images Having Absent Metadata or Unusable Form of Metadata
+              </h3>
+              <p className="text-sm uppercase tracking-widest opacity-50 text-black">Dolby Laboratories, Inc.</p>
+            </a>
+          </AboutSection>
         </div>
       </div>
     </div>

@@ -24,7 +24,7 @@ The site uses React and Vite, with Tailwind CSS compiled at build time. About us
 
 ## Edit content
 
-- Add a post to the beginning of `posts` in `data/posts.ts`. Give it a title, publication date, cover photograph, alt text and source links. Write the complete article in `content/posts/<slug>.md`. Put figures and papers in `public/blog/` and reference them with `/blog/…` URLs. The Blog index lists every entry, and About picks up the latest two. Each article has a shareable URL at `/#blog/<slug>`.
+- Add a post to the catalogue in `data/posts.ts`. Give it a title, publication date (`YYYY-MM-DD`), cover photograph, alt text and source links. Write the complete article in `content/posts/<slug>.md`. Put figures and papers in `public/blog/` and reference them with `/blog/…` URLs. Blog lists posts newest first. About combines the latest two with career updates in date order. Each article has a shareable URL at `/#blog/<slug>`.
 - Edit the bio, career updates, experience and education in `pages/About.tsx`. The four contact icons are in `components/SocialLinks.tsx`.
 - Home selects photographs from [@zbao on Unsplash](https://unsplash.com/@zbao) once per production build. Set `UNSPLASH_ACCESS_KEY` and `OPENAI_API_KEY` in the build environment. Existing `VITE_UNSPLASH_ACCESS_KEY` settings are also supported. One text-only model request titles the collection. The year comes from the Unsplash publication date. Failed title generation uses Unsplash metadata, and a failed selection uses the verified collection in `data/unsplash-snapshot.json`. Local development uses the snapshot directly.
 - The Coffee page is hidden. Its existing calendar integration is documented in the [coffee setup guide](docs/coffee-chat.md).
