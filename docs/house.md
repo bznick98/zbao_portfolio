@@ -66,3 +66,11 @@ This remains a static shared-password convenience gate, not server-side authenti
 Browser checks cover password rejection, no early model downloads, desktop/mobile and 320px controls, both modes, exact pose/zoom restoration, EN/CN, source dimensions/ruler, lazy encrypted revisions, minimap persistence, private map export, theme, touch, locking/reload and direct viewer access. Unit tests also cover resource cancellation, integrity, path restrictions and absence of plaintext artifacts. These checks do not establish architectural correspondence with every PDF/photo dimension.
 
 The website uses its existing Vite/Vercel build. No Blender or new House environment variable is required in deployment. Use a supported Node runtime (22.12+). The source viewer vendors Three.js 0.180.0 and three-mesh-bvh 0.9.18 separately from the portfolio's Three.js, with runtime and texture licenses retained.
+
+## Saved design suggestions
+
+Tap **+** in the bottom Suggestions bar, choose a location, add a comment or reference images, and press **Save**. **Point** picks a surface detail, **Draw** lets you drag one freehand stroke directly on visible model surfaces, and **Object** picks a whole modeled asset. Lift to open the comment editor. **Change location** replaces the selection while preserving your text and attachments.
+
+Select a list entry to return to its revision and camera, or click a highlight to edit where you are. Choose **Delete** beside a list entry or inside the saved comment editor and confirm. Deletion removes its saved comment, reference images and highlight from this browser profile. Local House storage is encrypted. The list numbers can change after deletion. A suggestion’s UUID stays the same across edits.
+
+**Export JSON** downloads schema version 5. Each entry carries the exact model identity, text, reference images, selected geometry, camera and a marked JPEG for visual cross-checks. Point records store each hit under `region.points`. Draw records group ordered surface hits by mesh and instance under `region.segments`. Object records include the asset identity, mesh members, picked anchor and world bounds. A closed brush stroke records its line. Use the comment to interpret which surfaces the user wants changed. Previously saved rectangles remain reviewable and export with their original geometry.

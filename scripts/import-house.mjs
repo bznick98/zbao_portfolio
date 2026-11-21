@@ -12,9 +12,35 @@ function integrate(source,from,to){if(!source.includes(from))throw Error('Viewer
 
 export async function writeHouseViewer(delivery,manifest,temporary){
  for(const [name,digest] of Object.entries(manifest.files))if(name.startsWith('vendor/')||name.startsWith('licenses/')){const bytes=await checked(delivery,name,digest);await mkdir(path.dirname(path.join(temporary,name)),{recursive:true});await writeFile(path.join(temporary,name),bytes);}
- const viewerFiles = manifest.files['model-teleport.js'] ? [...modules,'model-teleport.js'] : modules;
+ const viewerFiles = manifest.files['model-teleport.js'] ? [...modules,'model-teleport.js'] : [...modules];
+ const reviewModules=['suggestions.js','suggestion-region.js','suggestion-store.js','suggestions.css'];
+ const hasReview=Boolean(manifest.files['suggestions.js']);
+ if(hasReview)viewerFiles.push(...reviewModules);
+ if(manifest.files['toolbar.js'])viewerFiles.push('toolbar.js');
  for(const name of ['style.css',...viewerFiles])await writeFile(path.join(temporary,name),await checked(delivery,name,manifest.files[name]));
+ if(!manifest.files['toolbar.js']){
+  for(const name of ['toolbar.js','artifact-modes.css','revisions.css'])await cp(path.join(root,'public/house-viewer',name),path.join(temporary,name));
+ }
  let main=(await checked(delivery,'main.js',manifest.files['main.js'])).toString();
+ const hasPinHooks=main.includes('suggestions?.update()');
+ if(hasReview && hasPinHooks && !(await readFile(path.join(temporary,'suggestion-region.js'),'utf8')).includes('export function captureStroke(')){
+  for(const name of reviewModules)await cp(path.join(root,'public/house-viewer',name),path.join(temporary,name));
+ }
+ if(!hasPinHooks){
+  // Bring frozen pre-pin deliveries forward while keeping their checked model assets.
+  for(const name of [...reviewModules,'artifact-modes.css','revisions.css'])await cp(path.join(root,'public/house-viewer',name),path.join(temporary,name));
+  const context="getContext:()=>({data,scene,tools:measurementTools,modes:artifactModes,canvas:renderer.domElement,contains:pointIn,renderFrame:()=>{renderPass.camera=ao.camera=artifactModes.camera;composer.render();}})";
+  if(hasReview){
+   main=integrate(main,'suggestions?.modelChanged();','');
+   main=integrate(main,'getContext:()=>({data,modes:artifactModes,canvas:renderer.domElement,contains:pointIn,renderFrame:()=>composer.render()})',context);
+  }else{
+   main="import {installSuggestions} from './suggestions.js';\nlet suggestions;\n"+main;
+   main=integrate(main,"$('loading').remove();",`suggestions=installSuggestions({${context},selectRevision:(id,build)=>revisionLoader?.select(id,build),restorePose,clearInput});\n $('loading').remove();`);
+  }
+  main=integrate(main,'resize();drawMap();return chosen.reason;','suggestions?.modelChanged();resize();drawMap();return chosen.reason;');
+  main=integrate(main,'measurementTools?.update(now);composer.render();','measurementTools?.update(now);suggestions?.update();composer.render();');
+  main=main.replace('canTeleport:()=>!tools?.isMeasuring','canTeleport:()=>!tools?.isMeasuring && !suggestions?.isPicking');
+ }
  main="import {installHouseControls} from './controls.js';\nlet houseControls;\n"+main;
  main="import {prepareFixedLayout} from './fixed-layout.js';\n"+main;
  main=integrate(main,'const {obstacles,count}=prepareRoot(root,info);','prepareFixedLayout(root);const {obstacles,count}=prepareRoot(root,info);');
@@ -30,6 +56,8 @@ export async function writeHouseViewer(delivery,manifest,temporary){
  loader=integrate(loader,"const response=await fetch('./assets/revisions.json');", "const response=new Response(JSON.stringify(window.__HOUSE_CATALOG||{revisions:[]}));");
  loader=integrate(loader,"if(artifact.url){value.href=artifact.url;value.target='_blank';value.rel='noopener';}","if(artifact.url){value.href='#';value.onclick=event=>{event.preventDefault();window.__HOUSE_OPEN_ARTIFACT(artifact.url,artifact.mime);};}");
  loader=integrate(loader,"artifact.url?'artifactReady'", "artifact.url||artifact.currentViewer?'artifactReady'");
+ const oldMessage='function message(key){setText(status,key);status.hidden=!key;}';
+ if(loader.includes(oldMessage))loader=integrate(loader,oldMessage,"let timer;function message(key){clearTimeout(timer);setText(status,key);status.hidden=!key;if(['revisionRelocated','revisionModelOnly','revisionFallback'].includes(key))timer=setTimeout(()=>{status.hidden=true;},3500);}");
  await writeFile(path.join(temporary,'revision-loader.js'),loader);
  let modes=(await checked(delivery,'artifact-modes.js',manifest.files['artifact-modes.js'])).toString();
  modes=integrate(modes,'object.visible && SHELL_LAYERS.has(layer)','object.visible && (SHELL_LAYERS.has(layer) || object.userData.fixedFitout)');

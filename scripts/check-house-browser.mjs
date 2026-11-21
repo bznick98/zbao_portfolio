@@ -3,7 +3,7 @@ import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import os from 'node:os';
 import assert from 'node:assert/strict';
-import { checkArtifactModes } from './check-artifact-modes.mjs';
+import { checkArtifactModes, clickTool } from './check-artifact-modes.mjs';
 
 const require = createRequire(import.meta.url);
 let playwright;
@@ -55,7 +55,7 @@ async function fullscreen(page, frame) {
 async function minimal(frame, mapVisible = true) {
   assert.equal(await frame.locator('#settings').isVisible(), false);
   assert.equal(await frame.locator('.map').isVisible(), mapVisible);
-  assert.equal(await frame.locator('h1, h2').count(), 0);
+  assert.equal(await frame.locator('h1:visible, h2:visible').count(), 0);
   assert.equal(await frame.evaluate(() => __walkthrough.controls.getState().dimensions), false);
   assert.equal(await frame.locator('#dimensions-overlay').count(), 0);
 }
@@ -115,7 +115,7 @@ try {
   assert.equal(await frame.evaluate(() => __walkthrough.getState().ambientOcclusion), false);
   await frame.uncheck('#map-toggle'); assert.equal(await frame.locator('.map').isVisible(), false);
   await frame.check('#map-toggle'); assert.equal(await frame.locator('.map').isVisible(), true);
-  await frame.click('#dimensions-toggle');
+  await clickTool(frame,'#dimensions-toggle');
   await frame.waitForFunction(() => __walkthrough.controls.getState().measurements.length > 20);
   const measurements = await frame.evaluate(() => __walkthrough.controls.getState().measurements);
   assert.deepEqual(measurements,expectedScene.wallDimensions.surfaces,'rendered measurements must match the encrypted source scene');
@@ -161,15 +161,15 @@ try {
   assert.equal(await frame.evaluate(() => __walkthrough.controls.getState().dimensionsVisible), true);
   assert.equal(await frame.evaluate(() => __walkthrough.controls.getState().zoom), preserved.zoom);
   assert.equal(await frame.locator('#quality').inputValue(), preserved.quality);
-  await frame.click('#dimensions-toggle');
+  await clickTool(frame,'#dimensions-toggle');
   assert.equal(await frame.evaluate(() => __walkthrough.controls.getState().dimensions), false);
   assert.equal(await frame.locator('#dimensions-overlay').count(), 0);
   await page.keyboard.press('Escape');
   await minimal(frame);
   let revisionPose=await frame.evaluate(()=>__walkthrough.getState());
   const zoomBeforeRevision=await frame.evaluate(()=>__walkthrough.controls.getState().zoom);
-  await frame.click('#map-button');assert.equal(await frame.locator('.map').isVisible(),false);
-  await frame.click('#dimensions-toggle');
+  await clickTool(frame,'#map-button');assert.equal(await frame.locator('.map').isVisible(),false);
+  await clickTool(frame,'#dimensions-toggle');
   for(const revision of ['0.1','0.2','0.1','0.2']){
     assert.equal(await frame.evaluate(id=>__walkthrough.revisions.select(id),revision),true);
     const nextPose=await frame.evaluate(()=>__walkthrough.getState());
@@ -186,14 +186,14 @@ try {
   const a=await frame.locator('.artifact-modes').boundingBox(),b=await frame.locator('#revision-controls').boundingBox();
   assert.ok(Math.abs(a.y-b.y)<2&&b.x>=a.x+a.width,'revision must sit beside modes');
   await page.screenshot({path:path.join(artifacts,'desktop-revisions-dimensions.png')});
-  await frame.click('#dimensions-toggle');await frame.click('#map-button');
+  await clickTool(frame,'#dimensions-toggle');await clickTool(frame,'#map-button');
   await frame.click('#menu-toggle');await frame.locator('#revision-details summary').click();
   const artifactLink=frame.locator('#revision-outputs a').first();
   const popupPromise=page.waitForEvent('popup');await artifactLink.click();const popup=await popupPromise;
   await popup.waitForURL(/^blob:/);await popup.locator('svg').waitFor();await popup.close();
   await frame.click('#menu-toggle');
   checks.push('Encrypted revision 0.1/0.2 selection, bounded lazy model cache, exact pose/zoom and minimap retention, 432 deterministic faces, private map export');
-  await frame.click('#language-toggle');
+  await clickTool(frame,'#language-toggle');
   await frame.click('#menu-toggle'); await frame.click('#lock-page');
   await page.getByLabel('Password / 访问密码').waitFor();
   assert.equal(await page.locator('iframe').count(), 0);
@@ -201,7 +201,7 @@ try {
   assert.equal(await frame.evaluate(()=>__walkthrough.revisions.getState().revisionId),revisionPose.revisionId,'restore the last selected revision after unlock');
   assert.equal(await frame.locator('html').getAttribute('lang'), 'zh-CN');
   assert.equal(await frame.locator('#mode-walk').textContent(), '室内漫游');
-  await frame.click('#language-toggle');
+  await clickTool(frame,'#language-toggle');
   await page.reload();
   await page.getByLabel('Password / 访问密码').waitFor();
   assert.equal(await page.locator('iframe').count(), 0);
@@ -259,13 +259,13 @@ try {
   await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
   const moveAfter = await frame.evaluate(() => __walkthrough.getState().position);
   assert.ok(Math.hypot(...moveAfter.map((n, i) => n - moveBefore[i])) > .01);
-  await frame.click('#dimensions-toggle');
+  await clickTool(frame,'#dimensions-toggle');
   await frame.waitForFunction(() => __walkthrough.controls.getState().measurements.length > 20);
   await frame.click('#menu-toggle');
   await frame.selectOption('#rooms', 'master_wide');
   await frame.click('#menu-toggle');
   await mobile.screenshot({ path: path.join(artifacts, 'mobile-dimensions.png') });
-  await frame.click('#dimensions-toggle');
+  await clickTool(frame,'#dimensions-toggle');
   await mobile.screenshot({ path: path.join(artifacts, 'mobile-fullscreen-dark.png') });
   await mobile.setViewportSize({ width: 844, height: 390 });
   await frame.waitForFunction(() => __walkthrough.getState().aspect > 2);

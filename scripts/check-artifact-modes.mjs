@@ -1,6 +1,11 @@
 import assert from 'node:assert/strict';
 import path from 'node:path';
 
+export async function clickTool(frame,selector){
+  if(!await frame.locator(selector).isVisible())await frame.click('#tools-toggle');
+  await frame.click(selector);
+}
+
 async function checkMeasurementTools({page,frame,artifacts,mobile,expectedPlan}) {
   const state=()=>frame.evaluate(()=>__walkthrough.tools.getState());
   const pose=()=>frame.evaluate(()=>__walkthrough.modes.getState().walkPose);
@@ -9,7 +14,7 @@ async function checkMeasurementTools({page,frame,artifacts,mobile,expectedPlan})
   await frame.evaluate(()=>__walkthrough.go(document.querySelector('#rooms').options[0].value));
   const savedPose=await pose();
   assert.equal((await state()).dimensions,false);
-  await frame.click('#dimensions-toggle');
+  await clickTool(frame,'#dimensions-toggle');
   assert.equal((await state()).wallDimensionsVisible,true);
   assert.equal(await frame.locator('#dimensions-toggle').getAttribute('aria-pressed'),'true');
   const dimensions=(await state()).planDimensions;
@@ -19,7 +24,7 @@ async function checkMeasurementTools({page,frame,artifacts,mobile,expectedPlan})
   await frame.click('#mode-model'); await settle();
   assert.equal((await state()).wallDimensionsVisible,!dimensions.length);assert.equal((await state()).planDimensionsVisible,Boolean(dimensions.length));
   await page.screenshot({path:path.join(artifacts,`${mobile?'mobile':'desktop'}-plan-dimensions.png`)});
-  await frame.click('#measure-toggle');
+  await clickTool(frame,'#measure-toggle');
   assert.equal((await state()).ruler.enabled,true);
   const viewport=page.viewportSize();
   if(mobile) {
@@ -53,8 +58,8 @@ async function checkMeasurementTools({page,frame,artifacts,mobile,expectedPlan})
   const expectedDistance=Math.hypot(...a.point.map((v,i)=>v-b.point[i]));
   assert.ok(Math.abs(measured.distanceMeters-expectedDistance)<.001);
   assert.ok(measured.line.every((v,i)=>Math.abs(v-measured.points.flat()[i])<.001));
-  await frame.click('#language-toggle');assert.match(await frame.locator('#measure-hint').textContent(),/三维距离/);
-  assert.deepEqual((await state()).ruler.points,measured.points);await frame.click('#language-toggle');
+  await clickTool(frame,'#language-toggle');assert.match(await frame.locator('#measure-hint').textContent(),/三维距离/);
+  assert.deepEqual((await state()).ruler.points,measured.points);await clickTool(frame,'#language-toggle');
   await page.screenshot({path:path.join(artifacts,`${mobile?'mobile':'desktop'}-ruler.png`)});
   if(!mobile) {
     await page.mouse.move(viewport.width*.5,viewport.height*.55);await page.mouse.down();await page.mouse.move(viewport.width*.55,viewport.height*.58,{steps:6});await page.mouse.up();
@@ -67,9 +72,9 @@ async function checkMeasurementTools({page,frame,artifacts,mobile,expectedPlan})
   await click(c);await click(d);
   measured=(await state()).ruler;assert.equal(measured.points.length,2);
   assert.ok(Math.abs(measured.distanceMeters-Math.hypot(...c.point.map((v,i)=>v-d.point[i])))<.001);
-  await frame.click('#measure-toggle');assert.equal((await state()).ruler.enabled,false);assert.equal(await frame.locator('#measure-panel').isVisible(),false);
+  await clickTool(frame,'#measure-toggle');assert.equal((await state()).ruler.enabled,false);assert.equal(await frame.locator('#measure-panel').isVisible(),false);
   assert.equal((await state()).wallDimensionsVisible,true);
-  await frame.click('#dimensions-toggle');assert.equal((await state()).dimensionsVisible,false);
+  await clickTool(frame,'#dimensions-toggle');assert.equal((await state()).dimensionsVisible,false);
   await frame.evaluate(()=>__walkthrough.go(document.querySelector('#rooms').options[0].value));
   return {planAnnotations:dimensions.length,pdfSpanToleranceMm:6,twoPoint3dDistance:true,walkAndModel:true,languagePreservesMeasurement:true,dragDoesNotMeasure:true,touch:mobile};
 }
@@ -90,15 +95,16 @@ export async function checkArtifactModes({ page, frame = page, artifacts, mobile
   assert.equal(await frame.locator('#mode-walk').textContent(), 'Walkthrough');
   assert.equal(await frame.locator('#mode-model').textContent(), 'Model');
   const languagePose=(await state()).walkPose;
-  await frame.click('#language-toggle');
+  await clickTool(frame,'#language-toggle');
   assert.equal(await frame.locator('html').getAttribute('lang'), 'zh-CN');
   assert.equal(await frame.locator('#mode-model').textContent(), '建筑模型');
   samePose((await state()).walkPose,languagePose);
   await frame.click('#menu-toggle');
   await page.screenshot({path:path.join(artifacts,`${mobile?'mobile':'desktop'}-settings-cn.png`)});
-  await frame.click('#menu-toggle'); await frame.click('#language-toggle');
+  await frame.click('#menu-toggle'); await clickTool(frame,'#language-toggle');
   async function checkHeader() {
-    const boxes=await Promise.all(['#language-toggle','#dimensions-toggle','#measure-toggle','#map-button','.artifact-modes','#menu-toggle'].map(id=>frame.locator(id).boundingBox()));
+    const toolGroup=await frame.locator('#tools-toggle').isVisible()?['#tools-toggle']:['#language-toggle','#dimensions-toggle','#measure-toggle','#map-button'];
+    const boxes=await Promise.all([...toolGroup,'.artifact-modes','#menu-toggle'].map(id=>frame.locator(id).boundingBox()));
     const viewport=page.viewportSize();
     for (const box of boxes) assert.ok(box && box.x>=0 && box.y>=0 && box.x+box.width<=viewport.width && box.height>=38);
     for(let i=0;i<boxes.length;i++) for(let j=i+1;j<boxes.length;j++) {
@@ -110,7 +116,7 @@ export async function checkArtifactModes({ page, frame = page, artifacts, mobile
   const menuShape=await frame.locator('#menu-toggle').evaluate(el=>({width:el.getBoundingClientRect().width,height:el.getBoundingClientRect().height,radius:getComputedStyle(el).borderRadius}));
   assert.equal(menuShape.width,menuShape.height);assert.equal(menuShape.radius,'50%');
   assert.equal(await frame.locator('#map-panel').isVisible(),true);
-  await frame.click('#map-button');assert.equal(await frame.locator('#map-panel').isVisible(),false);
+  await clickTool(frame,'#map-button');assert.equal(await frame.locator('#map-panel').isVisible(),false);
   assert.equal(await frame.locator('#map-toggle').isChecked(),false);assert.equal(await frame.locator('#map-button').getAttribute('aria-pressed'),'false');
   await frame.click('#mode-model');await frame.click('#mode-walk');assert.equal(await frame.locator('#map-panel').isVisible(),false,'mode round-trip preserves minimap preference');
   await frame.click('#menu-toggle');await frame.locator('#map-toggle').check();await frame.click('#menu-toggle');
@@ -164,10 +170,10 @@ export async function checkArtifactModes({ page, frame = page, artifacts, mobile
   }
   model=await state(); samePose(model.walkPose,pose); checkPawn(model.marker,pose);
   const modelBeforeLanguage=(await state()).modelView;
-  await frame.click('#language-toggle');
+  await clickTool(frame,'#language-toggle');
   assert.deepEqual((await state()).modelView,modelBeforeLanguage,'language changes must not reset model controls');
   assert.equal(await frame.locator('#model-reset').textContent(), '恢复斜俯瞰');
-  await frame.click('#language-toggle');
+  await clickTool(frame,'#language-toggle');
   assert.equal(await frame.locator('#model-reset').textContent(), 'Reset overview');
 
   assert.notDeepEqual(model.marker.projected,markerProjection);

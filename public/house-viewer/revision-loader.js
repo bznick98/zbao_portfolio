@@ -35,7 +35,13 @@ export async function createRevisionLoader(commit) {
       setText(value,artifact.url||artifact.currentViewer?'artifactReady':artifact.status==='failed'?'artifactFailed':artifact.status==='building'?'artifactBuilding':'artifactPending');row.append(value);links.append(row);
     }
   }
-  function message(key){setText(status,key);status.hidden=!key;}
+  let messageTimer;
+  function message(key) {
+    clearTimeout(messageTimer);
+    setText(status,key);status.hidden=!key;
+    if(['revisionRelocated','revisionModelOnly','revisionFallback'].includes(key))
+      messageTimer=setTimeout(()=>{status.hidden=true;},3500);
+  }
   async function select(id,buildId) {
     const ticket=++generation;abort?.abort();abort=new AbortController();loading=true;lastError='';message('revisionLoading');
     const revision=catalog.revisions.find(r=>r.revisionId===id);

@@ -1,6 +1,6 @@
 import {initLanguage,setText} from './i18n.js';
 initLanguage();
-// The viewer receives only a decrypted catalog/asset bytes, never a password or key.
+// The viewer receives only a decrypted catalog/asset bytes, never the password or the model decryption key.
 let started = false,sequence=0;const pending=new Map(),artifactUrls=new Set();
 function readPrivateAsset(assetId,signal){
  if(signal?.aborted)return Promise.reject(new DOMException('Cancelled','AbortError'));
@@ -44,6 +44,7 @@ window.addEventListener('message', async event => {
   if (!data.catalog && ![data.scene, data.model].every(url => typeof url === 'string' && url.startsWith(`blob:${location.origin}/`))) return;
   started = true;
   theme(data.theme);
+  window.__HOUSE_SUGGESTION_PRIVACY = {key:data.suggestionKey};
   window.__HOUSE_CATALOG = data.catalog;
   document.getElementById('project-documents').hidden=!data.catalog?.revisions?.length;
   window.__HOUSE_ASSETS = { scene: data.scene, model: data.model };
