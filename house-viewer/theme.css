@@ -32,7 +32,7 @@ progress { accent-color:var(--ink); height:3px; }
 
 #revision-select option { background:var(--panel); color:var(--ink); }
 
-.house-station { max-width: min(32rem, 90vw); max-height: 80vh; overflow: auto; color: var(--text, #292824); background: var(--panel, #f8f6f0); border: 1px solid #aaa79b; border-radius: .75rem; padding: 1.25rem; }
+.house-station { max-width: min(32rem, 90vw); max-height: 80vh; overflow: auto; color: var(--ink); background: var(--panel, #f8f6f0); border: 1px solid #aaa79b; border-radius: .75rem; padding: 1.25rem; }
 .house-station::backdrop { background: #17191180; }
 .house-station button, #house-station-button { margin: .4rem .5rem .4rem 0; padding: .45rem .75rem; border: 1px solid currentColor; border-radius: .4rem; }
 .house-station img { max-width: 100%; display: block; }

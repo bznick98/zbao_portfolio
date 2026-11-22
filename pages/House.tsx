@@ -120,7 +120,7 @@ export function House({ isDarkMode }: { isDarkMode: boolean }) {
       ) : (
         <>
           <iframe ref={frame} inert={Boolean(documentsOpen)} aria-hidden={Boolean(documentsOpen)||undefined} className="house-frame" src="/house-viewer/index.html" title="House — interactive 3D walkthrough"
-            allow="fullscreen" allowFullScreen onLoad={() => frame.current?.contentWindow?.postMessage({ type: 'house:open', suggestionKey: assets.suggestionKey, scene: assets.scene, model: assets.model, catalog: assets.catalog, theme }, window.location.origin)} />
+            allow="fullscreen" allowFullScreen onLoad={() => frame.current?.contentWindow?.postMessage({ type: 'house:open', suggestionKey: assets.suggestionKey, submission: assets.submission, scene: assets.scene, model: assets.model, catalog: assets.catalog, theme }, window.location.origin)} />
           {error && <div className="house-viewer-error"><p role="alert">{error}</p><button type="button" onClick={lock}>Try again</button></div>}
           {documentsOpen&&<HouseDocuments revisionId={documentsOpen} assets={assets} onLock={lock} onClose={()=>{setDocumentsOpen(null);window.setTimeout(()=>{frame.current?.focus();frame.current?.contentWindow?.postMessage({type:'house:documents-closed'},window.location.origin)},0)}}/>}
         </>

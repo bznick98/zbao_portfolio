@@ -11,7 +11,9 @@ import { deriveHouseKey, ITERATIONS } from '../lib/house-crypto.mjs';
 globalThis.crypto ??= webcrypto;
 const directory = await mkdtemp(join(tmpdir(), 'house-test-'));
 after(() => rm(directory, { recursive: true, force: true }));
-await copyFile(new URL('../lib/house-crypto.mjs', import.meta.url), join(directory, 'house-crypto.mjs'));
+for (const file of ['house-crypto.mjs','house-submit.mjs','house-submit-grant.json']) {
+  await copyFile(new URL('../lib/'+file, import.meta.url), join(directory, file));
+}
 await writeFile(join(directory, 'house-release.mjs'), ts.transpileModule(await readFile(new URL('../lib/house-release.ts', import.meta.url), 'utf8'), {
   compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.ESNext },
 }).outputText);

@@ -1,8 +1,12 @@
 import { MAX_HOUSE_FILES, ITERATIONS, deriveHouseKey, decryptHouseFile } from './house-crypto.mjs';
 
+import {openSubmissionSession} from './house-submit.mjs';
+import submissionGrant from './house-submit-grant.json' with {type:'json'};
+
 type EncryptedFile = { file: string; iv: number[]; bytes: number };
 type Manifest = { schema: number; buildId: string; iterations: number; salt: number[]; files: Record<string, EncryptedFile> };
 export type HouseAssets = {
+  submission?: {token:string; key:CryptoKey; buildAccess:string} | null;
   suggestionKey: CryptoKey; scene?: string; model?: string; catalog?: unknown;
   readAsset?: (id: string, signal: AbortSignal) => Promise<ArrayBuffer>;
   dispose: () => void;
@@ -69,12 +73,13 @@ export async function unlockHouse(password: string, signal: AbortSignal, status:
     }
     // Independent, non-exportable key for browser-local review notes across release rotations.
     const suggestionKey = await deriveHouseKey(password,new TextEncoder().encode('House private review 96f46c8d-6206-42c5-a8d2-90a24e2aa019'),['encrypt','decrypt']);
+    const submission = manifest.schema === 2 ? await openSubmissionSession(key!,manifest.buildId,password,submissionGrant).catch(()=>null) : null;
     password='';
     signal.throwIfAborted();
     if (manifest.schema===2) {
       const catalog = JSON.parse(new TextDecoder().decode(first));
       if (catalog.schema!==1 || !Array.isArray(catalog.revisions) || !catalog.revisions.length) throw new Error('The house catalog could not be read.');
-      return {suggestionKey,catalog,readAsset:async(id,requestSignal)=>{
+      return {suggestionKey,submission,catalog,readAsset:async(id,requestSignal)=>{
         if (!/^asset-[a-f0-9]{64}$/.test(id)) throw new Error('Unknown house resource.');
         try {return await read(id,requestSignal);}
         catch(error){if(error instanceof DOMException&&error.name==='OperationError')throw new Error('The house files could not be verified. Please refresh and try again.');throw error;}

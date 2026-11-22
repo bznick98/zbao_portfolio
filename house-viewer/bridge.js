@@ -55,7 +55,7 @@ window.addEventListener('message', async event => {
     await import('./main.js');
     const install=async()=>{
       const {installWorkstation}=await import('./workstation.js');
-      installWorkstation(data.catalog,window.__HOUSE_SUGGESTION_PRIVACY);
+      installWorkstation(data.catalog,window.__HOUSE_SUGGESTION_PRIVACY,data.submission);
     };
     if(document.getElementById('suggestions-panel'))await install();
     else {
