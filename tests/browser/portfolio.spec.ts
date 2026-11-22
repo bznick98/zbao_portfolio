@@ -28,21 +28,33 @@ test('the blog gives each post a full row and keeps its original date on the art
   }
 });
 
-test('About interleaves work and writing by date without printing dates in recent updates', async ({ page }) => {
+test('recent updates links to the latest posts without announcing the Apple role or showing dates', async ({ page }) => {
   await page.goto('/#blog');
   const posts = page.locator('.post-card');
   await expect(posts.first()).toBeVisible();
-  const latestPosts = await posts.evaluateAll(cards => cards.slice(0, 2).map(card => ({
-    title: card.querySelector('h2')!.textContent!,
-    date: card.querySelector('time')!.dateTime,
-  })));
-  const chronological = [...latestPosts, { title: 'I joined Apple', date: '2026-09-29' }]
-    .sort((a, b) => b.date.localeCompare(a.date));
+  const latestTitles = await posts.locator('h2').allTextContents();
 
   await page.goto('/#about');
   const updates = page.getByRole('region', { name: 'Recent updates' });
-  await expect(updates.getByRole('listitem')).toContainText(chronological.map(entry => entry.title));
+  await expect(updates.getByRole('link')).toHaveText(latestTitles.slice(0, 2));
+  await expect(updates).not.toContainText(/joined Apple/i);
   await expect(updates).not.toContainText(/\b(?:19|20)\d{2}\b/);
+});
+
+test('Apple experience shows completed years and months since joining', async ({ page }) => {
+  await page.goto('/#about');
   const experience = page.getByRole('region', { name: 'Experience' });
-  await expect(experience.locator('time[datetime="2026-09-29"]')).toHaveText('Sep 29, 2026');
+  const apple = experience.getByRole('link', { name: 'Apple', exact: true }).locator('..');
+  for (const [date, tenure] of [
+    ['2025-10-28', 'Less than a month'],
+    ['2025-10-29', '1 month'],
+    ['2026-02-28', '5 months'],
+    ['2026-09-29', '1 year'],
+    ['2026-11-22', '1 year & 1 month'],
+    ['2026-11-29', '1 year & 2 months'],
+  ]) {
+    await page.clock.setFixedTime(date + 'T12:00:00');
+    await page.reload();
+    await expect(apple.locator('span')).toHaveText(tenure);
+  }
 });

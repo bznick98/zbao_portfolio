@@ -1,6 +1,5 @@
 import React, { useId, useRef } from 'react';
 import { posts, type BlogPost } from '../data/posts';
-import { CalendarDate } from '../components/CalendarDate';
 import gsap from 'gsap';
 import { useGSAP } from '@gsap/react';
 import { ArrowUpRight } from 'lucide-react';
@@ -19,9 +18,25 @@ function AboutSection({ title, children }: React.PropsWithChildren<{ title: stri
   );
 }
 
-const appleStartDate = '2026-09-29';
+const appleStartDate = new Date('2025-09-29T00:00:00');
+
+function formatTenure(start: Date) {
+  const today = new Date();
+  const year = today.getFullYear();
+  const month = today.getMonth();
+  const anniversaryDay = Math.min(start.getDate(), new Date(year, month + 1, 0).getDate());
+  let elapsedMonths = (year - start.getFullYear()) * 12 + month - start.getMonth();
+  if (today.getDate() < anniversaryDay) elapsedMonths--;
+
+  const years = Math.floor(elapsedMonths / 12);
+  const months = elapsedMonths % 12;
+  const parts = [];
+  if (years > 0) parts.push(`${years} year${years === 1 ? '' : 's'}`);
+  if (months > 0) parts.push(`${months} month${months === 1 ? '' : 's'}`);
+  return parts.join(' & ') || 'Less than a month';
+}
+
 const updates: { title: string; date: string; post?: BlogPost }[] = [
-  { title: 'I joined Apple as a Hardware and Software Modeling Engineer.', date: appleStartDate },
   ...posts.slice(0, 2).map(post => ({ title: post.title, date: post.published, post })),
 ];
 updates.sort((a, b) => b.date.localeCompare(a.date));
@@ -42,7 +57,7 @@ export const About: React.FC = () => {
         company: 'Apple',
         link: 'https://www.apple.com/',
         role: 'Hardware and Software Modeling Engineer',
-        duration: <><CalendarDate date={appleStartDate} /> – Present</>,
+        duration: formatTenure(appleStartDate),
         description: 'I build performance models for Apple silicon, including A-series and M-series SoCs. I use them to understand where workloads spend time and to compare hardware and software design choices.'
     },
     {
