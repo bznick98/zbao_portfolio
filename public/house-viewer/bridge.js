@@ -51,7 +51,18 @@ window.addEventListener('message', async event => {
   // Reuse the site's font declaration; the browser can reuse its cached fonts.
   const fonts = parent.document.querySelector('link[href^="https://fonts.googleapis.com/css"]');
   if (fonts) document.head.appendChild(fonts.cloneNode());
-  try { await import('./main.js'); } catch { fail(); }
+  try {
+    await import('./main.js');
+    const install=async()=>{
+      const {installWorkstation}=await import('./workstation.js');
+      installWorkstation(data.catalog,window.__HOUSE_SUGGESTION_PRIVACY);
+    };
+    if(document.getElementById('suggestions-panel'))await install();
+    else {
+      const observer=new MutationObserver(()=>{if(document.getElementById('suggestions-panel')){observer.disconnect();void install();}});
+      observer.observe(document.body,{childList:true,subtree:true});
+    }
+  } catch { fail(); }
 });
 document.getElementById('lock-page').onclick = () => parent.postMessage({ type: 'house:lock' }, location.origin);
 document.getElementById('project-documents').onclick=()=>{

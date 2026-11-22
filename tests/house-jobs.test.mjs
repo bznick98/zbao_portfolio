@@ -1,0 +1,38 @@
+import {test} from 'node:test';
+import assert from 'node:assert/strict';
+import {randomBytes,randomUUID,createHash} from 'node:crypto';
+import {makeRelay} from '../server/house-jobs/relay.mjs';
+
+test('only a paired, live workstation acknowledges jobs and only the reviewed commit can be published',async()=>{
+ const data=new Map(),time={now:10};
+ const cache={get:k=>data.get(k)?.expires>time.now?data.get(k).v:null,set:(k,v,o)=>data.set(k,{v,expires:time.now+o.ttl*1000})};
+ const creds=Object.fromEntries(['owner','worker'].map(k=>[k,randomBytes(32).toString('hex')]));
+ const keys=Object.fromEntries(Object.entries(creds).map(([k,v])=>[k,createHash('sha256').update(v).digest('hex')]));
+ const relay=makeRelay({cache,keys,now:()=>time.now});
+ const owner=b=>relay(creds.owner,b),worker=b=>relay(creds.worker,b);
+ const job=randomUUID(),epoch=randomUUID(),commit='e'.repeat(40),version='0.9';
+ const submission={op:'submit',epoch,job,count:2,digest:'a'.repeat(64)};
+ assert.equal((await owner({op:'status'})).online,false);
+ await assert.rejects(owner(submission),{status:503});
+ await assert.rejects(relay('bogus',submission),{status:401});
+ await assert.rejects(owner({op:'heartbeat',epoch}),{status:403});
+ await worker({op:'heartbeat',epoch});
+ await assert.rejects(worker(submission),{status:403});
+ await assert.rejects(owner({...submission,epoch:randomUUID()}),{status:503});
+ await assert.rejects(owner({...submission,op:'chunk',index:0,data:'too-short'}),{status:400});
+ await owner({op:'chunk',job,epoch,index:0,data:'a'.repeat(48)});
+ assert.equal((await worker({op:'getChunk',job,epoch,index:0})).data,'a'.repeat(48));
+ assert.deepEqual(await owner(submission),{delivered:false});
+ assert.equal((await owner({op:'read',job})).state,null);
+ assert.equal((await worker({op:'heartbeat',epoch})).commands[0].job,job);
+ await worker({op:'state',job,stage:'review',version,commit,detail:'tests passed'});
+ const pub={op:'publish',job,version,commit,epoch,confirm:true};
+ await assert.rejects(owner({...pub,commit:'a'.repeat(40)}),{status:409});
+ await assert.rejects(owner({...pub,confirm:false}),{status:409});
+ await owner(pub);
+ assert.equal((await worker({op:'heartbeat',epoch})).commands[0].commit,commit);
+ time.now+=80000;
+ assert.equal((await owner({op:'status'})).online,false);
+ await assert.rejects(owner(submission),{status:503});
+ assert.equal((await worker({op:'heartbeat',epoch:randomUUID()})).commands.length,0);
+});
