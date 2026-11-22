@@ -69,7 +69,7 @@ export async function writeHouseViewer(delivery,manifest,temporary){
  modes=integrate(modes,'object.visible && SHELL_LAYERS.has(layer)','object.visible && (SHELL_LAYERS.has(layer) || object.userData.fixedFitout)');
  modes=integrate(modes,'const source = Array.isArray(object.material)', 'if (object.userData.fixedFitout) return;\n    const source = Array.isArray(object.material)');
  await writeFile(path.join(temporary,'artifact-modes.js'),modes);
- for(const name of ['index.html','bridge.js','theme.css','controls.js','measurements.js','fixed-layout.js'])await cp(path.join(root,'house-viewer',name),path.join(temporary,name));
+ for(const name of ['index.html','bridge.js','theme.css','controls.js','measurements.js','fixed-layout.js','workstation.js'])await cp(path.join(root,'house-viewer',name),path.join(temporary,name));
  return Object.fromEntries(['main.js',...viewerFiles].map(n=>[n,manifest.files[n]]));
 }
 
