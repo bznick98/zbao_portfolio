@@ -1,3 +1,4 @@
+html:has(.house-page) { scrollbar-gutter: auto; }
 .house-page {
   --house-bg: #faf9f6;
   --house-ink: #111;

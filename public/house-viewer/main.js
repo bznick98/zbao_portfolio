@@ -1,8 +1,8 @@
-import {installSuggestions} from './suggestions.js';
-let suggestions;
 import {prepareFixedLayout} from './fixed-layout.js';
 import {installHouseControls} from './controls.js';
 let houseControls;
+import {installSuggestions} from './suggestions.js';
+let suggestions;
 import {initLanguage,t,setText,setRoomText} from './i18n.js';
 initLanguage();
 import * as THREE from 'three';
@@ -108,7 +108,7 @@ function commitRevision(root,info){
  if(oldTools){measurementTools.setDimensions(oldTools.dimensions);measurementTools.setMeasuring(oldTools.ruler.enabled);if(oldTools.ruler.points.length)setText($('measure-hint'),'revisionRulerCleared');}
  for(const id of ['rooms','reset','lock'])$(id).disabled=!chosen.pose;
  if(previousRoot)disposeModel(previousRoot);
- houseControls?.dispose();houseControls=installHouseControls({camera,renderer,root,scene,modes:artifactModes,tools:measurementTools});suggestions?.modelChanged();resize();drawMap();return chosen.reason;
+ suggestions?.modelChanged();houseControls?.dispose();houseControls=installHouseControls({camera,renderer,root,scene,modes:artifactModes,tools:measurementTools});resize();drawMap();return chosen.reason;
 }
 async function init(){try{
  revisionLoader=await createRevisionLoader(commitRevision);

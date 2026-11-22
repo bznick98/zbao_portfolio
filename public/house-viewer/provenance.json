@@ -3,9 +3,9 @@
   "sourceDelivery": "interactive-522299d21583",
   "sourceManifestSha256": "80831bede00e820a14e84106c0a942db9fcc05c9668643f6684f770706a87dcc",
   "runtime": {
-    "main.js": "ecf787a3ac985aab5903e7ad7fb6db2fe9569c9fa2f0fba2031b6ceb95c01542",
+    "main.js": "df6582d2ebaf8c790587a20a03ceabd67f6c9c475984bdb19cb1f2a825800ef6",
     "artifact-modes.js": "014d201a117ad0ea79b0b22fc274625597a7c5157b83eef0acaaf3b86874f79a",
-    "artifact-modes.css": "b049e427e96123e50c8f23a3b5d4c68ead1c48e56805fc8d3379bb711842fb09",
+    "artifact-modes.css": "533024babe4914c5f8162bf896d8cad2f5ea6acacba5d992fd4c8c5337ce058e",
     "i18n.js": "d03e0a88698ccd148828f8d5965c0ff0da02ee70a30eb1c68b1d9d6973f9ba77",
     "measurement-geometry.js": "d8fddfaefbd4fd7a7f965368cfb03775f56c923f16bbaa2908bd5e444d70c988",
     "dimension-overlays.js": "67689ac8f1c801fe9390c1004751ca24da31ce6b7b27a0d57d3d33cfac2edb7c",
@@ -17,15 +17,22 @@
     "wall-surfaces.js": "ef33893d79a135d079893ddd91042dab4783bd4bd88487df2630e6ff4699d390",
     "dimensions.css": "b0541ebdc0718ad456f434ddcec2a81f57bb0b3f045596aed7e62d84928f88bd",
     "plan-map.js": "0ee8f7bf5942280069895ed7df5fe7e85c1b23ff0e8b8c77e09540c86a9ebaad",
-    "revision-loader.js": "5e4562bc5ce61c6f550c0fe0337b6de5c6995726239bf418fb93aa440d9b38a4",
+    "revision-loader.js": "fc79328fe72b20b569c2fec32365f030fec43064f9b1220d83883f441c11ed4a",
     "revision-state.js": "3066408dcc049f1aade47ca4820c002a1cab3271e56e649e6e7a1f2d8f4da26f",
-    "revisions.css": "e2f3bafc9ec4afa58e047c6aeaa9deff7cb2fb9c106b20903ef2e27501567386",
-    "model-teleport.js": "38d9f6e89dcdc6e8738d1193d332286c5bb3869fe41ab73815d9417be10a5b25"
+    "revisions.css": "9a227ff98134e7decf645489ef64c260113316e0428d7ca7979848af9c0ede49",
+    "model-teleport.js": "38d9f6e89dcdc6e8738d1193d332286c5bb3869fe41ab73815d9417be10a5b25",
+    "suggestions.js": "0eec2404373bca1d4428b43b76bfe9cfd7ff0c54c129302f9a0fe905233e92ca",
+    "suggestion-region.js": "4c3cfa60b67bd547e0f3fb68dce9bb30087977c037cfa3d69572e5040cce9074",
+    "suggestion-store.js": "3389311d72d33c05bc85b32876cea2a8cc645964ccbc74973b6153a8a117b57d",
+    "suggestions.css": "c8f0c6422e4f13f4efe545fe8182a1ca93137053acebd6c397b26a74974a9adc",
+    "toolbar.js": "5fe3183366d3d5ce28114f92f1df1aea5dff59f57217b7c61f37deddcd1df37b"
   },
   "selectedBuildIds": [
     "9b3046dbad241152",
     "1539ad7ca55db71d",
-    "d1247f63d5d046bd"
+    "d1247f63d5d046bd",
+    "ef8466c72aba0935",
+    "bdc26102daccb02f"
   ],
   "sourceMaterialsPreserved": true,
   "additionalDeliveries": {
@@ -33,6 +40,16 @@
       "deliveryId": "interactive-3bec06357ace",
       "buildId": "d1247f63d5d046bd",
       "manifestSha256": "3e31c74f22d1218ae9ce23d46d15f6800eafbea6e4a1f2c9a9e9142a98d1be1a"
+    },
+    "0.6": {
+      "deliveryId": "interactive-069bcf939ac4",
+      "buildId": "ef8466c72aba0935",
+      "manifestSha256": "7b56bdde9aa569e74af5e21f65c2addcb2975ae7e2e72dee4ff941c3e9affae4"
+    },
+    "0.7": {
+      "deliveryId": "interactive-763f3ecc0f0f",
+      "buildId": "bdc26102daccb02f",
+      "manifestSha256": "46c6f104a343cc19c5114662b64e1d79a182b878c8b0324953015c234c5819f0"
     }
   }
 }
