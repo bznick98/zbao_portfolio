@@ -1,6 +1,5 @@
 import React, { useId, useRef } from 'react';
 import { posts, type BlogPost } from '../data/posts';
-import { CalendarDate } from '../components/CalendarDate';
 import gsap from 'gsap';
 import { useGSAP } from '@gsap/react';
 import { ArrowUpRight } from 'lucide-react';
@@ -19,9 +18,7 @@ function AboutSection({ title, children }: React.PropsWithChildren<{ title: stri
   );
 }
 
-const appleStartDate = '2026-09-29';
 const updates: { title: string; date: string; post?: BlogPost }[] = [
-  { title: 'I joined Apple as a Hardware and Software Modeling Engineer.', date: appleStartDate },
   ...posts.slice(0, 2).map(post => ({ title: post.title, date: post.published, post })),
 ];
 updates.sort((a, b) => b.date.localeCompare(a.date));
@@ -42,7 +39,7 @@ export const About: React.FC = () => {
         company: 'Apple',
         link: 'https://www.apple.com/',
         role: 'Hardware and Software Modeling Engineer',
-        duration: <><CalendarDate date={appleStartDate} /> – Present</>,
+        duration: 'Present', // Joined September 29, 2025.
         description: 'I build performance models for Apple silicon, including A-series and M-series SoCs. I use them to understand where workloads spend time and to compare hardware and software design choices.'
     },
     {

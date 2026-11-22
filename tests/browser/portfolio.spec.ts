@@ -28,21 +28,22 @@ test('the blog gives each post a full row and keeps its original date on the art
   }
 });
 
-test('About interleaves work and writing by date without printing dates in recent updates', async ({ page }) => {
+test('recent updates links to the latest posts without announcing the Apple role or showing dates', async ({ page }) => {
   await page.goto('/#blog');
   const posts = page.locator('.post-card');
   await expect(posts.first()).toBeVisible();
-  const latestPosts = await posts.evaluateAll(cards => cards.slice(0, 2).map(card => ({
-    title: card.querySelector('h2')!.textContent!,
-    date: card.querySelector('time')!.dateTime,
-  })));
-  const chronological = [...latestPosts, { title: 'I joined Apple', date: '2026-09-29' }]
-    .sort((a, b) => b.date.localeCompare(a.date));
+  const latestTitles = await posts.locator('h2').allTextContents();
 
   await page.goto('/#about');
   const updates = page.getByRole('region', { name: 'Recent updates' });
-  await expect(updates.getByRole('listitem')).toContainText(chronological.map(entry => entry.title));
+  await expect(updates.getByRole('link')).toHaveText(latestTitles.slice(0, 2));
+  await expect(updates).not.toContainText(/joined Apple/i);
   await expect(updates).not.toContainText(/\b(?:19|20)\d{2}\b/);
+});
+
+test('the Apple experience displays only the current employment status', async ({ page }) => {
+  await page.goto('/#about');
   const experience = page.getByRole('region', { name: 'Experience' });
-  await expect(experience.locator('time[datetime="2026-09-29"]')).toHaveText('Sep 29, 2026');
+  const apple = experience.getByRole('link', { name: 'Apple', exact: true }).locator('..');
+  await expect(apple.locator('span')).toHaveText('Present');
 });
