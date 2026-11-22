@@ -41,20 +41,9 @@ test('recent updates links to the latest posts without announcing the Apple role
   await expect(updates).not.toContainText(/\b(?:19|20)\d{2}\b/);
 });
 
-test('Apple experience shows completed years and months since joining', async ({ page }) => {
+test('the Apple experience displays only the current employment status', async ({ page }) => {
   await page.goto('/#about');
   const experience = page.getByRole('region', { name: 'Experience' });
   const apple = experience.getByRole('link', { name: 'Apple', exact: true }).locator('..');
-  for (const [date, tenure] of [
-    ['2025-10-28', 'Less than a month'],
-    ['2025-10-29', '1 month'],
-    ['2026-02-28', '5 months'],
-    ['2026-09-29', '1 year'],
-    ['2026-11-22', '1 year & 1 month'],
-    ['2026-11-29', '1 year & 2 months'],
-  ]) {
-    await page.clock.setFixedTime(date + 'T12:00:00');
-    await page.reload();
-    await expect(apple.locator('span')).toHaveText(tenure);
-  }
+  await expect(apple.locator('span')).toHaveText('Present');
 });
