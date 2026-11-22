@@ -36,3 +36,36 @@ test('only a paired, live workstation acknowledges jobs and only the reviewed co
  await assert.rejects(owner(submission),{status:503});
  assert.equal((await worker({op:'heartbeat',epoch:randomUUID()})).commands.length,0);
 });
+
+test('unlocking House grants submission for this project and reserves publishing for the owner',async()=>{
+ const cache=new Map();
+ const credentials=Object.fromEntries(['owner','worker','submitter'].map(role=>[role,randomBytes(32).toString('hex')]));
+ const keys=Object.fromEntries(Object.entries(credentials).map(([role,token])=>[role,createHash('sha256').update(token).digest('hex')]));
+ const relay=makeRelay({cache:{get:k=>cache.get(k)??null,set:(k,v)=>cache.set(k,v)},keys});
+ const owner=body=>relay(credentials.owner,body),worker=body=>relay(credentials.worker,body),submit=body=>relay(credentials.submitter,body);
+ const job=randomUUID(),epoch=randomUUID(),commit='e'.repeat(40),version='0.9';
+ await worker({op:'heartbeat',epoch});
+ assert.equal((await submit({op:'status'})).online,false);
+ await worker({op:'heartbeat',epoch,submitAccess:true});
+ await submit({op:'chunk',job,epoch,index:0,data:'a'.repeat(48),access:'owner'});
+ assert.equal((await worker({op:'getChunk',job,epoch,index:0})).data,null);
+ assert.equal((await worker({op:'getChunk',job,epoch,index:0,access:'submitter'})).data,'a'.repeat(48));
+ await submit({op:'submit',job,epoch,count:1,digest:'a'.repeat(64),access:'owner'});
+ assert.equal((await worker({op:'heartbeat',epoch,submitAccess:true})).commands[0].access,'submitter');
+ await assert.rejects(submit({op:'heartbeat',epoch}),{status:403});
+ await assert.rejects(submit({op:'state',job,stage:'review',commit,version}),{status:403});
+ await assert.rejects(submit({op:'getChunk',job,epoch,index:0}),{status:403});
+ const legacy=randomUUID();
+ await worker({op:'state',job:legacy,stage:'received'});
+ assert.equal((await submit({op:'read',job:legacy})).state,null);
+ await worker({op:'state',job,stage:'review',access:'submitter',commit,version,preview:'b'.repeat(48)});
+ assert.deepEqual((await submit({op:'status'})).recent,[]);
+ assert.equal((await submit({op:'read',job})).state.stage,'review');
+ assert.equal((await owner({op:'read',job})).state.preview,undefined);
+ assert.equal((await owner({op:'read',job,submissionPreviews:true})).state.preview,'b'.repeat(48));
+ const publish={op:'publish',job,epoch,commit,version,confirm:true};
+ await assert.rejects(submit({...publish,role:'owner'}),{status:403});
+ await assert.rejects(owner({...publish,commit:'a'.repeat(40)}),{status:409});
+ await owner(publish);
+ assert.equal((await worker({op:'heartbeat',epoch,submitAccess:true})).commands[0].op,'publish');
+});
