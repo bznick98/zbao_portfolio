@@ -32,7 +32,8 @@
     "1539ad7ca55db71d",
     "d1247f63d5d046bd",
     "ef8466c72aba0935",
-    "bdc26102daccb02f"
+    "bdc26102daccb02f",
+    "9ac76ecab6f632e0"
   ],
   "sourceMaterialsPreserved": true,
   "additionalDeliveries": {
@@ -50,6 +51,11 @@
       "deliveryId": "interactive-763f3ecc0f0f",
       "buildId": "bdc26102daccb02f",
       "manifestSha256": "46c6f104a343cc19c5114662b64e1d79a182b878c8b0324953015c234c5819f0"
+    },
+    "0.8": {
+      "deliveryId": "interactive-be392a8cda17",
+      "buildId": "9ac76ecab6f632e0",
+      "manifestSha256": "245bf97378d4aab11ebb77304106f19ae40f948e02899e596ad034562a625786"
     }
   }
 }

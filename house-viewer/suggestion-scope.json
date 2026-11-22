@@ -1,0 +1,6 @@
+{
+  "anchors": "Use the region and targetObjectKeys to find the location on the matching source model.",
+  "intent": "Read the full comment and attached references to decide whether the request concerns a surface, part, entire assembly, or a relationship across fixtures.",
+  "assembly": "Resolve the requested assembly through fixture records, assembly IDs and joins. A whole-island request on its top includes the body, base, supports and fittings. A top-only finish request stays on the top.",
+  "review": "Record the suggested scope, actual changed source IDs, constraints and before/after views per suggestion UUID. Treat incidental hits as context."
+}

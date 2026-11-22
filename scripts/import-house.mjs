@@ -50,6 +50,12 @@ export async function writeHouseViewer(delivery,manifest,temporary){
  main=integrate(main,"loadAsync('./assets/apartment.glb',",'loadAsync(window.__HOUSE_ASSETS.model,');
  main=integrate(main,"$('loading').remove();","$('loading').remove();parent.postMessage({type:'house:ready'},location.origin);");
  main=integrate(main,'console.error(error);',"parent.postMessage({type:'house:error'},location.origin);console.error(error);");
+ const storePath=path.join(temporary,'suggestion-store.js');
+ const store=await readFile(storePath,'utf8');
+ if(!store.includes('scopeResolution:')){
+   const guidance=await readFile(path.join(root,'house-viewer/suggestion-scope.json'),'utf8');
+   await writeFile(storePath,integrate(store,'    suggestions\n  };','    scopeResolution: '+JSON.stringify(JSON.parse(guidance))+',\n    suggestions\n  };'));
+ }
  await writeFile(path.join(temporary,'main.js'),main);
  let loader=(await checked(delivery,'revision-loader.js',manifest.files['revision-loader.js'])).toString();
  loader=integrate(loader,'const response=await fetch(url,{signal});',"const response=url.startsWith('house-asset:')?new Response(await window.__HOUSE_FETCH(url,signal)):await fetch(url,{signal});");
