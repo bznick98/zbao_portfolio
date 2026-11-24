@@ -22,6 +22,10 @@ For browser regression checks, install Chromium once with `npx playwright instal
 
 The site uses React and Vite, with Tailwind CSS compiled at build time. About uses the official GSAP React hook and respects reduced-motion preferences. Articles render locally with React Markdown and GitHub Flavored Markdown tables.
 
+## Develop pages and features
+
+The [development guide](docs/development.md) covers the repository layout, adding a page, the visual style (typography, colours, dark mode, motion), where styles go and which checks to run.
+
 ## Edit content
 
 - Add a post to the catalogue in `data/posts.ts`. Give it a title, publication date (`YYYY-MM-DD`), cover photograph, alt text and source links. Write the complete article in `content/posts/<slug>.md`. Put figures and papers in `public/blog/` and reference them with `/blog/…` URLs. Blog lists posts newest first. About combines the latest two with career updates in date order. Each article has a shareable URL at `/#blog/<slug>`.
