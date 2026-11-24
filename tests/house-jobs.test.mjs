@@ -69,3 +69,45 @@ test('unlocking House grants submission for this project and reserves publishing
  await owner(publish);
  assert.equal((await worker({op:'heartbeat',epoch,submitAccess:true})).commands[0].op,'publish');
 });
+
+test('a station behind Tailscale Funnel is rung instead of polled',async()=>{
+ const data=new Map(),time={now:10};
+ const cache={get:k=>data.get(k)?.expires>time.now?data.get(k).v:null,set:(k,v,o)=>data.set(k,{v,expires:time.now+o.ttl*1000})};
+ const creds=Object.fromEntries(['owner','worker'].map(k=>[k,randomBytes(32).toString('hex')]));
+ const keys=Object.fromEntries(Object.entries(creds).map(([k,v])=>[k,createHash('sha256').update(v).digest('hex')]));
+ const rings=[],bell={up:true};
+ const relay=makeRelay({cache,keys,now:()=>time.now,ring:async(url,action)=>{rings.push([url,action]);return bell.up;}});
+ const owner=b=>relay(creds.owner,b),worker=b=>relay(creds.worker,b);
+ const epoch=randomUUID(),job=randomUUID(),push='https://ppw.tail0000.ts.net/house-station/'+'c'.repeat(64);
+ for(const bad of ['http://ppw.tail0000.ts.net/'+'c'.repeat(64),'https://example.com/'+'c'.repeat(64),'https://ppw.tail0000.ts.net/short',
+  'https://ppw.tail0000.ts.net:22/'+'c'.repeat(64),'https://ppw.tail0000.ts.net/'+'c'.repeat(64)+'?x=1','https://u:p@ppw.tail0000.ts.net/'+'c'.repeat(64)])
+  await assert.rejects(worker({op:'heartbeat',epoch,push:bad}),{status:400},bad);
+ assert.equal((await worker({op:'heartbeat',epoch,push})).doorbell,true);
+ // Online is the doorbell's answer, checked once per 20 s and never shown to browsers.
+ const status=await owner({op:'status'});
+ assert.equal(status.online,true);assert.equal(JSON.stringify(status).includes('ts.net'),false);
+ await owner({op:'read',job});
+ assert.deepEqual(rings,[[push,'ping']]);
+ // A submission rings the doorbell; the command waits in its slot for the station's heartbeat.
+ await owner({op:'chunk',job,epoch,index:0,data:'a'.repeat(48)});
+ await owner({op:'submit',epoch,job,count:1,digest:'a'.repeat(64)});
+ assert.deepEqual(rings.at(-1),[push,'wake']);
+ // Five minutes later a lost ring is still collected by the fallback heartbeat.
+ time.now+=300000;
+ assert.equal((await worker({op:'heartbeat',epoch,push})).commands[0].job,job);
+ assert.equal((await worker({op:'getChunk',job,epoch,index:0})).data,'a'.repeat(48));
+ // A doorbell that stops answering makes the station offline within 20 s.
+ bell.up=false;time.now+=21000;
+ assert.equal((await owner({op:'status'})).online,false);
+ await assert.rejects(owner({op:'submit',epoch,job,count:1,digest:'a'.repeat(64)}),{status:503});
+ // Without a fallback heartbeat for 12 minutes the record expires.
+ bell.up=true;time.now+=700000;
+ assert.equal((await owner({op:'status'})).online,false);
+ // A station that heartbeats without a doorbell is polled as before.
+ assert.equal((await worker({op:'heartbeat',epoch})).doorbell,false);
+ const before=rings.length;
+ assert.equal((await owner({op:'status'})).online,true);
+ assert.equal(rings.length,before);
+ time.now+=80000;
+ assert.equal((await owner({op:'status'})).online,false);
+});
