@@ -10,8 +10,25 @@ const problem = (code,message) => Object.assign(new Error(message),{status:code}
 const ensure = (ok,code,message) => { if(!ok)throw problem(code,message); };
 const lane = id => parseInt(id.slice(0,2),16)%8;
 const ttl = 180;
+// A station behind Tailscale Funnel gives a doorbell URL and heartbeats every
+// five minutes; the relay rings it instead of waiting for the next poll.
+const POLLING = {fresh:75000, ttl:80, command:90000, slot:95};
+const PUSHED = {fresh:700000, ttl:720, command:590000, slot:600};
+export function doorbell(value) {
+  if(typeof value!=='string' || value.length>300)return null;
+  let url;try{url=new URL(value);}catch{return null;}
+  const ok=url.protocol==='https:' && /^[a-z0-9-]+(?:\.[a-z0-9-]+)*\.ts\.net$/.test(url.hostname) && ['','8443','10000'].includes(url.port)
+    && !url.username && !url.password && !url.search && !url.hash && /^(?:\/[A-Za-z0-9_-]+)*\/[a-f0-9]{64}$/.test(url.pathname);
+  return ok ? url.href : null;
+}
+async function fetchRing(url,action) {
+  try{
+    const r=await fetch(url+'/'+action,{method:action==='wake'?'POST':'GET',redirect:'error',cache:'no-store',signal:AbortSignal.timeout(2500)});
+    return r.ok;
+  }catch{return false;}
+}
 
-export function makeRelay({cache,keys,now=Date.now}) {
+export function makeRelay({cache,keys,now=Date.now,ring=fetchRing}) {
   return async function relay(token,body) {
     ensure(typeof token==='string' && token.length===64,401,'House access required.');
     const actual=fingerprint(token);
@@ -19,14 +36,29 @@ export function makeRelay({cache,keys,now=Date.now}) {
     ensure(role,403,'Unknown access credential.');
     const {op,job}=body??{};
     const session=await cache.get('station');
-    const online=session && now()-session.at<75000 && (role!=='submitter' || session.submitAccess===true);
+    const mode=session?.push?PUSHED:POLLING;
     const set=(name,value,duration=ttl)=>cache.set(name,value,{ttl:duration});
+    // A pushed station is online while its doorbell answers; the answer is reused for 20 s.
+    async function reachable() {
+      if(!session || now()-session.at>=mode.fresh)return false;
+      if(!session.push)return true;
+      const seen=await cache.get('reach');
+      if(seen?.epoch===session.epoch)return seen.ok;
+      const ok=await ring(session.push,'ping');
+      await set('reach',{epoch:session.epoch,ok},20);
+      return ok;
+    }
+    const online=op!=='heartbeat' && op!=='state' && op!=='getChunk' && await reachable() && (role!=='submitter' || session.submitAccess===true);
     if(op==='heartbeat') {
       ensure(role==='worker' && uuid(body.epoch),403,'Workstation required.');
-      await set('station',{epoch:body.epoch,at:now(),submitAccess:body.submitAccess===true},80);
-      if(!await cache.get('demand'))return {commands:[]};
+      const push=body.push===undefined?null:doorbell(body.push);
+      ensure(body.push===undefined || push,400,'Invalid doorbell.');
+      const next=push?PUSHED:POLLING;
+      await set('station',{epoch:body.epoch,at:now(),submitAccess:body.submitAccess===true,...(push?{push}:{})},next.ttl);
+      // `doorbell` tells the station it may slow its heartbeat to the fallback interval.
+      if(!await cache.get('demand'))return {commands:[],doorbell:!!push};
       const slots=await Promise.all(Array.from({length:8},(_,i)=>cache.get('slot-'+i)));
-      return {commands:slots.filter(c=>c && c.epoch===body.epoch && c.expires>now())};
+      return {commands:slots.filter(c=>c && c.epoch===body.epoch && c.expires>now()),doorbell:!!push};
     }
     if(op==='status')return {online:!!online,epoch:online?session.epoch:null,recent:role==='submitter'?[]:await cache.get('recent')??[]};
     ensure(uuid(job),400,'Invalid job.');
@@ -53,11 +85,12 @@ export function makeRelay({cache,keys,now=Date.now}) {
       await set('recent',[job,...recent.filter(x=>x!==job)].slice(0,8),86400);
       return {ok:true};
     }
-    ensure(online && session.epoch===body.epoch,503,'Workstation offline.');
     if(op==='getChunk') {
+      ensure(session && now()-session.at<mode.fresh && session.epoch===body.epoch,503,'Workstation offline.');
       ensure(role==='worker' && integer(body.index,96),403,'Workstation required.');
       return {data:await cache.get((body.access==='submitter'?'submission-':'')+job+'-'+body.index)};
     }
+    ensure(online && session.epoch===body.epoch,503,'Workstation offline.');
     ensure(role==='owner' || role==='submitter',403,'Submission access required.');
     if(op==='chunk') {
       ensure(integer(body.index,96) && envelope(body.data),400,'Invalid attachment part.');
@@ -65,7 +98,7 @@ export function makeRelay({cache,keys,now=Date.now}) {
       return {ok:true};
     }
     ensure(op==='submit'||op==='publish',400,'Invalid command.');
-    const cmd={job,op,epoch:session.epoch,expires:now()+90000};
+    const cmd={job,op,epoch:session.epoch,expires:now()+mode.command};
     if(op==='submit'){
       ensure(Number.isInteger(body.count)&&body.count>=1&&body.count<=96&&/^[0-9a-f]{64}$/.test(body.digest),400,'Invalid submission.');
       Object.assign(cmd,{access:role,count:body.count,digest:body.digest});
@@ -76,8 +109,9 @@ export function makeRelay({cache,keys,now=Date.now}) {
       Object.assign(cmd,{commit:state.commit,version:state.version});
     }
     // A slot is only a notification. The browser retries until the workstation's disk acknowledgement.
-    await set('slot-'+lane(job),cmd,95);
-    await set('demand',true,95);
+    await set('slot-'+lane(job),cmd,mode.slot);
+    await set('demand',true,mode.slot);
+    if(session.push && !await ring(session.push,'wake'))await set('reach',{epoch:session.epoch,ok:false},20);
     return {delivered:false};
   };
 }
