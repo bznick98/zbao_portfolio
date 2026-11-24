@@ -16,9 +16,7 @@ export default defineConfig(async ({ mode, command }) => {
       plugins: [tailwindcss(), react(), coffeeApi(env)],
       css: { postcss: { plugins: [] } },
       define: {
-        __PUBLISHED_GALLERY__: JSON.stringify(await prepareGallery(gallerySnapshot, command === 'build' ? env : {})),
-        'process.env.API_KEY': JSON.stringify(env.GEMINI_API_KEY),
-        'process.env.GEMINI_API_KEY': JSON.stringify(env.GEMINI_API_KEY)
+        __PUBLISHED_GALLERY__: JSON.stringify(await prepareGallery(gallerySnapshot, command === 'build' ? env : {}))
       },
       resolve: {
         alias: {
