@@ -29,12 +29,30 @@ const copy={
   optional:['optional','可选'],saveNote:['Save suggestion','保存建议'],
   places:['Places','位置'],show:['Show','查看'],addPlace:['+ Add another place','+ 再加一个位置'],addWhere:['Add another place','再加一个位置'],
   staged:['To send','待发送'],sent:['Sent','已发送'],editTitle:['Edit suggestion','编辑建议'],
+  attention:['Needs you','需要你处理'],progress:['In progress','进行中'],draft:['Drafts','草稿'],done:['Published','已发布'],
+  update:['Update','修改'],showModel:['Show in model','在模型中查看'],enlarge:['Enlarge preview','放大预览'],previewAlt:['Before and after','修改前后对比'],
   sentNote:['This suggestion is in a job ({status}). Saving puts the new version in To send; the job keeps the version it received.','这条建议已在任务中（{status}）。保存后新版本会进入“待发送”；任务仍使用它收到的版本。']
 };
 const tr=key=>copy[key][document.documentElement.lang.startsWith('zh')?1:0];
 // An integration (the website's workstation) may classify saved suggestions:
-// window.__HOUSE_SUGGESTION_STATUS(summary) -> {group:'staged'|'sent', text, tone}.
+// window.__HOUSE_SUGGESTION_STATUS(summary) -> {group:'attention'|'progress'|'draft'|'done', text, tone,
+//   note?, preview?:()=>Promise<url>, actions?:[{id,label,primary,pressed}]}, and
+// window.__HOUSE_SUGGESTION_ACTION(summary, actionId) runs an action.
 const statusOf=note=>{try{return window.__HOUSE_SUGGESTION_STATUS?.(note)||null;}catch{return null;}};
+const GROUP={staged:'draft',sent:'progress'};
+
+// A full-screen view of one preview image. Escape closes it without closing the panel.
+function lightbox(url,caption){
+  const shade=el('div');shade.className='sg-lightbox';shade.setAttribute('role','dialog');shade.setAttribute('aria-modal','true');shade.tabIndex=-1;
+  const img=el('img');img.src=url;img.alt=caption;
+  const close=el('button','×');close.type='button';close.setAttribute('aria-label',tr('close'));
+  const text=el('p',caption);
+  const done=()=>{document.removeEventListener('keydown',key,true);shade.remove();};
+  const key=e=>{if(e.key==='Escape'){e.stopPropagation();e.preventDefault();done();}};
+  close.onclick=done;shade.onclick=e=>{if(e.target===shade)done();};
+  document.addEventListener('keydown',key,true);
+  shade.append(close,img,text);document.body.append(shade);close.focus();
+}
 const allowed = /^image\/(jpeg|png|webp|gif|avif)$/;
 const stylesheet = document.createElement('link');
 stylesheet.rel='stylesheet'; stylesheet.href=new URL('./suggestions.css',import.meta.url);
@@ -73,9 +91,10 @@ export function installSuggestions({getContext,selectRevision,restorePose,clearI
   const header=el('header'),title=el('h2'),body=el('div'),message=el('p');
   title.id='suggestions-title';body.className='sg-body';message.className='sg-message';message.setAttribute('role','status');
   const close=button('close',dismiss,'suggestions-close');
-  // The footer survives re-renders; integrations such as the workstation fill it.
+  // The status bar and footer survive re-renders; integrations such as the workstation fill them.
+  const statusBar=el('div');statusBar.className='sg-statusbar';statusBar.id='suggestions-status';
   const footer=el('div');footer.className='sg-footer';footer.id='suggestions-footer';
-  header.append(title,close);panel.append(header,body,message,footer);dock.append(panel,bar);document.body.append(dock);
+  header.append(title,close);panel.append(header,statusBar,body,message,footer);dock.append(panel,bar);document.body.append(dock);
   const canvas=getContext().canvas,markers=pinMarkers(getContext().scene);canvas.tabIndex=-1;
   const ink=pinMarkers(getContext().scene,'Suggestion brush');
   let store,project,notes=[],ready=false,draft=null,dirty=false,busy=false,page='closed',active=null,kind='point',adding=false;
@@ -349,37 +368,72 @@ export function installSuggestions({getContext,selectRevision,restorePose,clearI
   function renderList(){
     if(!ready){body.append(button('retry',refresh));return;}
     const create=button('add',()=>beginPick(true),'suggestion-create');create.className='sg-primary';create.textContent='+ '+tr('add');
-    body.append(create);
     if(!notes.length){
       const steps=el('ol');steps.className='sg-steps';
       for(const key of ['step1','step2','step3'])steps.append(el('li',tr(key)));
       const empty=el('ol');empty.className='sg-list';
-      body.append(el('p',tr('intro')),steps,empty);return;
+      body.append(create,el('p',tr('intro')),steps,empty);return;
     }
     const here=model(),entries=[...notes].reverse();
     const current=entries.filter(n=>sameModel(n.model,here)),other=entries.filter(n=>!sameModel(n.model,here));
-    const classified=window.__HOUSE_SUGGESTION_STATUS?current.map(n=>[n,statusOf(n)]):null;
-    const groups=classified?[['staged',classified.filter(([,s])=>s?.group!=='sent').map(([n])=>n)],['sent',classified.filter(([,s])=>s?.group==='sent').map(([n])=>n)],['other',other]]
-      :[['current',current],['other',other]];
+    let groups;
+    if(window.__HOUSE_SUGGESTION_STATUS){
+      // What needs the viewer first, then work in progress, drafts, and finished suggestions.
+      const sorted={attention:[],progress:[],draft:[],done:[]};
+      for(const n of current){const s=statusOf(n);sorted[GROUP[s?.group]||s?.group||'draft']?.push(n)??sorted.draft.push(n);}
+      groups=[...Object.entries(sorted),['other',other]];
+    }else groups=[['current',current],['other',other]];
     for(const [key,group] of groups){
       if(!group.length)continue;
-      const heading=el('h3');heading.className='sg-group';heading.append(tr(key)+' ',el('span',String(group.length)));body.append(heading);
+      const heading=el('h3');heading.className='sg-group';heading.dataset.group=key;heading.append(tr(key)+' ',el('span',String(group.length)));body.append(heading);
       const list=el('ol');list.className='sg-list';list.dataset.group=key;body.append(list);
       renderItems(list,group);
     }
+    body.append(create);
     const exportButton=button('export',download,'suggestions-export');exportButton.className='sg-link';body.append(exportButton);
   }
+  async function showInModel(n){
+    if(busy)return;
+    try{
+      const note=await ensureStore().read(n.id);
+      if(!sameModel(note.model,model()) && note.model.revisionId)await selectRevision(note.model.revisionId,note.model.buildId);
+      if(sameModel(note.model,model())){active=n.id;goView(note.region.view);render();}
+    }catch{setMessage('storage');}
+  }
+  // One card per suggestion: what it says, where it stands, what was built, and what to do next.
   function renderItems(list,entries){
     for(const n of entries){
-      const item=el('li'),row=el('button');row.type='button';row.className='sg-item';item.dataset.suggestionId=n.id;
+      const s=statusOf(n);
+      const item=el('li'),row=el('button');row.type='button';row.className='sg-item';item.className='sg-card';item.dataset.suggestionId=n.id;
+      if(s?.tone)item.dataset.tone=s.tone;
       row.classList.toggle('selected',n.id===active);row.setAttribute('aria-expanded',String(n.id===draft?.id));
       const badge=el('span',String(number(n.id)));badge.className='sg-badge';
       const status=el('span');status.className='sg-status';
-      const known=statusOf(n);if(known?.text){status.textContent=known.text;if(known.tone)status.dataset.tone=known.tone;}
+      if(s?.text){status.textContent=s.text;if(s.tone)status.dataset.tone=s.tone;}
       const name=el('span');name.append(el('strong',n.title || n.text || tr(n.version?'imageNote':'newComment')),el('small',describe(n)),status);
       row.append(badge,name);row.onclick=()=>{if(draft?.id===n.id){cancelEdit();return;}edit(n);};
-      const del=button('del',()=>deleteSuggestion(n));del.className='sg-delete';del.setAttribute('aria-label',tr('del')+' #'+number(n.id));
-      item.append(row,del);list.append(item);
+      item.append(row);
+      if(s?.note){const note=el('p',s.note);note.className='sg-card-note';item.append(note);}
+      if(s?.preview){
+        const frame=button('enlarge',()=>{},'');frame.removeAttribute('id');frame.className='sg-preview';frame.textContent='';frame.setAttribute('aria-label',tr('enlarge')+' #'+number(n.id));frame.disabled=true;
+        item.append(frame);
+        s.preview().then(url=>{
+          if(!url){frame.remove();return;}
+          const img=el('img');img.src=url;img.alt=tr('previewAlt')+' #'+number(n.id);frame.append(img);frame.disabled=false;
+          frame.onclick=()=>lightbox(url,'#'+number(n.id)+' '+(n.title||''));
+        }).catch(()=>frame.remove());
+      }
+      const actions=el('div');actions.className='sg-card-actions';
+      for(const a of s?.actions||[]){
+        const b=el('button',a.label);b.type='button';b.className=a.primary?'sg-act sg-act-primary':'sg-act';
+        if(a.pressed!==undefined)b.setAttribute('aria-pressed',String(a.pressed));
+        b.onclick=()=>window.__HOUSE_SUGGESTION_ACTION?.(n,a.id);actions.append(b);
+      }
+      const update=button('update',()=>edit(n));update.className='sg-act';
+      const show=button('showModel',()=>showInModel(n));show.className='sg-act sg-quiet';
+      actions.append(update,show);
+      if(!s||(GROUP[s.group]||s.group)==='draft'){const del=button('del',()=>deleteSuggestion(n));del.className='sg-act sg-delete';del.setAttribute('aria-label',tr('del')+' #'+number(n.id));actions.append(del);}
+      item.append(actions);list.append(item);
     }
   }
   function render(){
@@ -395,7 +449,7 @@ export function installSuggestions({getContext,selectRevision,restorePose,clearI
     body.replaceChildren();setMessage('');
     if(picking)picker();else if(page==='edit')editor(body);else if(open)renderList();
     if(busy)for(const c of body.querySelectorAll('button,textarea,input'))c.disabled=true;
-    footer.hidden=page!=='list';
+    footer.hidden=page!=='list';statusBar.hidden=page!=='list';
     syncMarkers();
     // Integrations read saved suggestions and decorate list items through this event.
     document.dispatchEvent(new CustomEvent('house:suggestions',{detail:{page,ready,model:model(),notes:notes.map(n=>({id:n.id,version:n.version,number:number(n.id),model:n.model,text:n.title||''}))}}));

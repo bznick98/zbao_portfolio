@@ -151,3 +151,22 @@ test('a waiting Claude session shows its status to everyone and its link only to
  for(const bad of ['https://example.com/code/session_abc12345','http://claude.ai/code/session_018pP5iyfG6piHah','https://claude.ai/code/session_x'])
   await assert.rejects(worker({op:'state',job,stage:'waiting',session:{url:bad}}),{status:400},bad);
 });
+
+test('each suggestion has its own encrypted preview, readable by the job viewers only',async()=>{
+ const cache=new Map();
+ const credentials=Object.fromEntries(['owner','worker','submitter'].map(role=>[role,randomBytes(32).toString('hex')]));
+ const keys=Object.fromEntries(Object.entries(credentials).map(([role,token])=>[role,createHash('sha256').update(token).digest('hex')]));
+ const relay=makeRelay({cache:{get:k=>cache.get(k)??null,set:(k,v)=>cache.set(k,v)},keys});
+ const owner=b=>relay(credentials.owner,b),worker=b=>relay(credentials.worker,b),submit=b=>relay(credentials.submitter,b);
+ const job=randomUUID(),ownerJob=randomUUID(),note=randomUUID();
+ await worker({op:'state',job,access:'submitter',stage:'review',commit:'e'.repeat(40),version:'0.9',previewIds:[note]});
+ await worker({op:'putPreview',job,id:note,data:'p'.repeat(48)});
+ assert.deepEqual((await submit({op:'read',job})).state.previewIds,[note]);
+ assert.equal((await submit({op:'getPreview',job,id:note})).data,'p'.repeat(48));
+ assert.equal((await owner({op:'getPreview',job,id:note})).data,'p'.repeat(48));
+ await worker({op:'state',job:ownerJob,stage:'review',commit:'e'.repeat(40),version:'0.9'});
+ await assert.rejects(submit({op:'getPreview',job:ownerJob,id:note}),{status:404});
+ await assert.rejects(submit({op:'putPreview',job,id:note,data:'p'.repeat(48)}),{status:403});
+ await assert.rejects(worker({op:'putPreview',job,id:'../x',data:'p'.repeat(48)}),{status:400});
+ await assert.rejects(worker({op:'state',job,stage:'review',commit:'e'.repeat(40),version:'0.9',previewIds:['bad id']}),{status:400});
+});
