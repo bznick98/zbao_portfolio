@@ -136,3 +136,18 @@ test('job state carries its step, queue place, outcomes and a timed history',asy
  await assert.rejects(worker({op:'state',job,stage:'held',outcomes:[{id:'x',status:'maybe'}]}),{status:400});
  await assert.rejects(worker({op:'state',job,stage:'unknown'}),{status:403});
 });
+
+test('a waiting Claude session shows its status to everyone and its link only to the owner',async()=>{
+ const cache=new Map();
+ const credentials=Object.fromEntries(['owner','worker','submitter'].map(role=>[role,randomBytes(32).toString('hex')]));
+ const keys=Object.fromEntries(Object.entries(credentials).map(([role,token])=>[role,createHash('sha256').update(token).digest('hex')]));
+ const relay=makeRelay({cache:{get:k=>cache.get(k)??null,set:(k,v)=>cache.set(k,v)},keys});
+ const owner=b=>relay(credentials.owner,b),worker=b=>relay(credentials.worker,b),submit=b=>relay(credentials.submitter,b);
+ const job=randomUUID(),url='https://claude.ai/code/session_018pP5iyfG6piHahgjxf5s22';
+ await worker({op:'state',job,access:'submitter',stage:'waiting',step:'trying',message:'Rebuilding the island legs.',reason:'Claude needs a decision on the floor.',session:{url,name:'House job 1234abcd'}});
+ const seen=(await submit({op:'read',job})).state;
+ assert.equal(seen.stage,'waiting');assert.equal(seen.message,'Rebuilding the island legs.');assert.equal(seen.session,undefined);
+ assert.deepEqual((await owner({op:'read',job})).state.session,{url,name:'House job 1234abcd'});
+ for(const bad of ['https://example.com/code/session_abc12345','http://claude.ai/code/session_018pP5iyfG6piHah','https://claude.ai/code/session_x'])
+  await assert.rejects(worker({op:'state',job,stage:'waiting',session:{url:bad}}),{status:400},bad);
+});

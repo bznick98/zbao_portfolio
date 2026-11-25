@@ -129,3 +129,11 @@ progress { accent-color:var(--ink); height:3px; }
 .hs-outcomes li { grid-template-columns:20px 1fr auto; }
 .house-station .hs-edit { min-height:28px; padding:2px 10px; font-size:12px; align-self:start; }
 @media(prefers-reduced-motion:reduce) { .hs-spin { animation:none; } }
+
+/* Claude session status and link. */
+.hs-claude { padding:7px 10px; border-radius:6px; background:color-mix(in srgb,var(--ink) 7%,transparent); font-size:12px; }
+.hs-claude::before { content:'Claude · '; font-weight:600; }
+:root[lang^=zh] .hs-claude::before { content:'Claude：'; }
+.house-station .hs-session { justify-self:start; display:inline-flex; align-items:center; min-height:32px; padding:4px 12px; border:1px solid var(--line); border-radius:6px; color:var(--ink); text-decoration:none; font-size:12px; font-weight:600; }
+.house-station .hs-session::after { content:'↗'; margin-left:6px; }
+.house-station .hs-session[data-tone=attention] { background:#b4602f; border-color:#b4602f; color:#fff; }
