@@ -6,6 +6,7 @@ const integer = (n,max) => Number.isInteger(n) && n>=0 && n<max;
 // `held` means nothing could be built without the owner's input; the reason says what to decide.
 // `waiting`: the job's Claude session paused for the owner (a question, a permission or a plan limit).
 const stages = new Set(['received','designing','waiting','checking','review','publishing','published','held','failed']);
+const noteId = value => typeof value === 'string' && /^[A-Za-z0-9_-]{1,64}$/.test(value);
 const sessionUrl = value => typeof value === 'string' && /^https:\/\/claude\.ai\/code\/session_[A-Za-z0-9]{8,64}$/.test(value);
 const text = (value,max) => String(value??'').slice(0,max);
 function outcomes(value) {
@@ -74,6 +75,19 @@ export function makeRelay({cache,keys,now=Date.now,ring=fetchRing}) {
     }
     if(op==='status')return {online:!!online,epoch:online?session.epoch:null,recent:role==='submitter'?[]:await cache.get('recent')??[]};
     ensure(uuid(job),400,'Invalid job.');
+    // One encrypted before/after page per suggestion, read on demand by the same viewers as the job.
+    if(op==='putPreview'){
+      ensure(role==='worker',403,'Workstation required.');
+      ensure(noteId(body.id) && envelope(body.data),400,'Invalid preview.');
+      await set('preview-'+job+'-'+body.id,body.data,86400*7);
+      return {ok:true};
+    }
+    if(op==='getPreview'){
+      ensure(noteId(body.id),400,'Invalid preview.');
+      const state=await cache.get('job-'+job);
+      ensure(state && (role==='owner' || (role==='submitter' && state.access==='submitter')),404,'No preview.');
+      return {data:await cache.get('preview-'+job+'-'+body.id)};
+    }
     if(op==='read'){
       let state=await cache.get('job-'+job);
       if(role==='submitter' && state?.access!=='submitter')state=null;
@@ -94,6 +108,7 @@ export function makeRelay({cache,keys,now=Date.now,ring=fetchRing}) {
       if(Number.isInteger(body.queue))state.queue=body.queue;
       if(body.reason)state.reason=text(body.reason,1200);
       const results=outcomes(body.outcomes);if(results)state.outcomes=results;
+      if(body.previewIds!==undefined){ensure(Array.isArray(body.previewIds)&&body.previewIds.length<=32&&body.previewIds.every(noteId),400,'Invalid previews.');state.previewIds=body.previewIds;}
       if(Number.isFinite(body.receivedAt))state.receivedAt=body.receivedAt;
       if(body.message)state.message=text(body.message,400);
       // The session link opens the owner's Claude account; only owner reads return it.
