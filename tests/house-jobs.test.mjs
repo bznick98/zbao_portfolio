@@ -111,3 +111,28 @@ test('a station behind Tailscale Funnel is rung instead of polled',async()=>{
  time.now+=80000;
  assert.equal((await owner({op:'status'})).online,false);
 });
+
+test('job state carries its step, queue place, outcomes and a timed history',async()=>{
+ const data=new Map(),time={now:1000};
+ const cache={get:k=>data.get(k)?.expires>time.now?data.get(k).v:null,set:(k,v,o)=>data.set(k,{v,expires:time.now+o.ttl*1000})};
+ const creds=Object.fromEntries(['owner','worker','submitter'].map(k=>[k,randomBytes(32).toString('hex')]));
+ const keys=Object.fromEntries(Object.entries(creds).map(([k,v])=>[k,createHash('sha256').update(v).digest('hex')]));
+ const relay=makeRelay({cache,keys,now:()=>time.now});
+ const worker=b=>relay(creds.worker,b),submit=b=>relay(creds.submitter,b);
+ const job=randomUUID(),note=randomUUID();
+ await worker({op:'state',job,access:'submitter',stage:'received',queue:1,receivedAt:900});
+ time.now+=5000;await worker({op:'state',job,access:'submitter',stage:'designing',step:'planning',queue:null});
+ time.now+=5000;await worker({op:'state',job,access:'submitter',stage:'designing',step:'planning'});
+ time.now+=5000;
+ await worker({op:'state',job,access:'submitter',stage:'held',reason:'Choose the board size.',
+  outcomes:[{id:note,status:'review',text:'Larger teak boards','note':'Floor is not editable yet.'}]});
+ const {state}=await submit({op:'read',job});
+ assert.equal(state.stage,'held');assert.equal(state.reason,'Choose the board size.');
+ assert.equal(state.queue,undefined);assert.equal(state.receivedAt,undefined);
+ assert.deepEqual(state.outcomes,[{id:note,status:'review',text:'Larger teak boards',note:'Floor is not editable yet.'}]);
+ assert.deepEqual(state.history.map(h=>[h.stage,h.step,h.at]),[['received',null,1000],['designing','planning',6000],['held',null,16000]]);
+ await assert.rejects(worker({op:'state',job,stage:'held',step:'Bad Step'}),{status:400});
+ await assert.rejects(worker({op:'state',job,stage:'held',queue:-1}),{status:400});
+ await assert.rejects(worker({op:'state',job,stage:'held',outcomes:[{id:'x',status:'maybe'}]}),{status:400});
+ await assert.rejects(worker({op:'state',job,stage:'unknown'}),{status:403});
+});
