@@ -4,7 +4,9 @@ const fingerprint = value => createHash('sha256').update(value).digest();
 const uuid = value => typeof value === 'string' && /^[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}$/.test(value);
 const integer = (n,max) => Number.isInteger(n) && n>=0 && n<max;
 // `held` means nothing could be built without the owner's input; the reason says what to decide.
-const stages = new Set(['received','designing','checking','review','publishing','published','held','failed']);
+// `waiting`: the job's Claude session paused for the owner (a question, a permission or a plan limit).
+const stages = new Set(['received','designing','waiting','checking','review','publishing','published','held','failed']);
+const sessionUrl = value => typeof value === 'string' && /^https:\/\/claude\.ai\/code\/session_[A-Za-z0-9]{8,64}$/.test(value);
 const text = (value,max) => String(value??'').slice(0,max);
 function outcomes(value) {
   if(value===undefined || value===null)return undefined;
@@ -75,6 +77,7 @@ export function makeRelay({cache,keys,now=Date.now,ring=fetchRing}) {
     if(op==='read'){
       let state=await cache.get('job-'+job);
       if(role==='submitter' && state?.access!=='submitter')state=null;
+      if(role!=='owner' && state?.session){const {session,...visible}=state;state=visible;}
       if(role==='owner' && state?.access==='submitter' && !body.submissionPreviews){
         const {preview,...metadata}=state;
         state=metadata;
@@ -92,6 +95,9 @@ export function makeRelay({cache,keys,now=Date.now,ring=fetchRing}) {
       if(body.reason)state.reason=text(body.reason,1200);
       const results=outcomes(body.outcomes);if(results)state.outcomes=results;
       if(Number.isFinite(body.receivedAt))state.receivedAt=body.receivedAt;
+      if(body.message)state.message=text(body.message,400);
+      // The session link opens the owner's Claude account; only owner reads return it.
+      if(body.session){ensure(sessionUrl(body.session.url),400,'Invalid session.');state.session={url:body.session.url,name:text(body.session.name,80)};}
       // Each stage or step change is kept with its time so viewers can follow the job.
       const history=previous?.history??[];
       if(previous?.stage!==state.stage || previous?.step!==step)history.push({stage:state.stage,step,at:now()});

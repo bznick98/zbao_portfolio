@@ -21,13 +21,14 @@ function action(text,onclick,className){const node=el('button',text,className);n
 const ACTIVE=new Set(['received','designing','checking','publishing']);
 const STEPS={
  validating:['Checking the submission','检查提交'],inspecting:['Reading the model','读取模型'],planning:['Planning the design','规划方案'],
+ trying:['Trying the changes','试做修改'],waiting:['Waiting for the owner','等待站主'],
  modeling:['Changing the model','修改模型'],freezing:['Freezing the revision','冻结版本'],building:['Building the web model','生成网页模型'],
  rendering:['Rendering comparisons','渲染对比图'],packaging:['Packaging the delivery','打包交付'],report:['Writing the report','生成报告'],
  website:['Preparing the website update','准备网站更新'],'site-check':['Testing the website','测试网站'],push:['Pushing the commit','推送提交'],
  preview:['Waiting for the Vercel preview','等待 Vercel 预览'],merge:['Merging','合并'],production:['Checking zbao.art','核对正式站'],
 };
 // Steps a job reports, in order, for progress.
-export const DESIGN_STEPS=['validating','inspecting','planning','modeling','freezing','building','rendering','packaging','report','website','site-check'];
+export const DESIGN_STEPS=['validating','inspecting','planning','trying','modeling','freezing','building','rendering','packaging','report','website','site-check'];
 export const PUBLISH_STEPS=['push','preview','merge','production'];
 // Step number, total and fraction done for a running job.
 export function progressOf(state){
@@ -46,7 +47,7 @@ export function phaseOf(state){
  if(!state)return 0;
  switch(state.stage){
   case 'received':return 1;
-  case 'designing':return !state.step||['validating','inspecting','planning'].includes(state.step)?2:3;
+  case 'designing':case 'waiting':return !state.step||['validating','inspecting','planning','trying','waiting'].includes(state.step)?2:3;
   case 'checking':return 4;
   case 'review':return 5;
   case 'publishing':return 6;
@@ -67,6 +68,7 @@ export function statusOf(state,owner,brief=false){
   case 'publishing':return [!brief&&stepText(state.step)||label('Publishing','发布中'),'active'];
   case 'published':return [label('Published','已发布'),'done'];
   case 'held':return [label('Needs your input','需要你确认'),'attention'];
+  case 'waiting':return [owner?label('Needs you in Claude','需要你在 Claude 中处理'):label('Waiting for the owner','等待站主'),'attention'];
   case 'failed':return [label('Stopped','已停止'),'error'];
   default:return [state.stage,'active'];
  }
@@ -221,7 +223,7 @@ export function installWorkstation(catalog,privacy,submission){
  function featured(){
   const jobs=[...states.entries()].filter(([,s])=>s);
   const pick=test=>jobs.filter(([,s])=>test(s)).sort((a,b)=>(b[1].updated??0)-(a[1].updated??0))[0];
-  return pick(s=>['designing','checking','publishing'].includes(s.stage))||pick(s=>s.stage==='received')
+  return pick(s=>['designing','checking','publishing'].includes(s.stage))||pick(s=>s.stage==='waiting')||pick(s=>s.stage==='received')
    ||pick(s=>s.stage==='held'||(s.stage==='review'&&owner))||pick(s=>s.stage==='review');
  }
  function jobStart(state){return state?.history?.[0]?.at??state?.receivedAt??state?.updated;}
@@ -233,11 +235,13 @@ export function installWorkstation(catalog,privacy,submission){
   const count=state.outcomes?.length??records().find(r=>r.job===entry[0])?.notes?.length??0;
   if(state.stage==='received'){liveTitle.textContent=statusOf(state,!!owner)[0];}
   else if(running){liveTitle.textContent=stepText(state.step)||statusOf(state,!!owner)[0];}
+  else if(state.stage==='waiting')liveTitle.textContent=owner?label('Claude needs you — open the session','Claude 需要你处理，请打开会话'):label('Claude is waiting for the owner','Claude 在等站主');
   else liveTitle.textContent=state.stage==='review'?(owner?label(`Revision ${state.version} is ready for your approval`,`版本 ${state.version} 等待你批准`):label(`Revision ${state.version} is waiting for owner approval`,`版本 ${state.version} 等待站主批准`)):label('A job needs your input','有任务需要你确认');
   const parts=[];
   if(running&&state.stage!=='received')parts.push(label(`Step ${progress.index} of ${progress.total}`,`第 ${progress.index}/${progress.total} 步`));
   if(running)parts.push(duration(Date.now()-jobStart(state)));
   if(count)parts.push(label(`${count} suggestion${count>1?'s':''}`,`${count} 条建议`));
+  if(state.message&&(running||state.stage==='waiting'))parts.unshift(state.message);
   liveMeta.textContent=parts.join(' · ');
   liveBar.hidden=!running;liveFill.style.width=Math.round(progress.fraction*100)+'%';
   live.setAttribute('aria-label',liveTitle.textContent+'. '+liveMeta.textContent);
@@ -368,7 +372,9 @@ export function installWorkstation(catalog,privacy,submission){
    item.append(el('span',stepText(step)),el('small',i>=0&&end?duration(end-history[i].at):'','hs-muted'));
    list.append(item);
   }
-  box.append(head,bar,disclosure('steps:'+state.job,label('All steps','全部步骤'),list,'hs-steps'));
+  box.append(head,bar);
+  if(state.message)box.append(el('p',state.message,'hs-claude'));
+  box.append(disclosure('steps:'+state.job,label('All steps','全部步骤'),list,'hs-steps'));
   return box;
  }
  function card(job,state,record){
@@ -380,8 +386,14 @@ export function installWorkstation(catalog,privacy,submission){
    record?.revisionId||state?.version?`${label('rev','版本')} ${record?.revisionId??'?'}${state?.version?' → '+state.version:''}`:''].filter(Boolean).join(' · '));
   const when=el('small',ago(record?.sentAt??state?.receivedAt??state?.updated),'hs-muted');
   top.append(chip,name,when);article.append(top);
-  const running=state&&['designing','checking','publishing'].includes(state.stage);
+  const running=state&&['designing','checking','publishing','waiting'].includes(state.stage);
   if(running)article.append(progressPanel(state));else article.append(timeline(state));
+  // The owner can watch or continue the job's Claude session in the Claude app or claude.ai.
+  if(owner&&state?.session?.url&&['designing','waiting','held','failed','review'].includes(state.stage)){
+   const open=el('a',state.stage==='waiting'?label('Open in Claude to continue','在 Claude 中打开并继续'):label('Open the Claude session','打开 Claude 会话'),'hs-session');
+   open.href=state.session.url;open.target='_blank';open.rel='noopener';open.dataset.tone=state.stage==='waiting'?'attention':'';
+   article.append(open);
+  }
   if(state?.reason)article.append(el('p',state.reason,state.stage==='held'?'hs-reason hs-attention':'hs-reason'));
   // Per-suggestion outcomes, falling back to what this device sent.
   const outcomes=state?.outcomes??(record?.notes??[]).map(n=>({id:n.id,text:n.text,status:null}));
@@ -432,6 +444,7 @@ export function installWorkstation(catalog,privacy,submission){
    }else if(owner)actions.append(el('p',offlineText(),'hs-muted'));
    else actions.append(el('p',label('The owner reviews the result before anything is published.','站主确认结果后才会发布。'),'hs-muted'));
   }
+  if(state?.stage==='waiting'&&!owner)actions.append(el('p',label('Claude paused for the owner. The job continues once the owner answers.','Claude 暂停了，等站主处理后会继续。'),'hs-muted'));
   if(state?.stage==='held')actions.append(el('p',label('Edit the flagged suggestions in the Suggestions panel, then send them again.','在建议面板中修改标出的建议，然后重新发送。'),'hs-muted'));
   if(state?.pr){const a=el('a',label('View pull request','查看 PR'));a.href=state.pr;a.target='_blank';a.rel='noopener';actions.append(a);}
   if(actions.childNodes.length)article.append(actions);
@@ -451,7 +464,7 @@ export function installWorkstation(catalog,privacy,submission){
   title.textContent=label('Workstation','工作站');
   pill.textContent=submitOnline||online?label('Online','在线'):label('Offline','离线');pill.dataset.tone=submitOnline||online?'done':'error';
   lede.textContent=label('The workstation plans and builds a new revision from your suggestions. The owner approves it before anything is published on zbao.art.','工作站会根据你的建议规划并建出新版本。站主批准后才会在 zbao.art 上发布。');
-  ownerHeading.textContent=owner?label('Owner access active','站主权限已启用'):label('Owner publishing access','站主发布权限');
+  ownerHeading.textContent=owner?label('Signed in as owner','已用站主身份登录'):label('Owner sign-in · approve publishing','站主登录 · 批准发布');
   upload.setAttribute('aria-label',label('Choose the owner pairing file','选择站主配对文件'));
   upload.hidden=!!owner;
   renderSend();
@@ -463,7 +476,7 @@ export function installWorkstation(catalog,privacy,submission){
   const sections=[
    [label('Now running','正在运行'),ids.filter(job=>['designing','checking','publishing'].includes(stage(job)))],
    [label('Waiting in queue','排队中'),ids.filter(job=>!states.get(job)||stage(job)==='received')],
-   [label('Needs attention','待处理'),ids.filter(job=>['review','held'].includes(stage(job)))],
+   [label('Needs attention','待处理'),ids.filter(job=>['waiting','review','held'].includes(stage(job)))],
    [label('History','历史'),ids.filter(job=>['published','failed'].includes(stage(job)))],
   ];
   const nodes=[];
