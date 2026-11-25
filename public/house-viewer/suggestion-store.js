@@ -1,4 +1,4 @@
-import {displayRegion} from './suggestion-region.js';
+import {displayRegions,noteRegions} from './suggestion-region.js';
 const encoder = new TextEncoder();
 const decoder = new TextDecoder();
 const request = req => new Promise((resolve,reject) => {
@@ -49,8 +49,8 @@ export function openSuggestions(projectId, privacy) {
   const recentFirst=(a,b)=>b.updatedAt.localeCompare(a.updatedAt);
   function summary(note){
     return {id:note.id,version:note.version,createdAt:note.createdAt,updatedAt:note.updatedAt,model:note.model,
-      title:note.text.slice(0,180)||note.referenceImages[0]?.name,shape:displayRegion(note.region),
-      region:{roomIds:note.region.roomIds,view:{mode:note.region.view.mode}}};
+      title:note.text.slice(0,180)||note.referenceImages[0]?.name,shape:displayRegions(noteRegions(note)),places:noteRegions(note).length,
+      region:{roomIds:[...new Set(noteRegions(note).flatMap(r=>r.roomIds||[]))],view:{mode:note.region.view.mode}}};
   }
   const legacy=new Map();
   async function change(id,expectedVersion,apply){
@@ -103,8 +103,13 @@ export function exportSuggestions(projectId,suggestions) {
     schema:'layout2house.suggestions',schemaVersion:5,projectId,exportedAt:new Date().toISOString(),
     coordinates:{unit:'metre',world:'Three.js Y-up',blender:'Z-up; [world.x, -world.z, world.y]',
       uv:'normalized canvas; top-left origin',quaternion:'Three.js [x,y,z,w]',matrices:'Three.js column-major'},
-    interpretation:'Match the model identity before applying. For surface-pins, each region.points entry is a user tap on the visible surface. Match its number to its markedView image and its camera. world and blender are the hit in metres; local is in the intersected mesh or instance space. object identifies its CAD source or node path. Several pins can address different parts of one object. The text specifies the extent of the change. For surface-stroke, follow segments in order. Each segment identifies one mesh and instance. Each ordered point has its Blender position, mesh-local position and exported triangle. Barycentric weights follow the exported triangle vertex order when available. The brush width is visual. A stroke locates the request; a loop does not by itself specify a filled region. For model-object, anchor is the tapped surface, members lists every selected mesh path and optional instanceId, and boundsWorld is its world-space bounding box in metres. The marked view shows the whole selected object. For surface-area or legacy rectangle notes, use the marked rectangle, camera and visible surface samples; the region may cover parts of multiple objects. Object identifiers locate the sampled surfaces. GLB paths, triangle indices and local coordinates belong to this build. Resolve the CAD or stable identifier in the source Blender scene, then verify the position and original viewpoint. Use the comment to determine the intended modification. Read the original text and referenceImages for design intent.',
-    scopeResolution: {"anchors":"Use the region and targetObjectKeys to find the location on the matching source model.","intent":"Read the full comment and attached references to decide whether the request concerns a surface, part, entire assembly, or a relationship across fixtures.","assembly":"Resolve the requested assembly through fixture records, assembly IDs and joins. A whole-island request on its top includes the body, base, supports and fittings. A top-only finish request stays on the top.","review":"Record the suggested scope, actual changed source IDs, constraints and before/after views per suggestion UUID. Treat incidental hits as context."},
+    interpretation:'Match the model identity before applying. For surface-pins, each region.points entry is a user tap on the visible surface. Match its number to its markedView image and its camera. world and blender are the hit in metres; local is in the intersected mesh or instance space. object identifies its CAD source or node path. Several pins can address different parts of one object. The text specifies the extent of the change. For surface-stroke, follow segments in order. Each segment identifies one mesh and instance. Each ordered point has its Blender position, mesh-local position and exported triangle. Barycentric weights follow the exported triangle vertex order when available. The brush width is visual. A stroke locates the request; a loop does not by itself specify a filled region. For model-object, anchor is the tapped surface, members lists every selected mesh path and optional instanceId, and boundsWorld is its world-space bounding box in metres. The marked view shows the whole selected object. For surface-area or legacy rectangle notes, use the marked rectangle, camera and visible surface samples; the region may cover parts of multiple objects. Object identifiers locate the sampled surfaces. GLB paths, triangle indices and local coordinates belong to this build. Resolve the CAD or stable identifier in the source Blender scene, then verify the position and original viewpoint. Use the comment to determine the intended modification. Read the original text and referenceImages for design intent. extraRegions, when present, lists more places for the same suggestion; read each like region, with its own camera and markedView.',
+    scopeResolution: {
+      anchors: 'Use the region and targetObjectKeys to find the location on the matching source model.',
+      intent: 'Read the full comment and attached references to decide whether the request concerns a surface, part, entire assembly, or a relationship across fixtures.',
+      assembly: 'Resolve the requested assembly through fixture records, assembly IDs and joins. A whole-island request on its top includes the body, base, supports and fittings. A top-only finish request stays on the top.',
+      review: 'Record the suggested scope, actual changed source IDs, constraints and before/after views per suggestion UUID. Treat incidental hits as context.',
+    },
     suggestions
   };
 }
