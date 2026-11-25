@@ -26,8 +26,20 @@ const STEPS={
  website:['Preparing the website update','准备网站更新'],'site-check':['Testing the website','测试网站'],push:['Pushing the commit','推送提交'],
  preview:['Waiting for the Vercel preview','等待 Vercel 预览'],merge:['Merging','合并'],production:['Checking zbao.art','核对正式站'],
 };
+// Steps a job reports, in order, for progress.
+export const DESIGN_STEPS=['validating','inspecting','planning','modeling','freezing','building','rendering','packaging','report','website','site-check'];
+export const PUBLISH_STEPS=['push','preview','merge','production'];
+// Step number, total and fraction done for a running job.
+export function progressOf(state){
+ const steps=state?.stage==='publishing'?PUBLISH_STEPS:DESIGN_STEPS;
+ if(!state||state.stage==='received')return {index:0,total:steps.length,fraction:0,steps};
+ const index=Math.max(0,steps.indexOf(state.step));
+ return {index:index+1,total:steps.length,fraction:(index+.5)/steps.length,steps};
+}
+const duration=ms=>{const s=Math.max(0,Math.round(ms/1000)),m=Math.floor(s/60);return m>=60?`${Math.floor(m/60)}:${String(m%60).padStart(2,'0')}:${String(s%60).padStart(2,'0')}`:`${m}:${String(s%60).padStart(2,'0')}`;};
 const PHASES=[['Sent','已发送'],['Queued','排队'],['Planning','规划'],['Building','建模'],['Checking','检查'],['Approval','批准'],['Publishing','发布'],['Live','上线']];
 const stepText=step=>STEPS[step]?label(...STEPS[step]):'';
+export {duration};
 
 // Index of the timeline phase a job has reached.
 export function phaseOf(state){
@@ -123,18 +135,35 @@ export function installWorkstation(catalog,privacy,submission){
   const revision=catalog.revisions.find(r=>r.revisionId===current?.revisionId);
   return {current,revision};
  }
- // Saved notes on the shown build that are new or edited since their last live submission.
- async function sendable(){
+ // The latest submission that carried each suggestion.
+ function latestSent(){
+  const latest=new Map();
+  for(const r of [...records()].sort((a,b)=>(a.sentAt??0)-(b.sentAt??0)))for(const n of r.notes??[])latest.set(n.id,{record:r,version:n.version});
+  return latest;
+ }
+ // Where a saved suggestion stands. Staged suggestions go in the next send:
+ // new, edited since sent, or returned because their job stopped or could not build them.
+ function classify(note,latest=latestSent()){
+  const sent=latest.get(note.id);
+  if(!sent)return {group:'staged',text:'',tone:''};
+  if(sent.version!==note.version)return {group:'staged',text:label('Edited since sent','发送后已修改'),tone:''};
+  const state=states.get(sent.record.job);
+  if(!state)return {group:'sent',text:label('Sending','发送中'),tone:'active'};
+  const outcome=state.outcomes?.find(o=>o.id===note.id);
+  if(state.stage==='failed')return {group:'staged',text:label('Job stopped · send again','任务已停止 · 可重新发送'),tone:'attention'};
+  if(state.stage==='held'||outcome?.status==='review')return {group:'staged',text:label('Not built · needs your input','未建模 · 需要你确认'),tone:'attention'};
+  if(state.stage==='published')return {group:'sent',text:label(`Built in ${state.version}`,`已建入 ${state.version}`),tone:'done'};
+  const [text,tone]=statusOf(state,!!owner);
+  return {group:'sent',text,tone:tone==='error'?'attention':tone};
+ }
+ window.__HOUSE_SUGGESTION_STATUS=note=>classify(note);
+ // Summaries are enough to count and list; only a send reads full notes with their images.
+ async function sendable(full=false){
   const {current,revision}=currentBuild();
   if(!revision)return {notes:[],revisionId:current?.revisionId};
-  const list=await store.all();
-  const sent=new Set();
-  for(const r of records()){
-   if(['failed','held'].includes(states.get(r.job)?.stage))continue;
-   for(const n of r.notes??[])sent.add(n.id+'@'+n.version);
-  }
+  const list=await (full?store.all():store.list()),latest=latestSent();
   const onBuild=list.filter(n=>n.model.revisionDigest===revision.revisionDigest&&n.model.buildId===current.buildId);
-  return {notes:onBuild.filter(n=>!sent.has(n.id+'@'+n.version)),all:onBuild,revisionId:revision.revisionId};
+  return {notes:onBuild.filter(n=>classify(n,latest).group==='staged'),all:onBuild,revisionId:revision.revisionId};
  }
 
  // ---- Footer in the Suggestions panel ----
@@ -149,7 +178,8 @@ export function installWorkstation(catalog,privacy,submission){
  footer.append(footStatus,footActions);
  let pending={notes:[]},lastLoad=0,loading=null;
  async function refresh(force){
-  if(loading)return loading;
+  // A forced refresh (new owner access, a send) must not reuse a load that started before it.
+  if(loading){if(!force)return loading;await loading.catch(()=>{});return refresh(true);}
   if(!force&&Date.now()-lastLoad<(anyActive()?8000:20000))return;
   loading=(async()=>{try{await load();lastLoad=Date.now();}catch{online=false;}finally{loading=null;}pending=await sendable().catch(()=>({notes:[]}));paint();})();
   return loading;
@@ -166,33 +196,61 @@ export function installWorkstation(catalog,privacy,submission){
   jobsBadge.textContent=attention?label(` · ${attention} need you`,` · ${attention} 待处理`):active?label(` · ${active} running`,` · ${active} 进行中`):'';
   jobsBadge.dataset.tone=attention?'attention':active?'active':'';
  }
- // Each saved suggestion shows what happened to it.
- function paintItems(){
-  const latest=new Map();
-  for(const r of [...records()].reverse())for(const n of r.notes??[])latest.set(n.id,{record:r,version:n.version});
-  for(const item of panel.querySelectorAll('[data-suggestion-id]')){
-   const slot=item.querySelector('.sg-status');if(!slot)continue;
-   const sent=latest.get(item.dataset.suggestionId);
-   const note=lastNotes.find(n=>n.id===item.dataset.suggestionId);
-   if(!sent){slot.textContent='';continue;}
-   const state=states.get(sent.record.job);
-   let [text,tone]=statusOf(state,!!owner);
-   const outcome=state?.outcomes?.find(o=>o.id===item.dataset.suggestionId);
-   if(outcome?.status==='review'){text=label('Needs your input','需要你确认');tone='attention';}
-   else if(state?.stage==='published'&&outcome?.status==='built'){text=label(`Built in ${state.version}`,`已建入 ${state.version}`);}
-   if(note&&note.version!==sent.version){text=label('Edited since sent','发送后已修改');tone='';}
-   slot.textContent=text;slot.dataset.tone=tone==='error'?'attention':tone;
-  }
- }
  let lastNotes=[];
- function paint(){paintFooter();paintItems();if(modal.open)renderDialog();}
+ function paint(){
+  paintFooter();paintLive();
+  document.dispatchEvent(new Event('house:suggestions-refresh'));
+  if(modal.open)renderDialog();
+  scheduleLive();
+ }
  async function recount(){pending=await sendable().catch(()=>({notes:[]}));paintFooter();}
  document.addEventListener('house:suggestions',event=>{
   lastNotes=event.detail?.notes??[];
-  if(event.detail?.page==='list'){void recount();void refresh(false);paintItems();}
+  if(event.detail?.page==='list'){void recount();void refresh(false);}
  });
  // Older viewers without the footer slot or render event: refresh when the panel opens.
  new MutationObserver(()=>{if(!panel.hidden)void refresh(false);}).observe(panel,{attributes:true,attributeFilter:['hidden']});
+
+ // ---- Live strip above the Suggestions button ----
+ // While a job runs, it shows the step, progress and elapsed time without opening anything.
+ const live=action('',()=>openDialog(false),'hs-live');live.id='house-station-live';live.hidden=true;
+ const liveDot=el('span',null,'hs-spin'),liveText=el('span',null,'hs-live-text'),liveTitle=el('strong'),liveMeta=el('small'),liveBar=el('span',null,'hs-live-bar'),liveFill=el('i');
+ liveText.append(liveTitle,liveMeta);liveBar.append(liveFill);live.append(liveDot,liveText,liveBar);
+ const dock=panel.closest('.sg-dock');
+ if(dock)dock.insertBefore(live,dock.querySelector('.sg-bar'));else document.body.append(live);
+ function featured(){
+  const jobs=[...states.entries()].filter(([,s])=>s);
+  const pick=test=>jobs.filter(([,s])=>test(s)).sort((a,b)=>(b[1].updated??0)-(a[1].updated??0))[0];
+  return pick(s=>['designing','checking','publishing'].includes(s.stage))||pick(s=>s.stage==='received')
+   ||pick(s=>s.stage==='held'||(s.stage==='review'&&owner))||pick(s=>s.stage==='review');
+ }
+ function jobStart(state){return state?.history?.[0]?.at??state?.receivedAt??state?.updated;}
+ function paintLive(){
+  const entry=featured();
+  live.hidden=!entry;if(!entry)return;
+  const [,state]=entry,running=ACTIVE.has(state.stage),progress=progressOf(state);
+  live.dataset.tone=running?'active':'attention';
+  const count=state.outcomes?.length??records().find(r=>r.job===entry[0])?.notes?.length??0;
+  if(state.stage==='received'){liveTitle.textContent=statusOf(state,!!owner)[0];}
+  else if(running){liveTitle.textContent=stepText(state.step)||statusOf(state,!!owner)[0];}
+  else liveTitle.textContent=state.stage==='review'?(owner?label(`Revision ${state.version} is ready for your approval`,`版本 ${state.version} 等待你批准`):label(`Revision ${state.version} is waiting for owner approval`,`版本 ${state.version} 等待站主批准`)):label('A job needs your input','有任务需要你确认');
+  const parts=[];
+  if(running&&state.stage!=='received')parts.push(label(`Step ${progress.index} of ${progress.total}`,`第 ${progress.index}/${progress.total} 步`));
+  if(running)parts.push(duration(Date.now()-jobStart(state)));
+  if(count)parts.push(label(`${count} suggestion${count>1?'s':''}`,`${count} 条建议`));
+  liveMeta.textContent=parts.join(' · ');
+  liveBar.hidden=!running;liveFill.style.width=Math.round(progress.fraction*100)+'%';
+  live.setAttribute('aria-label',liveTitle.textContent+'. '+liveMeta.textContent);
+ }
+ // While a job runs: tick the clock every second and ask the relay every 5 s.
+ let liveTick=0,liveFetch=0;
+ function scheduleLive(){
+  const running=anyActive();
+  if(running&&!liveTick)liveTick=setInterval(paintLive,1000);
+  if(!running&&liveTick){clearInterval(liveTick);liveTick=0;}
+  clearTimeout(liveFetch);
+  if(running&&!modal.open)liveFetch=setTimeout(()=>void refresh(true),5000);
+ }
 
  // ---- Jobs dialog ----
  const modal=el('dialog',null,'house-station');modal.setAttribute('aria-labelledby','hs-title');document.body.append(modal);
@@ -228,7 +286,7 @@ export function installWorkstation(catalog,privacy,submission){
   else{
    box.push(el('p',label(`${count} suggestion${count>1?'s':''} on revision ${pending.revisionId} ready to send:`,`版本 ${pending.revisionId} 上有 ${count} 条建议可以发送：`),'hs-send-title'));
    const list=el('ol',null,'hs-send-list');
-   for(const n of pending.notes){const number=lastNotes.find(x=>x.id===n.id)?.number;const item=el('li',n.text||label('Image reference','图片建议'));if(number)item.value=number;list.append(item);}
+   for(const n of pending.notes){const number=lastNotes.find(x=>x.id===n.id)?.number;const item=el('li',n.title||n.text||label('Image reference','图片建议'));if(number)item.value=number;list.append(item);}
    box.push(list);
   }
   const send=action(sendStage||label(`Send ${count} to the workstation`,`发送 ${count} 条到工作站`),()=>guard(submit),'hs-primary');
@@ -238,7 +296,7 @@ export function installWorkstation(catalog,privacy,submission){
   sendBox.replaceChildren(...box);
  }
  async function submit(){
-  const {notes,revisionId}=await sendable();
+  const {notes,revisionId}=await sendable(true);
   if(!notes.length)throw Error(label('Nothing new to send on this revision.','这个版本没有新的建议要发送。'));
   const live=await api({op:'status'});if(!live.online)throw Error(offlineText());
   const bundle=exportSuggestions(catalog.projectId,notes);delete bundle.exportedAt;
@@ -291,6 +349,28 @@ export function installWorkstation(catalog,privacy,submission){
   node.ontoggle=()=>{if(node.open)expanded.add(key);else expanded.delete(key);};
   node.append(el('summary',summary),content);return node;
  }
+ // The running job's progress: bar, step N of M, elapsed time and a checklist with durations.
+ function progressPanel(state){
+  const box=el('div',null,'hs-progress'),{index,total,fraction,steps}=progressOf(state);
+  const started=jobStart(state),history=state.history??[];
+  const head=el('div',null,'hs-progress-head');
+  head.append(el('strong',stepText(state.step)||statusOf(state,!!owner)[0]),
+   el('small',label(`Step ${index} of ${total} · ${duration(Date.now()-started)} elapsed`,`第 ${index}/${total} 步 · 已用 ${duration(Date.now()-started)}`),'hs-muted'));
+  const bar=el('div',null,'hs-bar'),fill=el('i');fill.style.width=Math.round(fraction*100)+'%';bar.append(fill);
+  bar.setAttribute('role','progressbar');bar.setAttribute('aria-valuemin','0');bar.setAttribute('aria-valuemax',String(total));bar.setAttribute('aria-valuenow',String(index));
+  const list=el('ol',null,'hs-checklist');
+  const at=step=>history.findIndex(h=>h.step===step);
+  for(const step of steps){
+   const i=at(step),item=el('li'),current=step===state.step;
+   const done=i>=0&&!current&&steps.indexOf(step)<steps.indexOf(state.step);
+   item.dataset.state=current?'current':done?'done':'todo';
+   const end=current?Date.now():history[i+1]?.at;
+   item.append(el('span',stepText(step)),el('small',i>=0&&end?duration(end-history[i].at):'','hs-muted'));
+   list.append(item);
+  }
+  box.append(head,bar,disclosure('steps:'+state.job,label('All steps','全部步骤'),list,'hs-steps'));
+  return box;
+ }
  function card(job,state,record){
   const article=el('article',null,'hs-job');article.dataset.stage=state?.stage??'sending';
   const top=el('div',null,'hs-job-top'),[text,tone]=statusOf(state,!!owner,true);
@@ -299,11 +379,9 @@ export function installWorkstation(catalog,privacy,submission){
   const name=el('strong',[count?label(`${count} suggestion${count>1?'s':''}`,`${count} 条建议`):label('Job','任务'),
    record?.revisionId||state?.version?`${label('rev','版本')} ${record?.revisionId??'?'}${state?.version?' → '+state.version:''}`:''].filter(Boolean).join(' · '));
   const when=el('small',ago(record?.sentAt??state?.receivedAt??state?.updated),'hs-muted');
-  top.append(chip,name,when);article.append(top,timeline(state));
-  if(state&&ACTIVE.has(state.stage)&&state.step){
-   const since=[...(state.history??[])].reverse().find(h=>h.step===state.step)?.at;
-   article.append(el('p',stepText(state.step)+(since?label(` · since ${clock(since)}`,` · ${clock(since)} 开始`):''),'hs-now'));
-  }
+  top.append(chip,name,when);article.append(top);
+  const running=state&&['designing','checking','publishing'].includes(state.stage);
+  if(running)article.append(progressPanel(state));else article.append(timeline(state));
   if(state?.reason)article.append(el('p',state.reason,state.stage==='held'?'hs-reason hs-attention':'hs-reason'));
   // Per-suggestion outcomes, falling back to what this device sent.
   const outcomes=state?.outcomes??(record?.notes??[]).map(n=>({id:n.id,text:n.text,status:null}));
@@ -313,10 +391,16 @@ export function installWorkstation(catalog,privacy,submission){
     const number=record?.notes?.find(n=>n.id===o.id)?.number??lastNotes.find(n=>n.id===o.id)?.number;
     const item=el('li');item.dataset.status=o.status??'sent';
     const mark=el('span',o.status==='built'?'✓':o.status==='review'?'!':'·','hs-mark');
-    const body=el('span');body.append(el('span',(number?'#'+number+' ':'')+(o.text||label('Image reference','图片建议'))));
+    const body=el('span',null,'hs-body');body.append(el('span',(number?'#'+number+' ':'')+(o.text||label('Image reference','图片建议'))));
     if(o.status==='built')body.append(el('small',label('Built','已建模'),'hs-muted'));
     if(o.status==='review')body.append(el('small',label('Not built — ','未建模——')+(o.note||label('needs your decision.','需要你确认。'))));
-    item.append(mark,body);list.append(item);
+    item.append(mark,body);
+    // A suggestion saved on this device can be reopened, edited and staged again.
+    if(lastNotes.some(n=>n.id===o.id)){
+     const editing=action(label('Edit','编辑'),()=>{modal.close();document.dispatchEvent(new CustomEvent('house:edit-suggestion',{detail:{id:o.id}}));},'hs-edit');
+     editing.setAttribute('aria-label',label('Edit suggestion','编辑建议')+(number?' #'+number:''));item.append(editing);
+    }
+    list.append(item);
    }
    article.append(list);
   }
@@ -361,7 +445,7 @@ export function installWorkstation(catalog,privacy,submission){
  let shown='';
  function renderDialog(){
   // Rebuild only when something visible changed, so reading and focus are not disturbed.
-  const signature=JSON.stringify([[...states],owner?1:0,online,submitOnline,pending.notes.map(n=>n.id+n.version),working,confirming,sendStage,document.documentElement.lang,Math.floor(Date.now()/60000)]);
+  const signature=JSON.stringify([[...states],owner?1:0,online,submitOnline,pending.notes.map(n=>n.id+n.version),working,confirming,sendStage,document.documentElement.lang,Math.floor(Date.now()/(anyActive()?5000:60000))]);
   if(signature===shown&&jobsBox.childNodes.length)return;
   shown=signature;
   title.textContent=label('Workstation','工作站');
@@ -375,12 +459,20 @@ export function installWorkstation(catalog,privacy,submission){
   const ids=[...new Set([...mine.keys(),...ownerRecent])].filter(job=>states.get(job)||mine.get(job)?.sentAt);
   const time=job=>mine.get(job)?.sentAt??states.get(job)?.receivedAt??states.get(job)?.updated??0;
   ids.sort((a,b)=>time(b)-time(a));
-  const active=ids.filter(job=>{const s=states.get(job);return !s||ACTIVE.has(s.stage)||s.stage==='review'||s.stage==='held';});
-  const done=ids.filter(job=>!active.includes(job));
+  const stage=job=>states.get(job)?.stage;
+  const sections=[
+   [label('Now running','正在运行'),ids.filter(job=>['designing','checking','publishing'].includes(stage(job)))],
+   [label('Waiting in queue','排队中'),ids.filter(job=>!states.get(job)||stage(job)==='received')],
+   [label('Needs attention','待处理'),ids.filter(job=>['review','held'].includes(stage(job)))],
+   [label('History','历史'),ids.filter(job=>['published','failed'].includes(stage(job)))],
+  ];
   const nodes=[];
   if(!ids.length)nodes.push(el('p',label('No jobs yet. Sent suggestions appear here with their progress.','还没有任务。发送的建议会在这里显示进度。'),'hs-muted'));
-  if(active.length){nodes.push(el('h3',label('In progress and waiting','进行中和待处理')));for(const job of active)nodes.push(card(job,states.get(job),mine.get(job)));}
-  if(done.length){nodes.push(el('h3',label('History','历史')));for(const job of done)nodes.push(card(job,states.get(job),mine.get(job)));}
+  for(const [heading,jobs] of sections){
+   if(!jobs.length)continue;
+   nodes.push(el('h3',heading));
+   for(const job of jobs)nodes.push(card(job,states.get(job),mine.get(job)));
+  }
   jobsBox.replaceChildren(...nodes);
   for(const button of modal.querySelectorAll('.hs-actions button'))button.disabled=working;
   if(modal.open&&!modal.contains(document.activeElement))modal.focus({preventScroll:true});
@@ -391,7 +483,8 @@ export function installWorkstation(catalog,privacy,submission){
   if(cred.schema!==1||cred.role!=='owner'||cred.project!==catalog.projectId||![cred.token,cred.key].every(t=>typeof t==='string'&&/^[a-f0-9]{64}$/.test(t)))throw Error(label('Choose the owner pairing file.','请选择站主配对文件。'));
   await api({op:'status'},cred.token);
   const key=await crypto.subtle.importKey('raw',Uint8Array.from(cred.key.match(/../g),v=>parseInt(v,16)),{name:'AES-GCM'},false,['encrypt','decrypt']);
-  owner={token:cred.token,key};ownerTools.open=false;await refresh(true);
+  owner={token:cred.token,key};ownerTools.open=false;
+  void refresh(true);
  });
  new MutationObserver(()=>paint()).observe(document.documentElement,{attributes:true,attributeFilter:['lang']});
  void refresh(true);

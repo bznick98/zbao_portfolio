@@ -71,7 +71,7 @@ progress { accent-color:var(--ink); height:3px; }
 .hs-reason.hs-attention { border-left-color:#b4602f; }
 .hs-outcomes { list-style:none; margin:0; padding:0; display:grid; gap:6px; }
 .hs-outcomes li { display:grid; grid-template-columns:20px 1fr; gap:6px; align-items:start; }
-.hs-outcomes li>span:last-child { display:grid; gap:1px; min-width:0; }
+.hs-outcomes .hs-body { display:grid; gap:1px; min-width:0; }
 .hs-outcomes small { font-size:12px; }
 .hs-mark { display:grid; place-items:center; width:18px; height:18px; border-radius:50%; font-size:11px; font-weight:700; border:1px solid var(--line); }
 .hs-outcomes [data-status=built] .hs-mark { background:#2f6f55; border-color:#2f6f55; color:#fff; }
@@ -95,3 +95,37 @@ progress { accent-color:var(--ink); height:3px; }
 .hs-count[data-tone=attention] { color:#e89a6a; font-weight:600; }
 :root[data-theme=light] .hs-count[data-tone=attention] { color:#9c4a2b; }
 @media(max-width:520px) { .hs-timeline { grid-template-columns:repeat(4,1fr); row-gap:8px; } .house-station { padding:0 14px 14px; } }
+
+/* Live job strip above the Suggestions button. */
+.hs-live { pointer-events:auto; box-sizing:border-box; width:100%; display:grid; grid-template-columns:auto 1fr; align-items:center; gap:2px 10px; padding:8px 12px 9px; text-align:start; font:inherit; color:var(--ink); background:var(--panel); border:1px solid var(--line); border-radius:12px; box-shadow:0 3px 14px #0003; cursor:pointer; }
+.hs-live[hidden] { display:none; }
+.hs-live:hover { background:color-mix(in srgb,var(--panel) 85%,var(--ink)); }
+.hs-live[data-tone=attention] { border-color:#b4602f; }
+.hs-live-text { display:grid; gap:1px; min-width:0; }
+.hs-live-text strong { font-size:13px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.hs-live-text small { font-size:11px; color:var(--muted); font-variant-numeric:tabular-nums; }
+.hs-spin { width:10px; height:10px; border-radius:50%; background:#d39a4c; box-shadow:0 0 0 0 #d39a4c88; animation:hs-pulse 1.6s ease-out infinite; }
+.hs-live[data-tone=attention] .hs-spin { background:#b4602f; animation:none; }
+@keyframes hs-pulse { 0% { box-shadow:0 0 0 0 #d39a4c88; } 80%,100% { box-shadow:0 0 0 8px #d39a4c00; } }
+.hs-live-bar { grid-column:1 / -1; height:3px; margin-top:5px; border-radius:2px; background:color-mix(in srgb,var(--ink) 14%,transparent); overflow:hidden; }
+.hs-live-bar[hidden] { display:none; }
+.hs-live-bar i,.hs-bar i { display:block; height:100%; background:#d39a4c; transition:width .6s ease; }
+
+/* Running job card. */
+.hs-progress { display:grid; gap:6px; }
+.hs-progress-head { display:flex; align-items:baseline; justify-content:space-between; gap:10px; flex-wrap:wrap; }
+.hs-progress-head strong { font-size:15px; }
+.hs-progress-head small { font-variant-numeric:tabular-nums; }
+.hs-bar { height:6px; border-radius:3px; background:color-mix(in srgb,var(--ink) 14%,transparent); overflow:hidden; }
+.hs-steps summary { cursor:pointer; color:var(--muted); font-size:12px; }
+.hs-checklist { list-style:none; margin:6px 0 0; padding:0; display:grid; gap:3px; font-size:12px; }
+.hs-checklist li { display:flex; justify-content:space-between; gap:10px; padding-inline-start:20px; position:relative; color:var(--muted); }
+.hs-checklist li::before { content:'○'; position:absolute; left:2px; }
+.hs-checklist li[data-state=done] { color:var(--ink); }
+.hs-checklist li[data-state=done]::before { content:'✓'; color:#3f9a72; }
+.hs-checklist li[data-state=current] { color:var(--ink); font-weight:600; }
+.hs-checklist li[data-state=current]::before { content:'●'; color:#d39a4c; }
+.hs-checklist small { font-variant-numeric:tabular-nums; }
+.hs-outcomes li { grid-template-columns:20px 1fr auto; }
+.house-station .hs-edit { min-height:28px; padding:2px 10px; font-size:12px; align-self:start; }
+@media(prefers-reduced-motion:reduce) { .hs-spin { animation:none; } }

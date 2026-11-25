@@ -269,6 +269,12 @@ export function captureArea(ctx,rect,number){
 
 // Build the highlight from adjacent visible hits on the same surface.
 // A window opening or a jump from a cabinet to a wall must leave a gap.
+// A suggestion may mark several places; its markers combine every place's shape.
+export function displayRegions(regions){
+  const shapes=regions.filter(Boolean).map(displayRegion);
+  return {pins:shapes.flatMap(s=>s.pins),patches:shapes.flatMap(s=>s.patches),members:shapes.flatMap(s=>s.members||[])};
+}
+export function noteRegions(note){return [note.region,...(note.extraRegions||[])];}
 export function displayRegion(region){
   if(region.kind==='surface-stroke')return {pins:[{world:region.anchor.world,path:region.anchor.object.path}],patches:region.segments.map(strokePatch)};
   if(region.kind==='model-object')return {pins:[{world:region.anchor.world,path:region.anchor.object.path}],patches:[],members:region.members};

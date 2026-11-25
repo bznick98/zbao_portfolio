@@ -1,4 +1,4 @@
-import {capturePin,startSurfaceStroke,captureStroke,captureObject,displayRegion,modelIdentity,sameModel,pinMarkers} from './suggestion-region.js';
+import {capturePin,startSurfaceStroke,captureStroke,captureObject,displayRegions,noteRegions,modelIdentity,sameModel,pinMarkers} from './suggestion-region.js';
 import {openSuggestions,exportSuggestions} from './suggestion-store.js';
 import {roomText} from './i18n.js';
 
@@ -16,9 +16,25 @@ const copy={
   unavailable:['Open the original build to change this location.','请打开原模型版本后再修改位置。'],
   conflict:['Reopen this suggestion to see edits from another tab.','此建议已在其他标签页修改，请重新打开。'],
   discard:['Discard unsaved changes?','放弃未保存的修改？'],
-  loading:['Loading…','正在读取…'],retry:['Retry','重试'],export:['Export JSON','导出 JSON'],newComment:['New comment','新评论']
+  loading:['Loading…','正在读取…'],retry:['Retry','重试'],export:['Export JSON','导出 JSON'],newComment:['New comment','新评论'],
+  intro:['Mark a place in the model and describe the change. Suggestions are saved on this device until you send them.','在模型上标出位置并写下想改什么。建议先保存在这台设备上，发送后才会处理。'],
+  step1:['Choose New suggestion, then tap the model.','点“新增建议”，再点模型上的位置。'],
+  step2:['Describe the change. Reference images help.','写下想怎么改，可附参考图。'],
+  step3:['Send your suggestions to the workstation.','把建议发送到工作站。'],
+  current:['This revision','当前版本'],other:['Other revisions','其他版本'],
+  where:['Where should it change?','要改哪里？'],
+  objectSub:['A cabinet, bed or fixture','柜子、床或固定家具'],pointSub:['One spot on any surface','任意表面上的一点'],drawSub:['Trace an area','圈出一片区域'],
+  location:['Location','位置'],what:['What should change?','想怎么改？'],
+  placeholder:['For example: make the island 20 cm longer with an oak top.','例如：岛台加长 20 cm，台面换成橡木。'],
+  optional:['optional','可选'],saveNote:['Save suggestion','保存建议'],
+  places:['Places','位置'],show:['Show','查看'],addPlace:['+ Add another place','+ 再加一个位置'],addWhere:['Add another place','再加一个位置'],
+  staged:['To send','待发送'],sent:['Sent','已发送'],editTitle:['Edit suggestion','编辑建议'],
+  sentNote:['This suggestion is in a job ({status}). Saving puts the new version in To send; the job keeps the version it received.','这条建议已在任务中（{status}）。保存后新版本会进入“待发送”；任务仍使用它收到的版本。']
 };
 const tr=key=>copy[key][document.documentElement.lang.startsWith('zh')?1:0];
+// An integration (the website's workstation) may classify saved suggestions:
+// window.__HOUSE_SUGGESTION_STATUS(summary) -> {group:'staged'|'sent', text, tone}.
+const statusOf=note=>{try{return window.__HOUSE_SUGGESTION_STATUS?.(note)||null;}catch{return null;}};
 const allowed = /^image\/(jpeg|png|webp|gif|avif)$/;
 const stylesheet = document.createElement('link');
 stylesheet.rel='stylesheet'; stylesheet.href=new URL('./suggestions.css',import.meta.url);
@@ -57,10 +73,12 @@ export function installSuggestions({getContext,selectRevision,restorePose,clearI
   const header=el('header'),title=el('h2'),body=el('div'),message=el('p');
   title.id='suggestions-title';body.className='sg-body';message.className='sg-message';message.setAttribute('role','status');
   const close=button('close',dismiss,'suggestions-close');
-  header.append(title,close);panel.append(header,body,message);dock.append(panel,bar);document.body.append(dock);
+  // The footer survives re-renders; integrations such as the workstation fill it.
+  const footer=el('div');footer.className='sg-footer';footer.id='suggestions-footer';
+  header.append(title,close);panel.append(header,body,message,footer);dock.append(panel,bar);document.body.append(dock);
   const canvas=getContext().canvas,markers=pinMarkers(getContext().scene);canvas.tabIndex=-1;
   const ink=pinMarkers(getContext().scene,'Suggestion brush');
-  let store,project,notes=[],ready=false,draft=null,dirty=false,busy=false,page='closed',active=null,kind='point';
+  let store,project,notes=[],ready=false,draft=null,dirty=false,busy=false,page='closed',active=null,kind='point',adding=false;
   let sourceModel,gesture=null,drawing=null,loadId=0,teleportUntil=0;
   const fingers=new Set();
   const byCreation=(a,b)=>a.createdAt.localeCompare(b.createdAt)||a.id.localeCompare(b.id);
@@ -96,22 +114,24 @@ export function installSuggestions({getContext,selectRevision,restorePose,clearI
     if(document.pointerLockElement)document.exitPointerLock();
     page='list';render();refresh();
   }
-  function beginPick(isNew){
+  // `add` picks one more place for the open suggestion instead of replacing its first place.
+  function beginPick(isNew,add=false){
     if(busy||!ready)return;
+    adding=!isNew&&add;
     if(isNew){if(!clean())return;draft=null;dirty=false;active=null;}
     if(document.pointerLockElement)document.exitPointerLock();
-    kind=isNew || draft.region.kind==='model-object'?'object':draft.region.points?'point':'draw';
+    kind=isNew || adding || draft.region.kind==='model-object'?'object':draft.region.points?'point':'draw';
     stopPick();fingers.clear();clearInput();getContext().tools?.setMeasuring(false);
     sourceModel=model();page='pick';render();
   }
-  function cancelPick(){stopPick();page=draft?'edit':'list';render();}
+  function cancelPick(){stopPick();adding=false;page=draft?'edit':'list';render();}
   function cancelEdit(){if(busy||!clean())return;draft=null;dirty=false;page='list';render();}
   function number(id){const i=notes.findIndex(n=>n.id===id);return i<0?notes.length+1:i+1;}
   function syncMarkers(){
     const current=model();
     const entries=notes.filter(n=>sameModel(n.model,current)&&n.id!==draft?.id)
       .map(n=>({id:n.id,number:number(n.id),active:n.id===active,shape:n.shape}));
-    if(located())entries.push({id:draft.id,number:number(draft.id),active:true,shape:displayRegion(draft.region)});
+    if(located())entries.push({id:draft.id,number:number(draft.id),active:true,shape:displayRegions(noteRegions(draft))});
     markers.set(entries);markers.update(getContext());
   }
   function goView(view){
@@ -135,7 +155,9 @@ export function installSuggestions({getContext,selectRevision,restorePose,clearI
     stopPick();
     if(!region){setMessage('miss');return;}
     if(!draft)draft={id:crypto.randomUUID(),createdAt:new Date().toISOString(),version:0,model:sourceModel,text:'',referenceImages:[]};
-    draft.region=region;draft.targetObjectKeys=keys;active=draft.id;dirty=true;page='edit';render();
+    if(adding){draft.extraRegions=[...(draft.extraRegions||[]),region];draft.targetObjectKeys=[...new Set([...(draft.targetObjectKeys||[]),...keys])];}
+    else{draft.region=region;draft.targetObjectKeys=[...new Set([...keys,...(draft.extraRegions||[]).flatMap(regionKeys)])];}
+    adding=false;active=draft.id;dirty=true;page='edit';render();
     body.querySelector('textarea')?.focus({preventScroll:true});
   }
   function selectAt(uv){
@@ -222,11 +244,16 @@ export function installSuggestions({getContext,selectRevision,restorePose,clearI
   canvas.addEventListener('pointercancel',cancelPointer,true);canvas.addEventListener('lostpointercapture',cancelPointer);
   window.addEventListener('blur',()=>{fingers.clear();stopPick();});
   document.getElementById('measure-toggle').addEventListener('click',()=>{if(page==='pick')cancelPick();},true);
-  document.addEventListener('keydown',e=>{if(e.key==='Escape' && page!=='closed'&&!busy){if(page==='pick')cancelPick();else if(page==='edit')cancelEdit();else dismiss();}});
+  document.addEventListener('keydown',e=>{if(e.key==='Escape' && page!=='closed'&&!busy&&!document.querySelector('dialog:modal')){if(page==='pick')cancelPick();else if(page==='edit')cancelEdit();else dismiss();}});
+  function roomNames(ids){return (ids||[]).map(id=>getContext().data.rooms?.find(r=>r.id===id)?.name).filter(Boolean).map(roomText);}
   function describe(note){
-    const rooms=note.region.roomIds.map(id=>getContext().data.rooms?.find(r=>r.id===id)?.name).filter(Boolean).map(roomText);
-    return [note.model.revisionId && 'rev '+note.model.revisionId,...rooms].filter(Boolean).join(' · ');
+    const places=note.places>1?tr('places').toLowerCase()+' '+note.places:'';
+    return [note.model.revisionId && 'rev '+note.model.revisionId,...roomNames(note.region.roomIds),places].filter(Boolean).join(' · ');
   }
+  function regionKeys(region){
+    return [region.object?.key,...(region.segments||[]).map(s=>s.object?.key),...(region.points||[]).map(p=>p.object?.key)].filter(Boolean);
+  }
+  function kindName(region){return tr(region.kind==='model-object'?'object':region.points?'point':region.kind==='surface-stroke'?'draw':'area');}
   async function save(){
     if(busy||!draft)return;
     if(!draft.text.trim()&&!draft.referenceImages.length){setMessage('content');return;}
@@ -275,17 +302,36 @@ export function installSuggestions({getContext,selectRevision,restorePose,clearI
   }
 
   function picker(){
-    const choices=el('div');choices.className='sg-kinds';choices.setAttribute('role','group');
-    for(const key of ['point','draw','object']){
+    const choices=el('div');choices.className='sg-kinds';choices.setAttribute('role','group');choices.setAttribute('aria-label',tr('where'));
+    for(const key of ['object','point','draw']){
       const choice=button(key,()=>{kind=key;stopPick();render();},'suggestion-'+key);
+      choice.replaceChildren(el('strong',tr(key)),el('small',tr(key+'Sub')));
       choice.setAttribute('aria-pressed',String(kind===key));choices.append(choice);
     }
-    body.append(choices,el('p',tr(kind==='object'?'objectHint':kind==='point'?'pointHint':'drawHint')));
+    const hint=el('p',tr(kind==='object'?'objectHint':kind==='point'?'pointHint':'drawHint'));hint.className='sg-hint';
+    body.append(choices,hint);
   }
   function editor(parent){
     const form=el('div');form.className='sg-editor';parent.append(form);
-    const label=el('label',tr('text')),input=el('textarea');input.id='suggestion-text';input.rows=3;input.value=draft.text;
+    const status=draft.version?statusOf(draft):null;
+    if(status?.group==='sent'){const note=el('p',tr('sentNote').replace('{status}',status.text));note.className='sg-note';form.append(note);}
+    const places=el('div');places.className='sg-places';
+    const heading=el('p',tr('places'));heading.className='sg-label';places.append(heading);
+    const list=el('ol');
+    for(const [i,region] of noteRegions(draft).entries()){
+      const row=el('li'),name=el('span');
+      name.append(el('strong',kindName(region)),el('small',roomNames(region.roomIds).join(' · ')||(draft.model.revisionId?'rev '+draft.model.revisionId:'')));
+      const show=button('show',()=>{if(located())goView(region.view);});show.disabled=!located();
+      row.append(name,show);
+      if(i===0){const change=button('change',()=>beginPick(false),'suggestion-redraw');change.disabled=!located();row.append(change);}
+      else row.append(button('remove',()=>{draft.extraRegions.splice(i-1,1);draft.targetObjectKeys=[...new Set(noteRegions(draft).flatMap(regionKeys))];dirty=true;render();}));
+      list.append(row);
+    }
+    const add=button('addPlace',()=>beginPick(false,true),'suggestion-add-place');add.className='sg-link';add.disabled=!located();
+    places.append(list,add);form.append(places);
+    const label=el('label',tr('what')),input=el('textarea');input.id='suggestion-text';input.rows=3;input.value=draft.text;input.placeholder=tr('placeholder');
     input.oninput=()=>{draft.text=input.value;dirty=true;};label.append(input);form.append(label);
+    const photos=el('p');photos.className='sg-label';photos.append(tr('photos')+' ',el('small','('+tr('optional')+')'));form.append(photos);
     const file=el('input');file.type='file';file.multiple=true;file.id='suggestion-files';file.hidden=true;
     file.accept='image/jpeg,image/png,image/webp,image/gif,image/avif';file.onchange=()=>attach(file.files);
     const drop=button('drop',()=>file.click(),'suggestion-drop');drop.className='sg-drop';
@@ -297,25 +343,44 @@ export function installSuggestions({getContext,selectRevision,restorePose,clearI
       const row=el('div'),thumb=el('img');row.className='sg-photo';thumb.src=image.dataUrl;thumb.alt=image.name;
       row.append(thumb,el('span',image.name),button('remove',()=>{draft.referenceImages.splice(i,1);dirty=true;render();}));form.append(row);
     }
-    const actions=el('div');actions.className='sg-actions';actions.append(button('save',save,'suggestion-save'));
-    const change=button('change',()=>beginPick(false),'suggestion-redraw');change.disabled=!located();actions.append(change);form.append(actions);
+    const actions=el('div');actions.className='sg-actions';actions.append(button('saveNote',save,'suggestion-save'),button('cancel',cancelEdit));form.append(actions);
     if(draft.version)actions.append(button('del',()=>deleteSuggestion(draft),'suggestion-delete'));
   }
   function renderList(){
     if(!ready){body.append(button('retry',refresh));return;}
-    const entries=[...notes].reverse();
-    if(!entries.length)body.append(el('p',tr('empty')));
-    const list=el('ol');list.className='sg-list';body.append(list);
+    const create=button('add',()=>beginPick(true),'suggestion-create');create.className='sg-primary';create.textContent='+ '+tr('add');
+    body.append(create);
+    if(!notes.length){
+      const steps=el('ol');steps.className='sg-steps';
+      for(const key of ['step1','step2','step3'])steps.append(el('li',tr(key)));
+      const empty=el('ol');empty.className='sg-list';
+      body.append(el('p',tr('intro')),steps,empty);return;
+    }
+    const here=model(),entries=[...notes].reverse();
+    const current=entries.filter(n=>sameModel(n.model,here)),other=entries.filter(n=>!sameModel(n.model,here));
+    const classified=window.__HOUSE_SUGGESTION_STATUS?current.map(n=>[n,statusOf(n)]):null;
+    const groups=classified?[['staged',classified.filter(([,s])=>s?.group!=='sent').map(([n])=>n)],['sent',classified.filter(([,s])=>s?.group==='sent').map(([n])=>n)],['other',other]]
+      :[['current',current],['other',other]];
+    for(const [key,group] of groups){
+      if(!group.length)continue;
+      const heading=el('h3');heading.className='sg-group';heading.append(tr(key)+' ',el('span',String(group.length)));body.append(heading);
+      const list=el('ol');list.className='sg-list';list.dataset.group=key;body.append(list);
+      renderItems(list,group);
+    }
+    const exportButton=button('export',download,'suggestions-export');exportButton.className='sg-link';body.append(exportButton);
+  }
+  function renderItems(list,entries){
     for(const n of entries){
-      const item=el('li'),row=el('button');row.type='button';row.className='sg-item';
+      const item=el('li'),row=el('button');row.type='button';row.className='sg-item';item.dataset.suggestionId=n.id;
       row.classList.toggle('selected',n.id===active);row.setAttribute('aria-expanded',String(n.id===draft?.id));
       const badge=el('span',String(number(n.id)));badge.className='sg-badge';
-      const name=el('span');name.append(el('strong',n.title || n.text || tr(n.version?'imageNote':'newComment')),el('small',describe(n)));
+      const status=el('span');status.className='sg-status';
+      const known=statusOf(n);if(known?.text){status.textContent=known.text;if(known.tone)status.dataset.tone=known.tone;}
+      const name=el('span');name.append(el('strong',n.title || n.text || tr(n.version?'imageNote':'newComment')),el('small',describe(n)),status);
       row.append(badge,name);row.onclick=()=>{if(draft?.id===n.id){cancelEdit();return;}edit(n);};
       const del=button('del',()=>deleteSuggestion(n));del.className='sg-delete';del.setAttribute('aria-label',tr('del')+' #'+number(n.id));
       item.append(row,del);list.append(item);
     }
-    if(notes.length)body.append(button('export',download,'suggestions-export'));
   }
   function render(){
     const open=page!=='closed',picking=page==='pick';
@@ -324,14 +389,24 @@ export function installSuggestions({getContext,selectRevision,restorePose,clearI
     plus.title=tr('add');plus.setAttribute('aria-label',tr('add'));plus.disabled=!ready||busy;
     dock.dataset.page=page;
     trigger.setAttribute('aria-expanded',String(open));trigger.setAttribute('aria-pressed',String(open));
-    title.textContent=picking?tr('add'):page==='edit'?'#'+number(draft.id)+' · '+tr(draft.region.kind==='model-object'?'object':draft.region.points?'point':draft.region.kind==='surface-stroke'?'draw':'area'):tr('title');
+    title.textContent=picking?tr(adding?'addWhere':'where'):page==='edit'?'#'+number(draft.id)+' · '+tr(draft.version?'editTitle':'new'):tr('title');
     close.onclick=picking?cancelPick:page==='edit'?cancelEdit:dismiss;
     close.textContent='×';close.setAttribute('aria-label',tr('close'));close.disabled=busy;
     body.replaceChildren();setMessage('');
     if(picking)picker();else if(page==='edit')editor(body);else if(open)renderList();
     if(busy)for(const c of body.querySelectorAll('button,textarea,input'))c.disabled=true;
+    footer.hidden=page!=='list';
     syncMarkers();
+    // Integrations read saved suggestions and decorate list items through this event.
+    document.dispatchEvent(new CustomEvent('house:suggestions',{detail:{page,ready,model:model(),notes:notes.map(n=>({id:n.id,version:n.version,number:number(n.id),model:n.model,text:n.title||''}))}}));
   }
+  // The workstation asks to reopen a suggestion, or to redraw statuses after its jobs change.
+  document.addEventListener('house:edit-suggestion',event=>{
+    const note=notes.find(n=>n.id===event.detail?.id);if(!note||busy)return;
+    if(page==='closed'){if(document.pointerLockElement)document.exitPointerLock();page='list';}
+    edit(note);
+  });
+  document.addEventListener('house:suggestions-refresh',()=>{if(page==='list')render();});
   new MutationObserver(render).observe(document.documentElement,{attributes:true,attributeFilter:['lang']});
   render();refresh();
   return {
