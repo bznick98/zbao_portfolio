@@ -3,7 +3,17 @@ import {createHash,timingSafeEqual} from 'node:crypto';
 const fingerprint = value => createHash('sha256').update(value).digest();
 const uuid = value => typeof value === 'string' && /^[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}$/.test(value);
 const integer = (n,max) => Number.isInteger(n) && n>=0 && n<max;
-const stages = new Set(['received','designing','checking','review','publishing','published','failed']);
+// `held` means nothing could be built without the owner's input; the reason says what to decide.
+const stages = new Set(['received','designing','checking','review','publishing','published','held','failed']);
+const text = (value,max) => String(value??'').slice(0,max);
+function outcomes(value) {
+  if(value===undefined || value===null)return undefined;
+  ensure(Array.isArray(value) && value.length<=32,400,'Invalid outcomes.');
+  return value.map(o=>{
+    ensure(o && typeof o.id==='string' && /^[A-Za-z0-9_-]{1,64}$/.test(o.id) && ['built','review'].includes(o.status),400,'Invalid outcome.');
+    return {id:o.id,status:o.status,text:text(o.text,160),note:text(o.note,600)};
+  });
+}
 const sha = value => typeof value === 'string' && /^[0-9a-f]{40}$/.test(value);
 const envelope = value => typeof value === 'string' && value.length>20 && value.length<=850000 && /^[A-Za-z0-9+/=]+$/.test(value);
 const problem = (code,message) => Object.assign(new Error(message),{status:code});
@@ -73,16 +83,28 @@ export function makeRelay({cache,keys,now=Date.now,ring=fetchRing}) {
     }
     if(op==='state') {
       ensure(role==='worker' && stages.has(body.stage),403,'Workstation required.');
-      const state={job,access:body.access==='submitter'?'submitter':'owner',stage:body.stage,updated:now(),detail:String(body.detail??'').slice(0,2400)};
+      ensure(body.step===undefined || body.step===null || /^[a-z-]{1,24}$/.test(body.step),400,'Invalid step.');
+      ensure(body.queue===undefined || body.queue===null || integer(body.queue,100),400,'Invalid queue.');
+      const previous=await cache.get('job-'+job);
+      const step=body.step??null;
+      const state={job,access:body.access==='submitter'?'submitter':'owner',stage:body.stage,step,updated:now(),detail:String(body.detail??'').slice(0,2400)};
+      if(Number.isInteger(body.queue))state.queue=body.queue;
+      if(body.reason)state.reason=text(body.reason,1200);
+      const results=outcomes(body.outcomes);if(results)state.outcomes=results;
+      if(Number.isFinite(body.receivedAt))state.receivedAt=body.receivedAt;
+      // Each stage or step change is kept with its time so viewers can follow the job.
+      const history=previous?.history??[];
+      if(previous?.stage!==state.stage || previous?.step!==step)history.push({stage:state.stage,step,at:now()});
+      state.history=history.slice(-30);
       if(body.stage==='review'||body.stage==='publishing'||body.stage==='published'){
         ensure(sha(body.commit) && /^\d+\.\d+$/.test(body.version),400,'Candidate identity required.');
         Object.assign(state,{commit:body.commit,version:body.version});
       }
       if(body.preview){ensure(envelope(body.preview),400,'Invalid preview.');state.preview=body.preview;}
       if(body.pr){ensure(/^https:\/\/github\.com\/bznick98\/zbao_portfolio\/pull\/\d+$/.test(body.pr),400,'Invalid PR.');state.pr=body.pr;}
-      await set('job-'+job,state,86400);
+      await set('job-'+job,state,86400*7);
       const recent=await cache.get('recent')??[];
-      await set('recent',[job,...recent.filter(x=>x!==job)].slice(0,8),86400);
+      await set('recent',[job,...recent.filter(x=>x!==job)].slice(0,20),86400*7);
       return {ok:true};
     }
     if(op==='getChunk') {

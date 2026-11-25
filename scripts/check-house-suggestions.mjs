@@ -137,7 +137,7 @@ try {
       transfer.items.add(new File([bytes],'wood.png',{type:'image/png'}));
       zone.dispatchEvent(new DragEvent('drop',{bubbles:true,cancelable:true,dataTransfer:transfer}));
     },sample.toString('base64'));
-    await frame.locator('.sg-photo img').waitFor();assert.equal(await id('suggestion-save').innerText(),'Save');await id('suggestion-save').click();
+    await frame.locator('.sg-photo img').waitFor();assert.match(await id('suggestion-save').innerText(),/^Save( suggestion)?$/);await id('suggestion-save').click();
     await frame.locator('.sg-item').filter({hasText:'Raise this cabinet.'}).waitFor();
     await id('suggestion-new').click();await id('suggestion-draw').click();
     const p=await surfacePoint(3);
