@@ -3,7 +3,7 @@
   "sourceDelivery": "interactive-522299d21583",
   "sourceManifestSha256": "80831bede00e820a14e84106c0a942db9fcc05c9668643f6684f770706a87dcc",
   "runtime": {
-    "main.js": "ad96fbb7dea0f6c40d8b851d1e0354f977f1b24b810111d1a9f4549b900efa1e",
+    "main.js": "06f81e78b4a164fbc6fab188403c786d6164132c90e97f25953ab3908bab6208",
     "artifact-modes.js": "014d201a117ad0ea79b0b22fc274625597a7c5157b83eef0acaaf3b86874f79a",
     "artifact-modes.css": "533024babe4914c5f8162bf896d8cad2f5ea6acacba5d992fd4c8c5337ce058e",
     "i18n.js": "1ce17e36bad2ce257587d4c181836429accf010ffcf9d9e0d788e59bbc948dc9",
@@ -21,10 +21,10 @@
     "revision-state.js": "3066408dcc049f1aade47ca4820c002a1cab3271e56e649e6e7a1f2d8f4da26f",
     "revisions.css": "9a227ff98134e7decf645489ef64c260113316e0428d7ca7979848af9c0ede49",
     "model-teleport.js": "38d9f6e89dcdc6e8738d1193d332286c5bb3869fe41ab73815d9417be10a5b25",
-    "suggestions.js": "0ce3751fa545498eea4961dd5e46588ee997972aa294e67ddedb5732cc5c93d8",
+    "suggestions.js": "7019a3693341ccd10b9b68e8204626b66eab5fefe383a6be219149835f298007",
     "suggestion-region.js": "833d8dc361a2d96de16567064677daba9c8f2f0f1db4a68b121c02c1824f56ec",
     "suggestion-store.js": "43bdf64b494b5eaa146ecbd1f4ac6d02289d6946f3c690adb4def414c643ed9c",
-    "suggestions.css": "1c5d1bab7bace9ffd779a05d0e0822bcfe0c28c891670329e4c8ed0e18666227",
+    "suggestions.css": "097d8dbacb57249f6e3c4f244c71fb2e2cb55a860eda86be9882b30ea76dc098",
     "toolbar.js": "5fe3183366d3d5ce28114f92f1df1aea5dff59f57217b7c61f37deddcd1df37b"
   },
   "selectedBuildIds": [
@@ -36,7 +36,8 @@
     "9ac76ecab6f632e0",
     "3bd0285b53c7fc85",
     "6b76be085898c385",
-    "8bb863cb680f8d39"
+    "8bb863cb680f8d39",
+    "5a408d17b7bc290b"
   ],
   "sourceMaterialsPreserved": true,
   "additionalDeliveries": {
@@ -74,6 +75,11 @@
       "deliveryId": "interactive-d082a3bc06a4",
       "buildId": "8bb863cb680f8d39",
       "manifestSha256": "a7a13753ab584b90c62df15ee49631e84c53897a0b58155c04c8f831b5bf785c"
+    },
+    "0.14": {
+      "deliveryId": "interactive-67e447417bc2",
+      "buildId": "5a408d17b7bc290b",
+      "manifestSha256": "981aedd4d58641270d63711a32559fa10a0619ad5914a8eca768c23f4c118e88"
     }
   }
 }
