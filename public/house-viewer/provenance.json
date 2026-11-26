@@ -35,7 +35,8 @@
     "bdc26102daccb02f",
     "9ac76ecab6f632e0",
     "3bd0285b53c7fc85",
-    "6b76be085898c385"
+    "6b76be085898c385",
+    "8bb863cb680f8d39"
   ],
   "sourceMaterialsPreserved": true,
   "additionalDeliveries": {
@@ -68,6 +69,11 @@
       "deliveryId": "interactive-cc6658593e5e",
       "buildId": "6b76be085898c385",
       "manifestSha256": "0d88baca012db3dd819783f52f6091aa4481b58dbd2a4dcd1eb7ce841c2f8cc6"
+    },
+    "0.12": {
+      "deliveryId": "interactive-d082a3bc06a4",
+      "buildId": "8bb863cb680f8d39",
+      "manifestSha256": "a7a13753ab584b90c62df15ee49631e84c53897a0b58155c04c8f831b5bf785c"
     }
   }
 }
