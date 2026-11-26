@@ -46,7 +46,7 @@ function drawPin(ctx,x,y,number,r,cx=x,cy=y-r*1.65,color='#115c4e') {
   ctx.restore();
 }
 
-function markedView(ctx,uv,number,rect) {
+function markedView(ctx,uv,number,rect,pin=true) {
   ctx.renderFrame();
   const source=ctx.canvas, scale=Math.min(1,960/Math.max(source.width,source.height));
   const image=document.createElement('canvas');
@@ -60,6 +60,7 @@ function markedView(ctx,uv,number,rect) {
     paint.strokeStyle='#176956';paint.lineWidth=4;paint.strokeRect(...box);
     paint.strokeStyle='white';paint.lineWidth=1;paint.strokeRect(...box);
   }
+  if(!pin)return {markerNumber:number,mimeType:'image/jpeg',width:image.width,height:image.height,dataUrl:image.toDataURL('image/jpeg',.83)};
   const x=uv[0]*image.width,y=uv[1]*image.height,r=Math.min(14,image.height*.035);
   const clamp=(n,extent)=>Math.max(r+1,Math.min(extent-r-1,n));
   const cy=y<3*r?y+1.65*r:y-1.65*r;
@@ -160,6 +161,90 @@ function captureView(ctx){
   const camera=ctx.modes.camera,{mode,walkPose,modelView}=ctx.modes.getState();
   return {mode,walkPose,modelView:mode==='model'?modelView:null,position:camera.position.toArray(),quaternion:camera.quaternion.toArray(),
     verticalFovDeg:camera.fov,aspect:camera.aspect,zoom:camera.zoom,projectionMatrix:camera.projectionMatrix.toArray(),matrixWorld:camera.matrixWorld.toArray()};
+}
+
+// The room on the open side of a surface: walls lie on room boundaries, so step off along the normal.
+function roomBeside(ctx,hit){
+  const n=hit.normalWorld||[0,1,0],p=hit.world.map((v,i)=>v+n[i]*.06);
+  return ctx.data.rooms?.find(r=>ctx.contains(p[0],-p[2],r.polygon)) || ctx.data.rooms?.find(r=>r.id===hit.roomId) || null;
+}
+function cleanPolygon(points){
+  const out=[];
+  for(const [x,y] of points||[]){const last=out.at(-1);if(!last||Math.hypot(x-last[0],y-last[1])>.002)out.push([+x.toFixed(4),+y.toFixed(4)]);}
+  if(out.length>2&&Math.hypot(out[0][0]-out.at(-1)[0],out[0][1]-out.at(-1)[1])<=.002)out.pop();
+  return out;
+}
+const shoelace=poly=>Math.abs(poly.reduce((sum,[x,y],i)=>{const [u,v]=poly[(i+1)%poly.length];return sum+x*v-u*y;},0)/2);
+function withPreview(ctx,number,region,uv,pin=true){
+  const preview=pinMarkers(ctx.scene,'Suggestion capture');
+  try{
+    const shape=displayRegion(region);
+    preview.set([{id:'capture',active:true,number,shape:{pins:[],patches:shape.patches,members:shape.members||[]}}]);
+    preview.update(ctx);
+    return {...region,view:captureView(ctx),markedView:markedView(ctx,uv,number,null,pin)};
+  }finally{preview.dispose();}
+}
+
+// A whole floor, ceiling or wall of one room. Floors and ceilings carry the room outline in plan metres
+// (Blender X and Y); a wall carries the wall object that was tapped.
+export function captureRoomSurface(ctx,uv,number){
+  const hit=pickSurface(ctx,uv);
+  if(!hit)return null;
+  const room=roomBeside(ctx,hit);
+  if(!room)return null;
+  const n=hit.normalWorld||[0,1,0],surface=n[1]>.7?'floor':n[1]<-.7?'ceiling':'wall';
+  const region={kind:'room-surface',surface,roomId:room.id,roomName:room.name||null,roomIds:[room.id],anchor:hit,heightBlender:hit.blender[2]};
+  if(surface==='wall'){
+    const chosen=selectObject(ctx,uv);
+    Object.assign(region,{object:hit.object,members:chosen?.members||[],boundsWorld:chosen?.boundsWorld||null});
+  }else{
+    region.polygon=cleanPolygon(room.polygon);region.areaM2=+shoelace(region.polygon).toFixed(3);
+  }
+  return withPreview(ctx,number,region,uv);
+}
+
+// Where something new should go: a box resting on the tapped floor or counter, or against the tapped wall.
+export function placementBox(anchor,sizeM){
+  const [w,d,h]=sizeM.map(v=>Math.max(.05,Math.min(8,+v||0))),[x,y,z]=anchor.world,n=anchor.normalWorld||[0,1,0];
+  let min,max;
+  if(Math.abs(n[1])>.7){
+    const base=n[1]>0?y:y-h;min=[x-w/2,base,z-d/2];max=[x+w/2,base+h,z+d/2];
+  }else if(Math.abs(n[0])>=Math.abs(n[2])){
+    const s=Math.sign(n[0])||1;min=[Math.min(x,x+s*d),y-h/2,z-w/2];max=[Math.max(x,x+s*d),y+h/2,z+w/2];
+  }else{
+    const s=Math.sign(n[2])||1;min=[x-w/2,y-h/2,Math.min(z,z+s*d)];max=[x+w/2,y+h/2,Math.max(z,z+s*d)];
+  }
+  min=rounded(min);max=rounded(max);
+  return {sizeM:[w,d,h],boundsWorld:{min,max},boundsBlender:{min:rounded([min[0],-max[2],min[1]]),max:rounded([max[0],-min[2],max[1]])}};
+}
+export function capturePlacement(ctx,uv,number,sizeM){
+  const hit=pickSurface(ctx,uv);
+  if(!hit)return null;
+  const room=roomBeside(ctx,hit);
+  const region={kind:'placement',anchor:hit,roomIds:room?[room.id]:[],...placementBox(hit,sizeM)};
+  return withPreview(ctx,number,region,uv);
+}
+
+// A comment on everything in the current view: style, light, mood or anything not tied to one place.
+export function captureWholeView(ctx,number){
+  const camera=ctx.modes.camera,center=pickSurface(ctx,[.5,.5]);
+  const room=ctx.data.rooms?.find(r=>ctx.contains(camera.position.x,-camera.position.z,r.polygon));
+  const roomIds=[...new Set([room?.id,center&&roomBeside(ctx,center)?.id].filter(Boolean))];
+  return {kind:'view',anchor:center,roomIds,view:captureView(ctx),markedView:markedView(ctx,[.5,.5],number,null,false)};
+}
+
+function boxPatch({min,max}){
+  const vertices=[],indices=[];
+  for(const x of [min[0],max[0]])for(const y of [min[1],max[1]])for(const z of [min[2],max[2]])vertices.push(x,y,z);
+  // Corner index = 4*xi + 2*yi + zi.
+  for(const f of [[0,1,3,2],[4,6,7,5],[0,4,5,1],[2,3,7,6],[0,2,6,4],[1,5,7,3]])indices.push(f[0],f[1],f[2],f[0],f[2],f[3]);
+  return {vertices,indices};
+}
+function polygonPatch(polygon,heightWorld){
+  const contour=polygon.map(([x,y])=>new THREE.Vector2(x,y));
+  const faces=THREE.ShapeUtils.triangulateShape(contour,[]);
+  // A whole-room overlay stays visual: taps on the floor keep moving the viewer.
+  return {vertices:polygon.flatMap(([x,y])=>[x,heightWorld,-y]),indices:faces.flat(),passive:true};
 }
 
 // Keep each continuous piece on one modeled surface. Missing geometry and depth
@@ -276,6 +361,14 @@ export function displayRegions(regions){
 }
 export function noteRegions(note){return [note.region,...(note.extraRegions||[])];}
 export function displayRegion(region){
+  if(region.kind==='view')return {pins:[],patches:[]};
+  if(region.kind==='placement')return {pins:[{world:region.anchor.world,path:region.anchor.object?.path}],patches:[{path:region.anchor.object?.path,...boxPatch(region.boundsWorld)}]};
+  if(region.kind==='room-surface'){
+    const pins=[{world:region.anchor.world,path:region.anchor.object?.path}];
+    if(region.surface==='wall')return {pins,patches:[],members:region.members||[]};
+    const lift=region.surface==='floor'?.006:-.006;
+    return {pins,patches:region.polygon?.length>2?[{path:region.anchor.object?.path,...polygonPatch(region.polygon,region.anchor.world[1]+lift)}]:[]};
+  }
   if(region.kind==='surface-stroke')return {pins:[{world:region.anchor.world,path:region.anchor.object.path}],patches:region.segments.map(strokePatch)};
   if(region.kind==='model-object')return {pins:[{world:region.anchor.world,path:region.anchor.object.path}],patches:[],members:region.members};
   if(region.points)return {pins:region.points.map(p=>({world:p.world,path:p.object?.path})),patches:[]};
@@ -352,7 +445,7 @@ export function pinMarkers(scene,name='Suggestion annotations') {
             geometry.setIndex(patch.indices);
             const mat=new THREE.MeshBasicMaterial({color:fill,side:THREE.DoubleSide,transparent:true,opacity:patch.stroke?.95:entry.active?.52:.32,
               depthTest:false,depthWrite:false,polygonOffset:true,polygonOffsetFactor:-2,polygonOffsetUnits:-2});
-            add(new THREE.Mesh(geometry,mat),entry,patch.path);
+            const mesh=new THREE.Mesh(geometry,mat);add(mesh,entry,patch.path);mesh.userData.passive=!!patch.passive;
           }else{
             add(new THREE.Points(geometry,new THREE.PointsMaterial({color:fill,size:4,sizeAttenuation:false,transparent:true,depthTest:false,depthWrite:false})),entry,patch.path);
           }
@@ -385,7 +478,7 @@ export function pinMarkers(scene,name='Suggestion annotations') {
       lastRoot=root;
     },
     hit(ctx,uv){
-      const targets=group.children.filter(item=>item.visible);
+      const targets=group.children.filter(item=>item.visible&&!item.userData.passive);
       if(!targets.length)return null;
       group.updateWorldMatrix(true,true);ctx.modes.camera.updateMatrixWorld(true);
       const ray=new THREE.Raycaster();ray.setFromCamera(new THREE.Vector2(uv[0]*2-1,1-uv[1]*2),ctx.modes.camera);

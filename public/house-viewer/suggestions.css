@@ -121,3 +121,14 @@
 /* The panel colour is translucent; pinned areas layer it over a solid base so cards do not show through. */
 .sg-panel .sg-footer { position:sticky; bottom:-12px; margin:10px -12px -12px; padding:10px 12px 12px; background:linear-gradient(var(--sg-paper),var(--sg-paper)),Canvas; z-index:1; }
 .sg-panel header { position:sticky; top:-12px; margin:-12px -12px 6px; padding:12px 12px 6px; background:linear-gradient(var(--sg-paper),var(--sg-paper)),Canvas; z-index:1; }
+
+/* What kind of change: single-choice chips, then optional dimensions. */
+.sg-change { display:grid; gap:6px; }
+.sg-chips { display:flex; flex-wrap:wrap; gap:4px; }
+.sg-panel .sg-chip { min-height:30px; padding:3px 10px; border-radius:999px; font-size:12px; }
+.sg-panel .sg-chip[aria-pressed=true] { color:var(--sg-paper); background:var(--sg-ink); border-color:var(--sg-ink); }
+.sg-size { display:grid; grid-template-columns:repeat(3,1fr); gap:6px; margin:0; padding:8px; border:1px solid var(--sg-line); border-radius:6px; }
+.sg-size legend { font-size:13px; padding:0 4px; }
+.sg-size label { display:grid; gap:2px; font-size:12px; }
+.sg-size input { color:inherit; font:inherit; width:100%; box-sizing:border-box; padding:6px; border:1px solid var(--sg-line); border-radius:6px; background:transparent; }
+.sg-size small { grid-column:1/-1; font-size:11px; opacity:.75; }

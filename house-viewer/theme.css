@@ -96,7 +96,7 @@ progress { accent-color:var(--ink); height:3px; }
 :root[data-theme=light] .hs-count[data-tone=attention] { color:#9c4a2b; }
 @media(max-width:520px) { .hs-timeline { grid-template-columns:repeat(4,1fr); row-gap:8px; } .house-station { padding:0 14px 14px; } }
 
-/* Live job strip above the Suggestions button. */
+/* Live job strip above the Edits button. */
 .hs-live { pointer-events:auto; box-sizing:border-box; width:100%; display:grid; grid-template-columns:auto 1fr; align-items:center; gap:2px 10px; padding:8px 12px 9px; text-align:start; font:inherit; color:var(--ink); background:var(--panel); border:1px solid var(--line); border-radius:12px; box-shadow:0 3px 14px #0003; cursor:pointer; }
 .hs-live[hidden] { display:none; }
 .hs-live:hover { background:color-mix(in srgb,var(--panel) 85%,var(--ink)); }
@@ -138,7 +138,7 @@ progress { accent-color:var(--ink); height:3px; }
 .house-station .hs-session::after { content:'↗'; margin-left:6px; }
 .house-station .hs-session[data-tone=attention] { background:#b4602f; border-color:#b4602f; color:#fff; }
 
-/* Suggestions panel: status bar contents and footer links. */
+/* Edits panel: status bar contents and footer links. */
 .sg-statusbar .hs-bar-head { display:flex; align-items:baseline; justify-content:space-between; gap:8px; flex-wrap:wrap; }
 .sg-statusbar .hs-bar-head strong { font-size:13px; }
 .sg-statusbar .hs-bar-head small,.sg-statusbar .hs-muted { color:var(--muted); font-variant-numeric:tabular-nums; }
