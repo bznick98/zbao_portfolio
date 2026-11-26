@@ -137,7 +137,7 @@ try {
       transfer.items.add(new File([bytes],'wood.png',{type:'image/png'}));
       zone.dispatchEvent(new DragEvent('drop',{bubbles:true,cancelable:true,dataTransfer:transfer}));
     },sample.toString('base64'));
-    await frame.locator('.sg-photo img').waitFor();assert.match(await id('suggestion-save').innerText(),/^Save( suggestion)?$/);await id('suggestion-save').click();
+    await frame.locator('.sg-photo img').waitFor();assert.match(await id('suggestion-save').innerText(),/^Save( edit)?$/);await id('suggestion-save').click();
     await frame.locator('.sg-item').filter({hasText:'Raise this cabinet.'}).waitFor();
     await id('suggestion-new').click();await id('suggestion-draw').click();
     const p=await surfacePoint(3);
@@ -191,7 +191,7 @@ try {
     await frame.locator('.sg-item').filter({hasText:'Cabinet depth'}).waitFor();
     const done=page.waitForEvent('download');await id('suggestions-export').click();
     const file=await done;const data=JSON.parse(await readFile(await file.path(),'utf8'));
-    assert.equal(data.schemaVersion,5);assert.equal(data.suggestions.length,3);
+    assert.equal(data.schemaVersion,6);assert.equal(data.suggestions.length,3);
     const edited=data.suggestions.find(n=>n.region.kind==='surface-pins'),draw=data.suggestions.find(n=>n.region.kind==='surface-stroke');
     assert.equal(edited.text,'Cabinet depth 0.60 m.');assert.equal(edited.version,2);
     assert.ok(draw.region.segments.flatMap(s=>s.points).length>=4);

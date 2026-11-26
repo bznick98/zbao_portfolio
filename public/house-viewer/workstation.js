@@ -1,9 +1,9 @@
 import {openSuggestions,exportSuggestions} from './suggestion-store.js';
 
 // The workstation turns saved suggestions into a new House revision.
-// This module adds a send footer to the Suggestions panel and a Jobs dialog
+// This module adds a send footer to the Edits panel (formerly Suggestions) and a Jobs dialog
 // that shows every job's place in the queue, current step, per-suggestion
-// outcome and history, and lets the owner approve publication.
+// outcome and history. The workstation publishes successful builds itself.
 
 const encode=new TextEncoder();
 const label=(en,zh)=>document.documentElement.lang?.startsWith('zh')?zh:en;
@@ -25,11 +25,11 @@ const STEPS={
  modeling:['Changing the model','修改模型'],freezing:['Freezing the revision','冻结版本'],building:['Building the web model','生成网页模型'],
  rendering:['Rendering comparisons','渲染对比图'],packaging:['Packaging the delivery','打包交付'],report:['Writing the report','生成报告'],
  website:['Preparing the website update','准备网站更新'],'site-check':['Testing the website','测试网站'],push:['Pushing the commit','推送提交'],
- preview:['Waiting for the Vercel preview','等待 Vercel 预览'],merge:['Merging','合并'],production:['Checking zbao.art','核对正式站'],
+ preview:['Waiting for the Vercel preview','等待 Vercel 预览'],merge:['Merging','合并'],production:['Checking zbao.art','核对正式站'],repo:['Saving to layout2house','保存到 layout2house'],
 };
 // Steps a job reports, in order, for progress.
 export const DESIGN_STEPS=['validating','inspecting','planning','trying','modeling','freezing','building','rendering','packaging','report','website','site-check'];
-export const PUBLISH_STEPS=['push','preview','merge','production'];
+export const PUBLISH_STEPS=['push','preview','merge','production','repo'];
 // Step number, total and fraction done for a running job.
 export function progressOf(state){
  const steps=state?.stage==='publishing'?PUBLISH_STEPS:DESIGN_STEPS;
@@ -38,7 +38,7 @@ export function progressOf(state){
  return {index:index+1,total:steps.length,fraction:(index+.5)/steps.length,steps};
 }
 const duration=ms=>{const s=Math.max(0,Math.round(ms/1000)),m=Math.floor(s/60);return m>=60?`${Math.floor(m/60)}:${String(m%60).padStart(2,'0')}:${String(s%60).padStart(2,'0')}`:`${m}:${String(s%60).padStart(2,'0')}`;};
-const PHASES=[['Sent','已发送'],['Queued','排队'],['Planning','规划'],['Building','建模'],['Checking','检查'],['Approval','批准'],['Publishing','发布'],['Live','上线']];
+const PHASES=[['Sent','已发送'],['Queued','排队'],['Planning','规划'],['Building','建模'],['Checking','检查'],['Publishing','发布'],['Live','上线']];
 const stepText=step=>STEPS[step]?label(...STEPS[step]):'';
 export {duration};
 
@@ -49,8 +49,7 @@ export function phaseOf(state){
   case 'received':return 1;
   case 'designing':case 'waiting':return !state.step||['validating','inspecting','planning','trying','waiting'].includes(state.step)?2:3;
   case 'checking':return 4;
-  case 'review':return 5;
-  case 'publishing':return 6;
+  case 'review':case 'publishing':return 5;
   case 'published':return PHASES.length;
   case 'held':return 2;
   case 'failed':{const last=[...(state.history??[])].reverse().find(h=>h.stage!=='failed');return last?phaseOf(last):1;}
@@ -64,9 +63,9 @@ export function statusOf(state,owner,brief=false){
  switch(state.stage){
   case 'received':return [state.queue>0?label(`Queued · ${state.queue} ahead`,`排队中 · 前面还有 ${state.queue} 个`):label('Starting next','即将开始'),'active'];
   case 'designing':case 'checking':return [!brief&&stepText(state.step)||label('Working','处理中'),'active'];
-  case 'review':return [owner?label('Needs your approval','等待你批准'):label('Waiting for owner approval','等待站主批准'),'attention'];
+  case 'review':return [owner?label('Ready to publish','可以发布'):label('Built · going live','已建好 · 即将上线'),'attention'];
   case 'publishing':return [!brief&&stepText(state.step)||label('Publishing','发布中'),'active'];
-  case 'published':return [label('Published','已发布'),'done'];
+  case 'published':return [label('Live','已上线'),'done'];
   case 'held':return [label('Needs your input','需要你确认'),'attention'];
   case 'waiting':return [owner?label('Needs you in Claude','需要你在 Claude 中处理'):label('Waiting for the owner','等待站主'),'attention'];
   case 'failed':return [label('Stopped','已停止'),'error'];
@@ -101,7 +100,7 @@ export function installWorkstation(catalog,privacy,submission){
  // ---- Relay access ----
  let owner,online=false,epoch=null,submitOnline=false,ownerRecent=[];
  const states=new Map();
- const offlineText=()=>label('Workstation offline. Your suggestions stay saved on this device.','工作站离线。建议仍保存在这台设备上。');
+ const offlineText=()=>label('Workstation offline. Your edits stay saved on this device.','工作站离线。修改仍保存在这台设备上。');
  const unavailable=()=>label('Submission access unavailable. Reopen House and try again.','提交权限暂不可用，请重新进入 House 后重试。');
  const api=async (body,token=submission?.token)=>{
   if(!token)throw Error(unavailable());
@@ -118,7 +117,7 @@ export function installWorkstation(catalog,privacy,submission){
    if(attempt%3===0)await api(cmd,token);
    await sleep(attempt<6?1200:2800);
   }
-  throw Error(label('No workstation receipt yet. Check the job list again in a minute; your suggestions are still saved.','暂未收到工作站回执。请稍后再看任务列表，建议仍然保存着。'));
+  throw Error(label('No workstation receipt yet. Check the job list again in a minute; your edits are still saved.','暂未收到工作站回执。请稍后再看任务列表，修改仍然保存着。'));
  }
  async function load(){
   const token=owner?.token||submission?.token;
@@ -145,10 +144,6 @@ export function installWorkstation(catalog,privacy,submission){
  }
  // Where a saved suggestion stands. Staged suggestions go in the next send:
  // new, edited since sent, or returned because their job stopped or could not build them.
- // Owner approvals per built suggestion, kept on this device per job.
- const approvalKey=job=>'house-approvals/'+job;
- function approvals(job){try{return new Set(JSON.parse(localStorage.getItem(approvalKey(job))||'[]'));}catch{return new Set();}}
- function toggleApproval(job,id){const set=approvals(job);if(set.has(id))set.delete(id);else set.add(id);try{localStorage.setItem(approvalKey(job),JSON.stringify([...set]));}catch{}}
  // Decrypted per-suggestion previews, kept as object URLs for the life of the page.
  const previewUrls=new Map();
  function previewLoader(job,state,id){
@@ -178,33 +173,29 @@ export function installWorkstation(catalog,privacy,submission){
   if(state.stage==='failed')return {group:'draft',text:label('Job stopped · send again','任务已停止 · 可重新发送'),tone:'attention',note:state.reason};
   if(state.stage==='held'||outcome?.status==='review')
    return {group:'attention',text:label('Not built · needs your input','未建模 · 需要你确认'),tone:'attention',note:outcome?.note||state.reason};
-  if(state.stage==='published')return {group:'done',text:label(`Published in ${state.version}`,`已发布于 ${state.version}`),tone:'done',preview};
-  if(state.stage==='review'){
-   if(!owner)return {group:'progress',text:label(`Built in ${state.version} · waiting for owner approval`,`已建入 ${state.version} · 等待站主批准`),tone:'active',preview};
-   const approved=approvals(job).has(note.id);
-   return {group:'attention',text:approved?label(`Approved for ${state.version}`,`已批准进入 ${state.version}`):label(`Built in ${state.version} · review it`,`已建入 ${state.version} · 请查看`),
-    tone:approved?'done':'attention',preview,actions:[{id:'approve',label:approved?label('Approved ✓','已批准 ✓'):label('Approve','批准'),primary:!approved,pressed:approved}]};
-  }
+  if(state.stage==='published')return {group:'done',text:label(`Live in ${state.version}`,`已上线于 ${state.version}`),tone:'done',preview};
+  if(state.stage==='review'||state.stage==='publishing')return {group:'progress',text:label(`Built in ${state.version} · going live`,`已建入 ${state.version} · 正在上线`),tone:'active',preview};
   const [text,tone]=statusOf(state,!!owner);
   return {group:state.stage==='waiting'&&owner?'attention':'progress',text,tone:tone==='error'?'attention':tone};
  }
  window.__HOUSE_SUGGESTION_ACTION=(note,action)=>{
   const sent=latestSent().get(note.id);if(!sent)return;
-  if(action==='approve'&&owner){toggleApproval(sent.record.job,note.id);paint();}
+  void action;
  };
  window.__HOUSE_SUGGESTION_STATUS=note=>classify(note);
- // Numbers follow the Suggestions panel, so #1 means the same suggestion everywhere.
+ // Numbers follow the Edits panel, so #1 means the same suggestion everywhere.
  const byCreation=(a,b)=>a.createdAt.localeCompare(b.createdAt)||a.id.localeCompare(b.id);
  // Summaries are enough to count and list; only a send reads full notes with their images.
  async function sendable(full=false){
   const {current,revision}=currentBuild();
   if(!revision)return {notes:[],revisionId:current?.revisionId};
   const list=await (full?store.all():store.list()),latest=latestSent();
-  const onBuild=list.filter(n=>n.model.revisionDigest===revision.revisionDigest&&n.model.buildId===current.buildId);
+  const known=new Set(catalog.revisions.map(r=>r.revisionDigest));
+  const onBuild=list.filter(n=>known.has(n.model.revisionDigest));
   return {notes:onBuild.filter(n=>classify(n,latest).group==='draft'),all:onBuild,revisionId:revision.revisionId};
  }
 
- // ---- Footer in the Suggestions panel ----
+ // ---- Footer in the Edits panel ----
  const footer=document.getElementById('suggestions-footer')||(()=>{const f=el('div',null,'sg-footer hs-footer');panel.append(f);return f;})();
  footer.classList.add('hs-footer');
  const footStatus=el('p',null,'hs-foot-status'),dot=el('span',null,'hs-dot'),footText=el('span');
@@ -231,7 +222,7 @@ export function installWorkstation(catalog,privacy,submission){
   const count=pending.notes.length;
   dot.dataset.tone=submitOnline?'done':'error';
   footText.textContent=(submitOnline?label('Workstation online','工作站在线'):label('Workstation offline','工作站离线'))+' · '+
-   (count?label(`${count} ready to send`,`${count} 条可发送`):label('nothing new to send','没有新的建议要发送'));
+   (count?label(`${count} ready to send`,`${count} 条可发送`):label('nothing new to send','没有新的修改要发送'));
   openSend.textContent=panelSending||(count?label(`Send ${count} to the workstation`,`发送 ${count} 条到工作站`):label('Send to the workstation','发送到工作站'));
   openSend.disabled=!count||!submitOnline||!!panelSending;
   ownerLink.textContent=owner?label('Signed in as owner · sign out','已用站主身份登录 · 退出'):label('Owner sign-in','站主登录');
@@ -255,7 +246,7 @@ export function installWorkstation(catalog,privacy,submission){
  // Older viewers without the footer slot or render event: refresh when the panel opens.
  new MutationObserver(()=>{paintLive();if(!panel.hidden)void refresh(false);}).observe(panel,{attributes:true,attributeFilter:['hidden']});
 
- // ---- Live strip above the Suggestions button ----
+ // ---- Live strip above the Edits button ----
  // While a job runs, it shows the step, progress and elapsed time without opening anything.
  const live=action('',()=>openDialog(false),'hs-live');live.id='house-station-live';live.hidden=true;
  const liveDot=el('span',null,'hs-spin'),liveText=el('span',null,'hs-live-text'),liveTitle=el('strong'),liveMeta=el('small'),liveBar=el('span',null,'hs-live-bar'),liveFill=el('i');
@@ -279,11 +270,11 @@ export function installWorkstation(catalog,privacy,submission){
   if(state.stage==='received'){liveTitle.textContent=statusOf(state,!!owner)[0];}
   else if(running){liveTitle.textContent=stepText(state.step)||statusOf(state,!!owner)[0];}
   else if(state.stage==='waiting')liveTitle.textContent=owner?label('Claude needs you — open the session','Claude 需要你处理，请打开会话'):label('Claude is waiting for the owner','Claude 在等站主');
-  else liveTitle.textContent=state.stage==='review'?(owner?label(`Revision ${state.version} is ready for your approval`,`版本 ${state.version} 等待你批准`):label(`Revision ${state.version} is waiting for owner approval`,`版本 ${state.version} 等待站主批准`)):label('A job needs your input','有任务需要你确认');
+  else liveTitle.textContent=state.stage==='review'?(owner?label(`Revision ${state.version} is built and going live`,`版本 ${state.version} 已建好，正在上线`):label(`Revision ${state.version} is built and going live`,`版本 ${state.version} 已建好，正在上线`)):label('A job needs your input','有任务需要你确认');
   const parts=[];
   if(running&&state.stage!=='received')parts.push(label(`Step ${progress.index} of ${progress.total}`,`第 ${progress.index}/${progress.total} 步`));
   if(running)parts.push(duration(Date.now()-jobStart(state)));
-  if(count)parts.push(label(`${count} suggestion${count>1?'s':''}`,`${count} 条建议`));
+  if(count)parts.push(label(`${count} edit${count>1?'s':''}`,`${count} 条修改`));
   if(state.message&&(running||state.stage==='waiting'))parts.unshift(state.message);
   liveMeta.textContent=parts.join(' · ');
   liveBar.hidden=!running;liveFill.style.width=Math.round(progress.fraction*100)+'%';
@@ -322,18 +313,18 @@ export function installWorkstation(catalog,privacy,submission){
   if(focusSend)sendBox.querySelector('button')?.focus();
  }
  modal.onclose=()=>{clearTimeout(timer);confirming=null;};
- // Escape closes only the dialog, not the Suggestions panel behind it, even when focus left the dialog.
+ // Escape closes only the dialog, not the Edits panel behind it, even when focus left the dialog.
  document.addEventListener('keydown',event=>{if(event.key==='Escape'&&modal.open){event.stopPropagation();modal.close();}},true);
  modal.tabIndex=-1;
 
  function renderSend(){
   const count=pending.notes.length,box=[];
   if(!submission)box.push(el('p',unavailable(),'hs-muted'));
-  else if(!count)box.push(el('p',pending.all?.length?label('Every suggestion on this revision has been sent. Edit one or add a new one to send again.','这个版本上的建议都已发送。修改或新增建议后可以再次发送。'):label('No saved suggestions on this revision yet. Add one in the Suggestions panel.','这个版本还没有保存的建议。请先在建议面板中新增。'),'hs-muted'));
+  else if(!count)box.push(el('p',pending.all?.length?label('Every edit has been sent. Change one or add a new one to send again.','所有修改都已发送。更改或新增修改后可以再次发送。'):label('No saved edits yet. Add one in the Edits panel.','还没有保存的修改。请先在修改面板中新增。'),'hs-muted'));
   else{
-   box.push(el('p',label(`${count} suggestion${count>1?'s':''} on revision ${pending.revisionId} ready to send:`,`版本 ${pending.revisionId} 上有 ${count} 条建议可以发送：`),'hs-send-title'));
+   box.push(el('p',label(`${count} edit${count>1?'s':''} ready to send:`,`${count} 条修改可以发送：`),'hs-send-title'));
    const list=el('ol',null,'hs-send-list');
-   for(const n of pending.notes){const number=lastNotes.find(x=>x.id===n.id)?.number;const item=el('li',n.title||n.text||label('Image reference','图片建议'));if(number)item.value=number;list.append(item);}
+   for(const n of pending.notes){const number=lastNotes.find(x=>x.id===n.id)?.number;const item=el('li',n.title||n.text||label('Image reference','参考图'));if(number)item.value=number;list.append(item);}
    box.push(list);
   }
   const send=action(sendStage||label(`Send ${count} to the workstation`,`发送 ${count} 条到工作站`),()=>guard(submit),'hs-primary');
@@ -344,7 +335,7 @@ export function installWorkstation(catalog,privacy,submission){
  }
  async function submit(){
   const {notes:unsorted,revisionId}=await sendable(true);
-  if(!unsorted.length)throw Error(label('Nothing new to send on this revision.','这个版本没有新的建议要发送。'));
+  if(!unsorted.length)throw Error(label('Nothing new to send.','没有新的修改要发送。'));
   const notes=[...unsorted].sort(byCreation).map(n=>({...n,number:lastNotes.find(x=>x.id===n.id)?.number}));
   const live=await api({op:'status'});if(!live.online)throw Error(offlineText());
   const bundle=exportSuggestions(catalog.projectId,notes);delete bundle.exportedAt;
@@ -358,7 +349,7 @@ export function installWorkstation(catalog,privacy,submission){
   localStorage.setItem(idKey,job);
   remember({job,sentAt:Date.now(),revisionId,notes:notes.map(n=>({id:n.id,version:n.version,number:lastNotes.find(x=>x.id===n.id)?.number,text:(n.text||'').slice(0,160)}))});
   const old=(await api({op:'read',job})).state;
-  if(old){states.set(job,old);say(label('The workstation already has this submission.','工作站已收到这批建议。'));return;}
+  if(old){states.set(job,old);say(label('The workstation already has these edits.','工作站已收到这批修改。'));return;}
   const step=555000,count=Math.ceil(raw.length/step);
   for(let i=0;i<count;i++){
    sendStage=label(`Sending ${i+1} of ${count}…`,`正在发送 ${i+1} / ${count}…`);renderSend();panelSending=sendStage;paintFooter();
@@ -375,12 +366,12 @@ export function installWorkstation(catalog,privacy,submission){
  async function sendFromPanel(){
   if(panelSending)return;
   panelNotice='';
-  try{await submit();panelNotice=label('Sent. Each suggestion shows its progress below.','已发送。每条建议的进度显示在下方。');}
+  try{await submit();panelNotice=label('Sent. Each edit shows its progress below.','已发送。每条修改的进度显示在下方。');}
   catch(e){panelNotice=e.message;}
   finally{panelSending='';await refresh(true);}
  }
 
- // ---- Status bar at the top of the Suggestions panel ----
+ // ---- Status bar at the top of the Edits panel ----
  const bar=document.getElementById('suggestions-status');
  // Every job that matters now: running first, then the most recent, at most three.
  function relevantJobs(){
@@ -421,9 +412,8 @@ export function installWorkstation(catalog,privacy,submission){
     head.append(el('strong',label(`Revision ${state.version} is ready`,`版本 ${state.version} 已建好`)),
      el('small',[label(`${built.length} built`,`${built.length} 条已建`),held.length?label(`${held.length} need input`,`${held.length} 条需确认`):''].filter(Boolean).join(' · '),'hs-muted'));
     nodes.push(head);
-    if(!owner)nodes.push(el('p',label('The owner reviews each built suggestion before it is published.','站主会逐条查看后再发布。'),'hs-muted'));
+    if(!owner)nodes.push(el('p',label('It goes live once the website checks pass.','网站检查通过后会自动上线。'),'hs-muted'));
     else{
-     const approved=approvals(job),ready=built.every(o=>approved.has(o.id));
      if(publishConfirm===job){
       nodes.push(el('p',label(`Publishing pushes commit ${state.commit.slice(0,7)} to bznick98/zbao_portfolio, opens a pull request and merges it once the Vercel preview passes.`,`发布会把提交 ${state.commit.slice(0,7)} 推送到 bznick98/zbao_portfolio，新建 PR，并在 Vercel 预览通过后合并。`)));
       const row=el('div',null,'hs-row');
@@ -431,8 +421,8 @@ export function installWorkstation(catalog,privacy,submission){
       row.dataset.confirm='';
       nodes.push(row);
      }else{
-      nodes.push(el('p',ready?label('Every built suggestion is approved.','已建的建议都已批准。'):label(`Approve each built suggestion below, then publish. ${approved.size} of ${built.length} approved.`,`请在下方逐条批准已建的建议，然后发布。已批准 ${approved.size}/${built.length}。`),'hs-muted'));
-      const go=action(label(`Publish ${state.version}…`,`发布 ${state.version}…`),()=>{publishConfirm=job;paintStatus();},'hs-primary');go.disabled=!ready||!online;nodes.push(go);
+      nodes.push(el('p',label('The workstation publishes it automatically. If it is set to wait for you, publish it here.','工作站会自动发布；若设置为等待站主，可在此发布。'),'hs-muted'));
+      const go=action(label(`Publish ${state.version}…`,`发布 ${state.version}…`),()=>{publishConfirm=job;paintStatus();},'hs-secondary');go.disabled=!online;nodes.push(go);
      }
     }
    }else if(state.stage==='published'){
@@ -543,7 +533,7 @@ export function installWorkstation(catalog,privacy,submission){
   const top=el('div',null,'hs-job-top'),[text,tone]=statusOf(state,!!owner,true);
   const chip=el('span',text,'hs-chip');chip.dataset.tone=tone;
   const count=state?.outcomes?.length??record?.notes?.length??0;
-  const name=el('strong',[count?label(`${count} suggestion${count>1?'s':''}`,`${count} 条建议`):label('Job','任务'),
+  const name=el('strong',[count?label(`${count} edit${count>1?'s':''}`,`${count} 条修改`):label('Job','任务'),
    record?.revisionId||state?.version?`${label('rev','版本')} ${record?.revisionId??'?'}${state?.version?' → '+state.version:''}`:''].filter(Boolean).join(' · '));
   const when=el('small',ago(record?.sentAt??state?.receivedAt??state?.updated),'hs-muted');
   top.append(chip,name,when);article.append(top);
@@ -564,14 +554,14 @@ export function installWorkstation(catalog,privacy,submission){
     const number=record?.notes?.find(n=>n.id===o.id)?.number??lastNotes.find(n=>n.id===o.id)?.number;
     const item=el('li');item.dataset.status=o.status??'sent';
     const mark=el('span',o.status==='built'?'✓':o.status==='review'?'!':'·','hs-mark');
-    const body=el('span',null,'hs-body');body.append(el('span',(number?'#'+number+' ':'')+(o.text||label('Image reference','图片建议'))));
+    const body=el('span',null,'hs-body');body.append(el('span',(number?'#'+number+' ':'')+(o.text||label('Image reference','参考图'))));
     if(o.status==='built')body.append(el('small',label('Built','已建模'),'hs-muted'));
     if(o.status==='review')body.append(el('small',label('Not built — ','未建模——')+(o.note||label('needs your decision.','需要你确认。'))));
     item.append(mark,body);
     // A suggestion saved on this device can be reopened, edited and staged again.
     if(lastNotes.some(n=>n.id===o.id)){
      const editing=action(label('Edit','编辑'),()=>{modal.close();document.dispatchEvent(new CustomEvent('house:edit-suggestion',{detail:{id:o.id}}));},'hs-edit');
-     editing.setAttribute('aria-label',label('Edit suggestion','编辑建议')+(number?' #'+number:''));item.append(editing);
+     editing.setAttribute('aria-label',label('Change edit','更改修改')+(number?' #'+number:''));item.append(editing);
     }
     list.append(item);
    }
@@ -601,12 +591,12 @@ export function installWorkstation(catalog,privacy,submission){
      }),'hs-primary');
      const row=el('div',null,'hs-row');row.append(yes,action(label('Cancel','取消'),()=>{confirming=null;renderDialog();},'hs-secondary'));box.append(row);
      actions.append(box);
-    }else actions.append(action(label(`Approve and publish ${state.version}`,`批准并发布 ${state.version}`),()=>{confirming=job;renderDialog();},'hs-primary'));
+    }else actions.append(action(label(`Publish ${state.version} now`,`立即发布 ${state.version}`),()=>{confirming=job;renderDialog();},'hs-primary'));
    }else if(owner)actions.append(el('p',offlineText(),'hs-muted'));
-   else actions.append(el('p',label('The owner reviews the result before anything is published.','站主确认结果后才会发布。'),'hs-muted'));
+   else actions.append(el('p',label('Each built update goes live after the website checks pass.','每次建好的更新会在网站检查通过后上线。'),'hs-muted'));
   }
   if(state?.stage==='waiting'&&!owner)actions.append(el('p',label('Claude paused for the owner. The job continues once the owner answers.','Claude 暂停了，等站主处理后会继续。'),'hs-muted'));
-  if(state?.stage==='held')actions.append(el('p',label('Edit the flagged suggestions in the Suggestions panel, then send them again.','在建议面板中修改标出的建议，然后重新发送。'),'hs-muted'));
+  if(state?.stage==='held')actions.append(el('p',label('Change the flagged edits in the Edits panel, then send them again.','在修改面板中更改标出的修改，然后重新发送。'),'hs-muted'));
   if(state?.pr){const a=el('a',label('View pull request','查看 PR'));a.href=state.pr;a.target='_blank';a.rel='noopener';actions.append(a);}
   if(actions.childNodes.length)article.append(actions);
   if(state?.history?.length>1){
@@ -624,8 +614,8 @@ export function installWorkstation(catalog,privacy,submission){
   shown=signature;
   title.textContent=label('Workstation','工作站');
   pill.textContent=submitOnline||online?label('Online','在线'):label('Offline','离线');pill.dataset.tone=submitOnline||online?'done':'error';
-  lede.textContent=label('The workstation plans and builds a new revision from your suggestions. The owner approves it before anything is published on zbao.art.','工作站会根据你的建议规划并建出新版本。站主批准后才会在 zbao.art 上发布。');
-  ownerHeading.textContent=owner?label('Signed in as owner','已用站主身份登录'):label('Owner sign-in · approve publishing','站主登录 · 批准发布');
+  lede.textContent=label('The workstation updates the model from your edits, checks the result and publishes it on zbao.art. Each update is saved as a revision you can go back to.','工作站会根据你的修改更新模型，检查后发布到 zbao.art。每次更新都会保存为一个可回看的版本。');
+  ownerHeading.textContent=owner?label('Signed in as owner','已用站主身份登录'):label('Owner sign-in','站主登录');
   upload.setAttribute('aria-label',label('Choose the owner pairing file','选择站主配对文件'));
   upload.hidden=!!owner;
   renderSend();
@@ -641,7 +631,7 @@ export function installWorkstation(catalog,privacy,submission){
    [label('History','历史'),ids.filter(job=>['published','failed'].includes(stage(job)))],
   ];
   const nodes=[];
-  if(!ids.length)nodes.push(el('p',label('No jobs yet. Sent suggestions appear here with their progress.','还没有任务。发送的建议会在这里显示进度。'),'hs-muted'));
+  if(!ids.length)nodes.push(el('p',label('No jobs yet. Sent edits appear here with their progress.','还没有任务。发送的修改会在这里显示进度。'),'hs-muted'));
   for(const [heading,jobs] of sections){
    if(!jobs.length)continue;
    nodes.push(el('h3',heading));
