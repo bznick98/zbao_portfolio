@@ -2,6 +2,9 @@ import {GLTFLoader} from 'three/addons/loaders/GLTFLoader.js';
 import {disposeModel} from './revision-state.js';
 import {setText,t} from './i18n.js';
 const $=id=>document.getElementById(id);
+// The website opens on the newest revision; only an explicit ?revision= link opens an older one.
+const versionKey=id=>String(id).split('.').map(Number);
+function byVersion(a,b){const x=versionKey(a.revisionId),y=versionKey(b.revisionId);for(let i=0;i<Math.max(x.length,y.length);i++){const d=(x[i]||0)-(y[i]||0);if(d)return d;}return 0;}
 const hex=b=>[...new Uint8Array(b)].map(v=>v.toString(16).padStart(2,'0')).join('');
 async function checked(url,sha,signal) {
   const response=url.startsWith('house-asset:')?new Response(await window.__HOUSE_FETCH(url,signal)):await fetch(url,{signal});if(!response.ok)throw Error(`HTTP ${response.status}`);
@@ -14,7 +17,8 @@ export async function createRevisionLoader(commit) {
   const response=new Response(JSON.stringify(window.__HOUSE_CATALOG||{revisions:[]}));if(!response.ok)throw Error('Revision catalog unavailable');
   const catalog=await response.json();if(!catalog.revisions?.length)return null;
   const picker=$('revision-select'), builds=$('revision-build'), status=$('revision-status');
-  const storageKey=`house-revision:${catalog.projectId}:${location.pathname}`;
+  const latestId=catalog.revisions.filter(r=>r.selectedBuildId).sort(byVersion).at(-1)?.revisionId||catalog.defaultRevisionId;
+  try{localStorage.removeItem(`house-revision:${catalog.projectId}:${location.pathname}`);}catch{/* Storage is optional. */}
   let active=null,generation=0,abort,loading=false,lastReason='',lastError='';const cache=new Map();
   for(const revision of catalog.revisions){const o=new Option(revision.revisionId,revision.revisionId);o.title=revision.title;o.disabled=!revision.selectedBuildId;picker.add(o);}
   $('revision-controls').hidden=false;
@@ -66,8 +70,10 @@ export async function createRevisionLoader(commit) {
       if(ticket!==generation){disposeModel(root);return false;}
       lastReason=commit(root,structuredClone(input.scene));committed=true;
       active={revisionId:id,buildId,revision,build};display();
-      const url=new URL(location.href);url.searchParams.set('revision',id);url.searchParams.set('build',buildId);history.replaceState(null,'',url);
-      try{localStorage.setItem(storageKey,id);}catch{/* Storage is optional. */}
+      // Keep the address bare on the newest revision so a reload follows the next publish.
+      const url=new URL(location.href),pinned=id!==latestId||buildId!==revision.selectedBuildId;
+      for(const [k,v] of [['revision',id],['build',buildId]])pinned?url.searchParams.set(k,v):url.searchParams.delete(k);
+      history.replaceState(null,'',url);
       message(lastReason==='relocated'?'revisionRelocated':lastReason==='modelOnly'?'revisionModelOnly':'');return true;
     } catch(error) {
       if(root&&!committed)disposeModel(root);
@@ -77,16 +83,15 @@ export async function createRevisionLoader(commit) {
   }
   picker.onchange=()=>{const id=picker.value;if(active)picker.value=active.revisionId;select(id);};
   builds.onchange=()=>select(active.revisionId,builds.value);
-  window.addEventListener('popstate',()=>{const p=new URL(location.href).searchParams;select(p.get('revision')||catalog.defaultRevisionId,p.get('build')||undefined);});
-  let stored;try{stored=localStorage.getItem(storageKey);}catch{/* Storage is optional. */}
+  window.addEventListener('popstate',()=>{const p=new URL(location.href).searchParams;select(p.get('revision')||latestId,p.get('build')||undefined);});
   const p=new URL(location.href).searchParams,requested=p.get('revision');
-  const desired=catalog.revisions.find(r=>r.revisionId===(requested||stored)&&r.selectedBuildId);
-  const initial=desired?.revisionId||catalog.defaultRevisionId;
+  const desired=catalog.revisions.find(r=>r.revisionId===requested&&r.selectedBuildId);
+  const initial=desired?.revisionId||latestId;
   const wantedBuild=requested===initial?p.get('build')||undefined:undefined;
   const badLink=!!requested&&(!desired||(wantedBuild&&!desired.builds[wantedBuild]?.model));
   const ok=await select(initial,badLink?undefined:wantedBuild);
-  if(!ok&&!active&&initial!==catalog.defaultRevisionId)await select(catalog.defaultRevisionId);
+  if(!ok&&!active&&initial!==latestId)await select(latestId);
   if(badLink&&active)message('revisionFallback');
   if(!active)throw Error(t('revisionInitialError'));
-  return {select,getState:()=>({revisionId:active?.revisionId,buildId:active?.buildId,loading,cacheEntries:cache.size,cachedBytes:[...cache.values()].reduce((n,v)=>n+v.model.byteLength,0),lastReason,lastError,defaultRevisionId:catalog.defaultRevisionId,available:catalog.revisions.map(r=>r.revisionId)})};
+  return {select,getState:()=>({revisionId:active?.revisionId,buildId:active?.buildId,loading,cacheEntries:cache.size,cachedBytes:[...cache.values()].reduce((n,v)=>n+v.model.byteLength,0),lastReason,lastError,defaultRevisionId:catalog.defaultRevisionId,latestRevisionId:latestId,available:catalog.revisions.map(r=>r.revisionId)})};
 }
