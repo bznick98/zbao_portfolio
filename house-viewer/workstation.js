@@ -163,6 +163,9 @@ export function installWorkstation(catalog,privacy,submission){
  }
  // Where one saved suggestion stands, what was built, and what the viewer can do next.
  // Groups: attention (needs this viewer), progress, draft (to send), done (published).
+ // Edits held by a job that the viewer asked to send again unchanged, keyed by edit id -> held job.
+ const resendKey='house-edits-resend';
+ const resendMarks=()=>{try{return JSON.parse(localStorage.getItem(resendKey)||'{}')||{};}catch{return {};}};
  function classify(note,latest=latestSent()){
   const sent=latest.get(note.id);
   if(!sent)return {group:'draft',text:label('Draft','草稿'),tone:''};
@@ -171,8 +174,11 @@ export function installWorkstation(catalog,privacy,submission){
   if(!state)return {group:'progress',text:label('Sending','发送中'),tone:'active'};
   const outcome=state.outcomes?.find(o=>o.id===note.id),preview=previewLoader(job,state,note.id);
   if(state.stage==='failed')return {group:'draft',text:label('Job stopped · send again','任务已停止 · 可重新发送'),tone:'attention',note:state.reason};
-  if(state.stage==='held'||outcome?.status==='review')
-   return {group:'attention',text:label('Not built · needs your input','未建模 · 需要你确认'),tone:'attention',note:outcome?.note||state.reason};
+  if(state.stage==='held'||outcome?.status==='review'){
+   if(resendMarks()[note.id]===job)return {group:'draft',text:label('Ready to send again','可以重新发送'),tone:''};
+   return {group:'attention',text:label('Not built · needs your input','未建模 · 需要你确认'),tone:'attention',note:outcome?.note||state.reason,
+    actions:[{id:'resend',label:label('Send again','重新发送'),primary:true}]};
+  }
   if(state.stage==='published')return {group:'done',text:label(`Live in ${state.version}`,`已上线于 ${state.version}`),tone:'done',preview};
   if(state.stage==='review'||state.stage==='publishing')return {group:'progress',text:label(`Built in ${state.version} · going live`,`已建入 ${state.version} · 正在上线`),tone:'active',preview};
   const [text,tone]=statusOf(state,!!owner);
@@ -180,7 +186,12 @@ export function installWorkstation(catalog,privacy,submission){
  }
  window.__HOUSE_SUGGESTION_ACTION=(note,action)=>{
   const sent=latestSent().get(note.id);if(!sent)return;
-  void action;
+  if(action==='resend'){
+   // Send the held edit again as it is: the workstation now builds what makes sense as a design.
+   const marks=resendMarks();marks[note.id]=sent.record.job;
+   try{localStorage.setItem(resendKey,JSON.stringify(marks));}catch{}
+   void recount();document.dispatchEvent(new Event('house:suggestions-refresh'));
+  }
  };
  window.__HOUSE_SUGGESTION_STATUS=note=>classify(note);
  // Numbers follow the Edits panel, so #1 means the same suggestion everywhere.
@@ -596,7 +607,7 @@ export function installWorkstation(catalog,privacy,submission){
    else actions.append(el('p',label('Each built update goes live after the website checks pass.','每次建好的更新会在网站检查通过后上线。'),'hs-muted'));
   }
   if(state?.stage==='waiting'&&!owner)actions.append(el('p',label('Claude paused for the owner. The job continues once the owner answers.','Claude 暂停了，等站主处理后会继续。'),'hs-muted'));
-  if(state?.stage==='held')actions.append(el('p',label('Change the flagged edits in the Edits panel, then send them again.','在修改面板中更改标出的修改，然后重新发送。'),'hs-muted'));
+  if(state?.stage==='held')actions.append(el('p',label('In the Edits panel, choose Send again on the flagged edits, or Change them first, then send.','在修改面板中对标出的修改选择“重新发送”，或先更改再发送。'),'hs-muted'));
   if(state?.pr){const a=el('a',label('View pull request','查看 PR'));a.href=state.pr;a.target='_blank';a.rel='noopener';actions.append(a);}
   if(actions.childNodes.length)article.append(actions);
   if(state?.history?.length>1){

@@ -116,7 +116,7 @@ async function init(){try{
  revisionLoader=await createRevisionLoader(commitRevision);
  if(!revisionLoader){const response=await fetch(window.__HOUSE_ASSETS.scene);if(!response.ok)throw Error(t('sceneError'));const info=await response.json();const gltf=await new GLTFLoader().loadAsync(window.__HOUSE_ASSETS.model,e=>{if(e.total){const p=Math.round(e.loaded/e.total*100);$('progress').value=p;setText($('load-text'),'loadingProgress',{percent:p});}});commitRevision(gltf.scene,info);go(data.stations[0]?.station);}
  suggestions=installSuggestions({
-  getContext:()=>({data,scene,tools:measurementTools,modes:artifactModes,canvas:renderer.domElement,contains:pointIn,renderFrame:()=>{renderPass.camera=ao.camera=artifactModes.camera;composer.render();}}),
+  getContext:()=>({data,scene,tools:measurementTools,modes:artifactModes,canvas:renderer.domElement,contains:pointIn,wake:ms=>frameGate.wake(ms),renderFrame:()=>{renderPass.camera=ao.camera=artifactModes.camera;composer.render();}}),
   selectRevision:(id,build)=>revisionLoader?.select(id,build),
   restorePose,clearInput
  });
