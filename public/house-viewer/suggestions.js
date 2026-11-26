@@ -29,6 +29,9 @@ const copy={
   places:['Places','位置'],show:['Show','查看'],addPlace:['+ Add another place','+ 再加一个位置'],addWhere:['Add another place','再加一个位置'],
   staged:['To send','待发送'],sent:['Sent','已发送'],editTitle:['Change this edit','更改这条修改'],
   attention:['Needs you','需要你处理'],progress:['Working','进行中'],draft:['Drafts','草稿'],done:['Live','已上线'],
+  doneHint:['Built into the live model. Nothing more to do.','已建入线上模型，无需再处理。'],
+  allDone:['All your edits are in the live model.','你的修改都已建入线上模型。'],
+  openCount:['{n} open edits','{n} 条待处理修改'],
   update:['Change','更改'],showModel:['Show in model','在模型中查看'],enlarge:['Enlarge preview','放大预览'],previewAlt:['Before and after','修改前后对比'],
   point:['Point','点'],pointSub:['One spot on any surface','任意表面上的一点'],pointHint:['Tap the spot you want to change. You can still orbit.','点要修改的位置，仍可拖动旋转视角。'],
   draw:['Trace','描画'],drawSub:['Draw along surfaces','沿表面描出范围'],drawHint:['Drag along a surface to trace the area. Lift to comment.','按住表面拖动描出范围，松开后填写。'],
@@ -61,6 +64,10 @@ const tr=key=>copy[key][document.documentElement.lang.startsWith('zh')?1:0];
 // window.__HOUSE_SUGGESTION_ACTION(summary, actionId) runs an action.
 const statusOf=note=>{try{return window.__HOUSE_SUGGESTION_STATUS?.(note)||null;}catch{return null;}};
 const GROUP={staged:'draft',sent:'progress'};
+// Edits already built into the live model are finished: they leave the count, the markers and the open list.
+const isDone=note=>{const s=statusOf(note);return !!s&&(GROUP[s.group]||s.group)==='done';};
+let showDone=false;
+try{showDone=sessionStorage.getItem('house-edits-show-done')==='1';}catch{}
 const ACTIONS=['finish','resize','move','replace','add','remove','style','other'];
 const SIZED=new Set(['resize','replace','add']);
 const DEFAULT_SIZE_MM={width:600,depth:600,height:750};
@@ -180,10 +187,11 @@ export function installSuggestions({getContext,selectRevision,restorePose,clearI
   function number(id){const i=notes.findIndex(n=>n.id===id);return i<0?notes.length+1:i+1;}
   function syncMarkers(){
     const current=model();
-    const entries=notes.filter(n=>sameModel(n.model,current)&&n.id!==draft?.id)
+    const entries=notes.filter(n=>sameModel(n.model,current)&&n.id!==draft?.id&&(showDone||!isDone(n)))
       .map(n=>({id:n.id,number:number(n.id),active:n.id===active,shape:n.shape}));
     if(located())entries.push({id:draft.id,number:number(draft.id),active:true,shape:displayRegions(noteRegions(draft))});
     markers.set(entries);markers.update(getContext());
+    getContext().wake?.(300);  // Rendering is on demand: show the changed markers.
   }
   function goView(view){
     const {modes}=getContext();clearInput();modes.setMode('walk');
@@ -477,8 +485,18 @@ export function installSuggestions({getContext,selectRevision,restorePose,clearI
     }else groups=[['current',current],['other',other]];
     for(const [key,group] of groups){
       if(!group.length)continue;
-      const heading=el('h3');heading.className='sg-group';heading.dataset.group=key;heading.append(tr(key)+' ',el('span',String(group.length)));body.append(heading);
-      const list=el('ol');list.className='sg-list';list.dataset.group=key;body.append(list);
+      const list=el('ol');list.className='sg-list';list.dataset.group=key;
+      if(key==='done'){
+        // Finished edits stay available but folded away, so the open list shows only what is left to do.
+        if(groups.every(([k,g])=>k==='done'||!g.length)){const all=el('p',tr('allDone'));all.className='sg-note sg-all-done';body.append(all);}
+        const fold=el('details');fold.className='sg-done';fold.open=showDone;
+        fold.ontoggle=()=>{showDone=fold.open;try{sessionStorage.setItem('house-edits-show-done',showDone?'1':'0');}catch{}syncMarkers();};
+        const summary=el('summary');summary.className='sg-group';summary.dataset.group=key;summary.append(tr(key)+' ',el('span',String(group.length)));
+        const hint=el('p',tr('doneHint'));hint.className='sg-note';
+        fold.append(summary,hint,list);body.append(fold);
+      }else{
+        const heading=el('h3');heading.className='sg-group';heading.dataset.group=key;heading.append(tr(key)+' ',el('span',String(group.length)));body.append(heading,list);
+      }
       renderItems(list,group);
     }
     body.append(create);
@@ -531,7 +549,9 @@ export function installSuggestions({getContext,selectRevision,restorePose,clearI
   function render(){
     const open=page!=='closed',picking=page==='pick';
     panel.hidden=!open;panel.classList.toggle('sg-picking',picking);canvas.classList.toggle('sg-aim',picking);
-    caption.textContent=tr('title');count.textContent=ready?String(notes.length):'…';
+    const openEdits=ready?notes.filter(n=>!isDone(n)).length:0;
+    caption.textContent=tr('title');count.textContent=ready?String(openEdits):'…';
+    count.title=ready?tr('openCount').replace('{n}',openEdits):'';count.dataset.open=String(openEdits);
     plus.title=tr('add');plus.setAttribute('aria-label',tr('add'));plus.disabled=!ready||busy;
     dock.dataset.page=page;
     trigger.setAttribute('aria-expanded',String(open));trigger.setAttribute('aria-pressed',String(open));

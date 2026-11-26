@@ -132,3 +132,13 @@
 .sg-size label { display:grid; gap:2px; font-size:12px; }
 .sg-size input { color:inherit; font:inherit; width:100%; box-sizing:border-box; padding:6px; border:1px solid var(--sg-line); border-radius:6px; background:transparent; }
 .sg-size small { grid-column:1/-1; font-size:11px; opacity:.75; }
+/* Edits already in the live model, folded below the open ones. */
+.sg-done { margin-top:6px; }
+.sg-done > summary { cursor:pointer; list-style:none; }
+.sg-done > summary::-webkit-details-marker { display:none; }
+.sg-done > summary > span { margin-left:auto; }
+.sg-done > summary::after { content:'▸'; padding-left:8px; }
+.sg-done[open] > summary::after { content:'▾'; }
+.sg-done > .sg-note { margin:4px 0 6px; }
+.sg-all-done { margin:4px 0 2px; }
+.sg-count[data-open="0"] { opacity:.55; }
